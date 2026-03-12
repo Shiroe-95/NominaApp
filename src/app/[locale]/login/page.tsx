@@ -1,25 +1,34 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, Mail, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useRouter } from '@/i18n/routing';
-import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('admin');
+    const [error, setError] = useState<string | null>(null);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => {
+        setError(null);
+
+        const supabase = createClient();
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (authError) {
+            setError('Correo o contraseña incorrectos. Por favor verifica tus credenciales.');
             setIsLoading(false);
-            router.push('/');
-        }, 1200);
+            return;
+        }
+
+        router.push('/');
+        router.refresh();
     };
 
     return (
@@ -89,6 +98,14 @@ export default function LoginPage() {
                     </div>
 
                     <form className="space-y-4" onSubmit={handleLogin}>
+                        {/* Auth error */}
+                        {error && (
+                            <div className="flex items-start gap-2.5 rounded-xl border border-rose/30 bg-rose/10 px-4 py-3">
+                                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose" />
+                                <p className="text-sm text-rose">{error}</p>
+                            </div>
+                        )}
+
                         {/* Email */}
                         <div className="space-y-1.5">
                             <label htmlFor="email" className="text-sm font-medium text-slate-700">
@@ -132,34 +149,6 @@ export default function LoginPage() {
                                     className="block w-full pl-10 pr-4 h-11 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet transition-all"
                                     placeholder="••••••••"
                                 />
-                            </div>
-                        </div>
-
-                        {/* Role selector */}
-                        <div className="pt-2">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
-                                Simular rol (demo)
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { id: 'admin', label: 'Admin', color: 'bg-navy text-white border-navy' },
-                                    { id: 'payroll', label: 'Nómina', color: 'bg-emerald text-white border-emerald' },
-                                    { id: 'auditor', label: 'Auditor', color: 'bg-violet text-white border-violet' },
-                                ].map((r) => (
-                                    <button
-                                        key={r.id}
-                                        type="button"
-                                        onClick={() => setRole(r.id)}
-                                        className={cn(
-                                            "py-2 text-xs font-semibold rounded-lg border transition-all",
-                                            role === r.id
-                                                ? r.color
-                                                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                        )}
-                                    >
-                                        {r.label}
-                                    </button>
-                                ))}
                             </div>
                         </div>
 

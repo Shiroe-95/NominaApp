@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './Sidebar';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 const pageMeta: Record<string, { title: string; subtitle: string; ctaLabel?: string; ctaHref?: string; stage?: string }> = {
     '/': {
@@ -109,7 +110,11 @@ export default function Header() {
 
     function handleLogout() {
         setProfileOpen(false);
-        router.push('/login');
+        const supabase = createClient();
+        supabase.auth.signOut().finally(() => {
+            router.push('/login');
+            router.refresh();
+        });
     }
 
     return (
