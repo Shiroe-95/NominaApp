@@ -31,8 +31,7 @@ export default async function DashboardPage() {
 
         payrollData = payrollsRes.data ?? [];
         companiesData = companiesRes.data ?? [];
-    } catch (error) {
-        console.log('[v0] Error fetching data:', error);
+    } catch {
         // Continue with empty data
     }
 
