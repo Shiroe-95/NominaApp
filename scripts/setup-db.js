@@ -4,7 +4,12 @@ const path = require('path');
 
 async function runSetup() {
     console.log("Starting DB initialization...");
-    const connectionString = "postgresql://postgres.rvwgfoieiehmmasznxaz:%2Fg6vHPr%40HtkPPic@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
+    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+    if (!connectionString) {
+        console.error("❌ No database connection string found. Set POSTGRES_URL or DATABASE_URL.");
+        process.exit(1);
+    }
 
     const pool = new Pool({
         connectionString,
