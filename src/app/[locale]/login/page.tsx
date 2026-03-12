@@ -89,7 +89,7 @@ export default function LoginPage() {
                         <div className="w-9 h-9 bg-gradient-to-br from-emerald to-violet rounded-xl flex items-center justify-center">
                             <Zap className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
                         </div>
-                        <span className="text-navy font-bold text-lg tracking-tight">NóminaSmart</span>
+                        <span className="text-white font-bold text-lg tracking-tight">NóminaSmart</span>
                     </div>
 
                     <div className="mb-8">

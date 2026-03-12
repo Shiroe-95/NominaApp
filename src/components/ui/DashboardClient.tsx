@@ -9,7 +9,6 @@ import { DashboardTrends } from '@/components/ui/DashboardTrends';
 import { DashboardHealth } from '@/components/ui/DashboardHealth';
 import { TopCompanies } from '@/components/ui/TopCompanies';
 import { LatestPayrollCard } from '@/components/ui/LatestPayrollCard';
-import AiSidebar from '@/components/ui/AiSidebar';
 
 interface Company {
     id: string;
@@ -122,24 +121,6 @@ export function DashboardClient({ initialCompanies, initialPayrolls }: Dashboard
             .slice(0, 6);
     }, [filtered]);
 
-    const dashboardContext = useMemo(() => {
-        return `
-MÉTRICAS GLOBALES ACTUALES EN PANTALLA:
-- Total planillas analizadas: ${metrics.total}
-- Planillas certificables: ${metrics.certifiable} (${metrics.certRate.toFixed(1)}%)
-- Planillas no certificables: ${metrics.noCertifiable}
-- Riesgo promedio: ${metrics.avgRisk.toFixed(1)}/100
-- Hallazgos críticos totales: ${metrics.criticalFindings}
-- Filas con problemas: ${metrics.rowsWithFindings}
-- Empleados en riesgo: ${metrics.employeesAtRisk}
-
-EMPRESAS DESTACADAS (Top de registros):
-${companyBreakdown.map(c => `- ${c.company}: ${c.total} planillas (${c.certifiable} certificables), Riesgo Promedio: ${c.riskAvg.toFixed(1)}/100`).join('\n')}
-
-IMPORTANTE: Si el usuario pregunta "cuántas...", "cuál es el riesgo...", etc., usa EXCLUSIVAMENTE estos números para responder, ya que reflejan los filtros actuales que el usuario tiene aplicados en pantalla.
-        `.trim();
-    }, [metrics, companyBreakdown]);
-
     const latest = filtered[0];
 
     return (
@@ -217,8 +198,6 @@ IMPORTANTE: Si el usuario pregunta "cuántas...", "cuál es el riesgo...", etc.,
                     <LatestPayrollCard latest={latest as any} />
                 </section>
             </div>
-
-            <AiSidebar context={dashboardContext} />
         </div>
     );
 }

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY 
+    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    : null;
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -324,6 +326,13 @@ INSTRUCCIONES:
 
 export async function POST(req: Request) {
     try {
+        if (!openai) {
+            return NextResponse.json({ 
+                reply: 'El servicio de IA no está configurado. Configura OPENAI_API_KEY para habilitar esta funcionalidad.',
+                actionsPerformed: [] 
+            });
+        }
+
         const { messages, context } = await req.json() as { messages: ChatMessage[], context?: string };
         if (!Array.isArray(messages)) {
             return NextResponse.json({ error: 'messages es requerido' }, { status: 400 });
