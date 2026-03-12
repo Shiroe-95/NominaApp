@@ -336,18 +336,32 @@ export function validatePayrollCalculations(input: {
                 const nonSalaryCap = totalIncome * 0.4;
                 const expectedExcess = Math.max(0, nonSalaryTotal - nonSalaryCap);
                 const expectedIbc = salaryTotal + expectedExcess;
-                const diff = Math.abs(ibcValue - expectedIbc);
-
-                if (diff > 100) {
-                    checks.ibc_rule_1393.failedRows += 1;
-                    rowHasFinding = true;
-                    criticalFindings += 1;
-                    pushSample(
-                        checks.ibc_rule_1393.sampleFindings,
-                        `${displayName}: IBC reportado ${f(ibcValue)} vs esperado ${f(expectedIbc)}`
-                    );
+                
+                // Si no hay IBC reportado pero hay ingresos, calcular el esperado
+                if (ibcTotalIdxs.length === 0 || ibcValue === 0) {
+                    // No hay campo IBC mapeado - reportar el IBC que debería tener
+                    if (expectedIbc > 0) {
+                        checks.ibc_rule_1393.failedRows += 1;
+                        rowHasFinding = true;
+                        criticalFindings += 1;
+                        pushSample(
+                            checks.ibc_rule_1393.sampleFindings,
+                            `${displayName}: SIN IBC reportado. IBC esperado ${f(expectedIbc)} (Salario: ${f(salaryTotal)}, No Salarial: ${f(nonSalaryTotal)}, Exceso 40%: ${f(expectedExcess)})`
+                        );
+                    }
                 } else {
-                    checks.ibc_rule_1393.passedRows += 1;
+                    const diff = Math.abs(ibcValue - expectedIbc);
+                    if (diff > 100) {
+                        checks.ibc_rule_1393.failedRows += 1;
+                        rowHasFinding = true;
+                        criticalFindings += 1;
+                        pushSample(
+                            checks.ibc_rule_1393.sampleFindings,
+                            `${displayName}: IBC reportado ${f(ibcValue)} vs esperado ${f(expectedIbc)} (Exceso 40%: ${f(expectedExcess)})`
+                        );
+                    } else {
+                        checks.ibc_rule_1393.passedRows += 1;
+                    }
                 }
 
                 if (tope40Idxs.length > 0) {
@@ -417,30 +431,53 @@ export function validatePayrollCalculations(input: {
                 }
             }
 
-            if (healthDeductionIdxs.length > 0 && ibcValue > 0) {
-                const healthDeduction = healthDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
-                const expected = ibcValue * 0.04;
-                if (Math.abs(healthDeduction - expected) > Math.max(100, expected * 0.01)) {
+            // Calcular IBC efectivo para validaciones de aportes
+            const ibcEfectivo = ibcValue > 0 ? ibcValue : (salaryTotal + Math.max(0, nonSalaryTotal - totalIncome * 0.4));
+            
+            if (ibcEfectivo > 0) {
+                const healthDeduction = healthDeductionIdxs.length > 0 
+                    ? healthDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0)
+                    : 0;
+                const expectedHealth = ibcEfectivo * 0.04;
+                
+                if (healthDeductionIdxs.length === 0) {
+                    // No hay campo de descuento salud mapeado
                     checks.health_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.health_deduction_4pct.sampleFindings,
-                        `${displayName}: descuento salud ${healthDeduction.toFixed(0)} vs esperado 4% de IBC ${expected.toFixed(0)}`
+                        `${displayName}: SIN descuento salud. Esperado 4% de IBC: ${f(expectedHealth)}`
+                    );
+                } else if (Math.abs(healthDeduction - expectedHealth) > Math.max(100, expectedHealth * 0.01)) {
+                    checks.health_deduction_4pct.failedRows += 1;
+                    rowHasFinding = true;
+                    pushSample(
+                        checks.health_deduction_4pct.sampleFindings,
+                        `${displayName}: descuento salud ${f(healthDeduction)} vs esperado 4% de IBC ${f(expectedHealth)}`
                     );
                 } else {
                     checks.health_deduction_4pct.passedRows += 1;
                 }
-            }
 
-            if (pensionDeductionIdxs.length > 0 && ibcValue > 0) {
-                const pensionDeduction = pensionDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
-                const expected = ibcValue * 0.04;
-                if (Math.abs(pensionDeduction - expected) > Math.max(100, expected * 0.01)) {
+                const pensionDeduction = pensionDeductionIdxs.length > 0
+                    ? pensionDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0)
+                    : 0;
+                const expectedPension = ibcEfectivo * 0.04;
+                
+                if (pensionDeductionIdxs.length === 0) {
+                    // No hay campo de descuento pensión mapeado
                     checks.pension_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.pension_deduction_4pct.sampleFindings,
-                        `${displayName}: descuento pension ${pensionDeduction.toFixed(0)} vs esperado 4% de IBC ${expected.toFixed(0)}`
+                        `${displayName}: SIN descuento pension. Esperado 4% de IBC: ${f(expectedPension)}`
+                    );
+                } else if (Math.abs(pensionDeduction - expectedPension) > Math.max(100, expectedPension * 0.01)) {
+                    checks.pension_deduction_4pct.failedRows += 1;
+                    rowHasFinding = true;
+                    pushSample(
+                        checks.pension_deduction_4pct.sampleFindings,
+                        `${displayName}: descuento pension ${f(pensionDeduction)} vs esperado 4% de IBC ${f(expectedPension)}`
                     );
                 } else {
                     checks.pension_deduction_4pct.passedRows += 1;

@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createGroq } from '@ai-sdk/groq';
+import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Get AI provider - OpenAI first, then Groq fallback
+function getOpenAI() {
+    if (!process.env.OPENAI_API_KEY) return null;
+    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+function getGroq() {
+    if (!process.env.GROQ_API_KEY) return null;
+    return createGroq({ apiKey: process.env.GROQ_API_KEY });
+}
+
+function isAIAvailable() {
+    return !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
+}
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -324,6 +339,13 @@ INSTRUCCIONES:
 
 export async function POST(req: Request) {
     try {
+        if (!isAIAvailable()) {
+            return NextResponse.json({ 
+                reply: 'El servicio de IA no está configurado. Configura OPENAI_API_KEY o GROQ_API_KEY para habilitar esta funcionalidad.',
+                actionsPerformed: [] 
+            });
+        }
+
         const { messages, context } = await req.json() as { messages: ChatMessage[], context?: string };
         if (!Array.isArray(messages)) {
             return NextResponse.json({ error: 'messages es requerido' }, { status: 400 });
@@ -333,65 +355,90 @@ export async function POST(req: Request) {
             ? `${SYSTEM_PROMPT}\n\nCONTEXTO ACTUAL DEL DASHBOARD:\n${context}\n\nUsa esta información para responder a las preguntas del usuario sobre el estado actual de la nómina y certificación.`
             : SYSTEM_PROMPT;
 
-        const systemMsg: OpenAI.Chat.Completions.ChatCompletionMessageParam = { role: 'system', content: dynamicSystemPrompt };
-        const historyMsgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-        }));
-
-        const conversationMsgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [systemMsg, ...historyMsgs];
-
-        // First call — may return tool_calls
-        const firstResponse = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: conversationMsgs,
-            tools: TOOLS,
-            tool_choice: 'auto',
-            temperature: 0.3,
-            max_tokens: 1000,
-        });
-
-        const firstChoice = firstResponse.choices[0];
+        const openai = getOpenAI();
+        const groq = getGroq();
         const actionsPerformed: ActionPerformed[] = [];
 
-        if (firstChoice?.finish_reason === 'tool_calls' && firstChoice.message.tool_calls?.length) {
-            // Add assistant's tool_calls message
-            conversationMsgs.push(firstChoice.message);
+        // Try OpenAI first (supports function calling)
+        if (openai) {
+            const systemMsg: OpenAI.Chat.Completions.ChatCompletionMessageParam = { role: 'system', content: dynamicSystemPrompt };
+            const historyMsgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messages.map((m) => ({
+                role: m.role,
+                content: m.content,
+            }));
 
-            // Execute each tool call (only function-type calls have .function)
-            for (const toolCall of firstChoice.message.tool_calls) {
-                if (!('function' in toolCall)) continue;
-                const fnCall = toolCall as { id: string; function: { name: string; arguments: string } };
-                const toolResult = await executeTool(fnCall.function.name, fnCall.function.arguments);
+            const conversationMsgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [systemMsg, ...historyMsgs];
 
-                actionsPerformed.push({
-                    herramienta: fnCall.function.name,
-                    exito: toolResult.success,
-                    resumen: toolResult.resumen,
-                });
-
-                conversationMsgs.push({
-                    role: 'tool',
-                    tool_call_id: fnCall.id,
-                    content: toolResult.result,
-                });
-            }
-
-            // Second call — get final natural language response
-            const secondResponse = await openai.chat.completions.create({
+            // First call — may return tool_calls
+            const firstResponse = await openai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: conversationMsgs,
+                tools: TOOLS,
+                tool_choice: 'auto',
                 temperature: 0.3,
-                max_tokens: 800,
+                max_tokens: 1000,
             });
 
-            const reply = secondResponse.choices[0]?.message?.content ?? 'Acción completada.';
-            return NextResponse.json({ reply, actionsPerformed });
+            const firstChoice = firstResponse.choices[0];
+
+            if (firstChoice?.finish_reason === 'tool_calls' && firstChoice.message.tool_calls?.length) {
+                // Add assistant's tool_calls message
+                conversationMsgs.push(firstChoice.message);
+
+                // Execute each tool call
+                for (const toolCall of firstChoice.message.tool_calls) {
+                    if (!('function' in toolCall)) continue;
+                    const fnCall = toolCall as { id: string; function: { name: string; arguments: string } };
+                    const toolResult = await executeTool(fnCall.function.name, fnCall.function.arguments);
+
+                    actionsPerformed.push({
+                        herramienta: fnCall.function.name,
+                        exito: toolResult.success,
+                        resumen: toolResult.resumen,
+                    });
+
+                    conversationMsgs.push({
+                        role: 'tool',
+                        tool_call_id: fnCall.id,
+                        content: toolResult.result,
+                    });
+                }
+
+                // Second call — get final natural language response
+                const secondResponse = await openai.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: conversationMsgs,
+                    temperature: 0.3,
+                    max_tokens: 800,
+                });
+
+                const reply = secondResponse.choices[0]?.message?.content ?? 'Acción completada.';
+                return NextResponse.json({ reply, actionsPerformed });
+            }
+
+            // No tool calls — plain response
+            const reply = firstChoice?.message?.content ?? 'No pude procesar la solicitud.';
+            return NextResponse.json({ reply, actionsPerformed: [] });
         }
 
-        // No tool calls — plain response
-        const reply = firstChoice?.message?.content ?? 'No pude procesar la solicitud.';
-        return NextResponse.json({ reply, actionsPerformed: [] });
+        // Fallback to Groq (no function calling, just text generation)
+        if (groq) {
+            const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content ?? '';
+            
+            const result = await generateText({
+                model: groq('llama-3.3-70b-versatile'),
+                system: dynamicSystemPrompt,
+                prompt: lastUserMessage,
+                maxTokens: 1000,
+            });
+
+            return NextResponse.json({ reply: result.text, actionsPerformed: [] });
+        }
+
+        return NextResponse.json({ 
+            reply: 'No hay proveedor de IA disponible.',
+            actionsPerformed: [] 
+        });
     } catch (error: unknown) {
         console.error('Chat error:', error);
         return NextResponse.json({ error: getErrorMessage(error, 'Error en el chat de IA') }, { status: 500 });

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { createGroq } from '@ai-sdk/groq';
+import { generateText } from 'ai';
 
 export interface AiCorrectionSuggestion {
     rowIndex: number;
@@ -11,8 +11,25 @@ export interface AiCorrectionSuggestion {
     reason: string;
 }
 
+function getOpenAI() {
+    if (!process.env.OPENAI_API_KEY) return null;
+    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+function getGroq() {
+    if (!process.env.GROQ_API_KEY) return null;
+    return createGroq({ apiKey: process.env.GROQ_API_KEY });
+}
+
 export async function POST(req: Request) {
     try {
+        const openai = getOpenAI();
+        const groq = getGroq();
+
+        if (!openai && !groq) {
+            return NextResponse.json({ suggestions: [], error: 'No AI provider configured' });
+        }
+
         const body = await req.json();
         const rows: Record<string, unknown>[] = Array.isArray(body.rows) ? body.rows : [];
         const findings: string[] = Array.isArray(body.findings) ? body.findings : [];
@@ -45,15 +62,43 @@ Responde ÚNICAMENTE con JSON válido:
 
 Si no hay correcciones claras posibles, responde: {"suggestions":[]}`;
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            response_format: { type: 'json_object' },
-            temperature: 0,
-            max_tokens: 2048,
-        });
+        let content = '{"suggestions":[]}';
 
-        const content = completion.choices[0]?.message?.content ?? '{"suggestions":[]}';
+        // Try OpenAI first
+        if (openai) {
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: prompt }],
+                    response_format: { type: 'json_object' },
+                    temperature: 0,
+                    max_tokens: 2048,
+                });
+                content = completion.choices[0]?.message?.content ?? '{"suggestions":[]}';
+            } catch (openaiError) {
+                console.error('OpenAI corrections error, trying Groq:', openaiError);
+            }
+        }
+
+        // Fallback to Groq
+        if (content === '{"suggestions":[]}' && groq) {
+            try {
+                const result = await generateText({
+                    model: groq('llama-3.3-70b-versatile'),
+                    prompt: prompt + '\n\nIMPORTANT: Respond ONLY with valid JSON, no markdown or explanations.',
+                    maxTokens: 2048,
+                });
+                let jsonStr = result.text.trim();
+                // Handle potential markdown code blocks
+                if (jsonStr.startsWith('```')) {
+                    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+                }
+                content = jsonStr;
+            } catch (groqError) {
+                console.error('Groq corrections error:', groqError);
+            }
+        }
+
         const parsed = JSON.parse(content) as { suggestions?: AiCorrectionSuggestion[] };
         return NextResponse.json({ suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [] });
     } catch (error) {

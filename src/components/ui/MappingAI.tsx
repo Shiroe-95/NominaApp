@@ -24,22 +24,47 @@ const DEFAULT_TARGET_FIELDS = [
 
 const LOCAL_FIELD_MAP: [RegExp, string][] = [
     // Identidad
-    [/cedula|^cc$|nro\.?\s*doc|num\.?\s*doc|identificaci[oó]n|id\.?\s*emp/i, 'document_number'],
-    [/nombre|^nombres?$|nombre\s*1|first\s*name|empleado|trabajador/i, 'first_name'],
+    [/numero\s*(de\s*)?documento|cedula|^cc$|nro\.?\s*doc|num\.?\s*doc|identificaci[oó]n|id\.?\s*emp/i, 'document_number'],
+    [/nombre\s*completo|^nombre$|^nombres?$|nombre\s*1|first\s*name|empleado(?!\s*codigo)|trabajador/i, 'first_name'],
     [/apellido|^apellidos?$|apellido\s*1|last\s*name/i, 'last_name'],
     [/fecha\s*(de\s*)?(ingreso|inicio|vinculaci[oó]n|contrat)|hire\s*date/i, 'hire_date'],
-    [/tipo\s*(de\s*)?cotizante|cod\.?\s*cotizante|contributor\s*type|tipo/i, 'contributor_type'],
-    [/d[ií]as|tiempo|trabajados?|laborados?|cotizados?|pagados?|worked\s*days/i, 'worked_days'],
-    // Salario base
-    [/salario\s*(b[aá]sico?|base)|sueldo\s*(b[aá]sico?|base)|devengado\s*b[aá]sico?|base\s*salary/i, 'base_salary'],
+    [/fecha\s*(de\s*)?retiro/i, 'informational'],
+    [/tipo\s*(de\s*)?cotizante|cod\.?\s*cotizante|contributor\s*type/i, 'contributor_type'],
+    [/codigo\s*empleado|cod\s*emp/i, 'informational'],
+    [/cargo\s*(empleado)?|puesto/i, 'informational'],
+    // Salario base y devengos salariales (DEBEN mapearse a salary_base)
+    [/^sueldo$|salario\s*(b[aá]sico?|base)?|devengado\s*b[aá]sico?|base\s*salary/i, 'base_salary'],
+    [/comisiones?\s*(sb|si)?|comision\s*boutique/i, 'base_salary'],
+    [/retroactivo\s*salario|diferencia\s*(de\s*)?salario/i, 'base_salary'],
+    [/incentivo\s*mensual|spiff|cumplimiento\s*de\s*meta|apoyo\s*eventos/i, 'base_salary'],
+    [/reemplazo\s*transitorio|fin\s*de\s*semana/i, 'base_salary'],
+    [/dominicales?\s*compensados?/i, 'base_salary'],
+    // Horas extras (SALARIALES)
     [/hora\s*extra\s*diurna?|h\.?e\.?\s*diur|overtime\s*(hours?\s*)?day/i, 'overtime_hours_day'],
     [/hora\s*extra\s*nocturna?|h\.?e\.?\s*noc|overtime\s*(hours?\s*)?night/i, 'overtime_hours_night'],
+    [/hora\s*extra\s*(dominical|festiv)/i, 'overtime_hours_day'],
+    [/recargo\s*nocturno/i, 'overtime_hours_night'],
+    // Total devengado
     [/total\s*devengado|bruto\s*(total)?|gross\s*pay|devengado\s*total/i, 'gross_pay'],
-    // No salariales — orden importante: transporte antes del patrón general
-    [/auxilio\s*(de\s*)?transp|transp(orte)?(?!\s*no\s*sal)|transport/i, 'transport_allowance'],
-    [/no\s*salarial|pagos?\s*no\s*sal|no\s*constitutiv|bono|auxili(?!o\s*(de\s*)?transp)|rodamiento|movilidad|conectividad|gasto\s*rep|viatico/i, 'non_salary_payments'],
+    // Transporte (especifico - antes que non_salary general)
+    [/auxilio\s*(de\s*)?transp|subsidio\s*(de\s*)?transp|transp(orte)?(?!\s*turno)/i, 'transport_allowance'],
+    [/transporte\s*turno/i, 'non_salary_payments'],
+    // No salariales - AUXILIOS (mapean a non_salary_payments)
+    [/apoyo\s*sostenimiento/i, 'non_salary_payments'],
+    [/auxilio\s*(de\s*)?(vivienda|rodamiento|movilidad|educacion|recreacion|salud|internet|paternidad|maternidad)/i, 'non_salary_payments'],
+    [/auxilio\s*monetario/i, 'non_salary_payments'],
+    [/auxilio\s*(no\s*salarial|extralegal|convencional)/i, 'non_salary_payments'],
+    [/auxilio\s*lavado|auxilio\s*pago/i, 'non_salary_payments'],
+    [/tarjeta\s*(de\s*)?alimentacion/i, 'non_salary_payments'],
+    [/medicina\s*prepagada|colsanitas/i, 'non_salary_payments'],
+    [/no\s*salarial|pagos?\s*no\s*sal|no\s*constitutiv|bono|bonificacion|rodamiento|movilidad|conectividad|gasto\s*rep|viatico/i, 'non_salary_payments'],
+    [/apoyo\s*adicional/i, 'non_salary_payments'],
+    [/turno\s*disponibilidad/i, 'non_salary_payments'],
+    // Incapacidades y licencias (informativo, pero suman al devengado)
+    [/incapacidad|licencia\s*(maternidad|paternidad|luto|remunerada|calamidad)/i, 'informational'],
+    [/dia\s*de\s*la\s*familia/i, 'informational'],
     // IBC
-    [/ibc\s*total|ingreso\s*base\s*(de\s*cotizaci[oó]n\s*)?total/i, 'ibc_total'],
+    [/^ibc$|ibc\s*total|ingreso\s*base\s*(de\s*cotizaci[oó]n\s*)?total/i, 'ibc_total'],
     [/ibc\s*(de\s*)?salud|base\s*cotiz\w*\s*salud/i, 'ibc_salud'],
     [/ibc\s*(de\s*)?pensi[oó]n|base\s*cotiz\w*\s*pens/i, 'ibc_pension'],
     [/ibc\s*(de\s*)?arl/i, 'ibc_arl'],
@@ -55,8 +80,15 @@ const LOCAL_FIELD_MAP: [RegExp, string][] = [
     [/parafiscal|sena\s*\+?\s*icbf|caja\s*comp/i, 'parafiscales_total'],
     // Prestaciones
     [/cesant[ií]a/i, 'cesantias_provision'],
-    [/^prima$|prima\s*(de\s*)?(servicio|auxili)|provisi[oó]n\s*prima/i, 'prima_provision'],
+    [/intereses?\s*(de\s*)?cesant/i, 'cesantias_provision'],
+    [/^prima$|prima\s*(legal|de\s*servicio|extralegal|semestral|de\s*vacaciones|de\s*fidelidad)/i, 'prima_provision'],
     [/vacaci[oó]n|vacation/i, 'vacation_provision'],
+    [/indemnizaci[oó]n/i, 'informational'],
+    [/bonificacion\s*(por\s*)?pension/i, 'informational'],
+    // Deducciones y descuentos (informativo)
+    [/descuento|dcto|retencion|libranza|embargo|prestamo|fondo/i, 'informational'],
+    // Neto
+    [/neto\s*(a\s*pagar)?|pago\s*(neto|fuera)/i, 'informational'],
 ];
 
 function normalizeHeader(h: string) {
@@ -114,13 +146,30 @@ export interface MappingAIProps {
 }
 
 function inferCategory(source: string, target: string): AnalysisCategory {
-    const m = `${source} ${target}`.toLowerCase();
-    if (/document|cedula|nombre|apellido|name/.test(m)) return 'identity';
-    if (/salario|base_salary|devengado_b/.test(m) && !/no_sal|auxilio/.test(m)) return 'salary_base';
-    if (/non_salary|no_salarial|auxilio|bono|rodamiento|transport/.test(m)) return 'non_salary';
-    if (/ibc|tope_40/.test(m)) return 'ibc';
-    if (/salud|pension|arl|parafiscal|deduccion|empleador/.test(m)) return 'contribution';
-    if (/fecha|dias|worked|hire|cotizante|contributor/.test(m)) return 'contract';
+    const m = `${source} ${target}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
+    // Identity
+    if (/document_number|numero.*documento|cedula|nit/.test(m)) return 'identity';
+    if (/first_name|last_name|nombre|apellido/.test(m)) return 'identity';
+    
+    // IBC (check before salary_base)
+    if (/ibc|tope_40|ingreso_base/.test(m)) return 'ibc';
+    
+    // Non-salary (check before salary_base to catch auxilios)
+    if (/non_salary|transport_allowance|auxilio|rodamiento|movilidad|apoyo_sostenimiento|bonificacion_no|tarjeta_alimentacion/.test(m)) return 'non_salary';
+    
+    // Salary base
+    if (/base_salary|salario|sueldo|comision|overtime|hora_extra|gross_pay|devengado|incentivo|spiff|retroactivo/.test(m)) return 'salary_base';
+    
+    // Provisions (prestaciones - also salary base for IBC calculation)
+    if (/cesantias|prima|vacation|vacacion/.test(m)) return 'salary_base';
+    
+    // Contributions
+    if (/health_employee|pension_employee|salud_empleador|pension_empleador|arl_value|parafiscal|descuento_salud|descuento_pension|aporte/.test(m)) return 'contribution';
+    
+    // Contract
+    if (/hire_date|fecha_ingreso|fecha_retiro|worked_days|dias_trabajados|contributor_type|tipo_cotizante/.test(m)) return 'contract';
+    
     return 'informational';
 }
 

@@ -250,8 +250,8 @@ export default function ReportsPage() {
         <div className="space-y-5 pb-16">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-bold text-slate-900 inline-flex items-center gap-2">
-                        <FileCheck2 className="w-5 h-5 text-violet" />
+                    <h1 className="text-xl font-bold text-white inline-flex items-center gap-2 drop-shadow-sm">
+                        <FileCheck2 className="w-5 h-5 text-violet-light" />
                         {t('title')}
                     </h1>
                     <p className="text-sm text-slate-400 mt-0.5">{t('subtitle')}</p>
@@ -259,7 +259,7 @@ export default function ReportsPage() {
                 <button
                     onClick={handleExportReport}
                     disabled={rows.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet text-white text-sm font-semibold hover:bg-violet-dark transition-colors disabled:opacity-40 shrink-0"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet text-white text-sm font-semibold hover:bg-violet-dark transition-colors disabled:opacity-40 shrink-0 shadow-[0_0_15px_rgba(139,92,246,0.4)]"
                 >
                     <Download className="w-4 h-4" />
                     Exportar Reporte
@@ -267,35 +267,35 @@ export default function ReportsPage() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="glass-panel border border-white/10 rounded-2xl p-4 shadow-lg shadow-black/20">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('payrollCount')}</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">{summary.total}</p>
+                    <p className="text-2xl font-black text-white mt-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">{summary.total}</p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="glass-panel border border-white/10 rounded-2xl p-4 shadow-lg shadow-black/20">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('certifiableCount')}</p>
-                    <p className="text-2xl font-black text-emerald-600 mt-1">{summary.certifiable}</p>
+                    <p className="text-2xl font-black text-emerald-light mt-1 drop-shadow-[0_0_10px_rgba(52,211,153,0.6)]">{summary.certifiable}</p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="glass-panel border border-white/10 rounded-2xl p-4 shadow-lg shadow-black/20">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('criticalFailures')}</p>
-                    <p className="text-2xl font-black text-rose-600 mt-1">{summary.nonCertifiable}</p>
+                    <p className="text-2xl font-black text-rose-light mt-1 drop-shadow-[0_0_10px_rgba(251,113,133,0.6)]">{summary.nonCertifiable}</p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="glass-panel border border-white/10 rounded-2xl p-4 shadow-lg shadow-black/20">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('openQueue')}</p>
-                    <p className="text-2xl font-black text-amber-600 mt-1">{actionsQueue.open + actionsQueue.assigned}</p>
+                    <p className="text-2xl font-black text-amber-light mt-1 drop-shadow-[0_0_10px_rgba(252,211,77,0.6)]">{actionsQueue.open + actionsQueue.assigned}</p>
                 </div>
             </div>
 
             {latest ? (
                 <>
-                    <Card className="border-indigo-100 shadow-indigo-100/20 shadow-lg">
-                        <CardHeader className="bg-indigo-50/30">
-                            <CardTitle className="text-base flex items-center justify-between gap-2">
+                    <Card className="border-violet/20 shadow-violet/10 shadow-lg">
+                        <CardHeader className="bg-violet/10">
+                            <CardTitle className="text-base flex items-center justify-between gap-2 text-white">
                                 <div className="flex items-center gap-2">
-                                    <ListChecks className="w-4 h-4 text-indigo-600" />
+                                    <ListChecks className="w-4 h-4 text-violet-light" />
                                     {t('generalDetail')}: {latest.company_name}
                                 </div>
-                                <span className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter', latest.certification_ready ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
-                                    {latest.certification_ready ? `✓ ${t('certifiable')}` : `✗ ${t('notCertifiable')}`}
+                                <span className={cn('px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border', latest.certification_ready ? 'bg-emerald/20 text-emerald-light border-emerald/30' : 'bg-rose/20 text-rose-light border-rose/30')}>
+                                    {latest.certification_ready ? `${t('certifiable')}` : `${t('notCertifiable')}`}
                                 </span>
                             </CardTitle>
                         </CardHeader>
@@ -303,22 +303,22 @@ export default function ReportsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identificación</p>
-                                    <p className="text-sm font-semibold text-slate-700">{latest.company_name} <span className="text-slate-400 font-normal">({latest.company_nit})</span></p>
-                                    <p className="text-xs text-slate-500">{latest.period_month}/{latest.period_year} · {latest.country_code}</p>
+                                    <p className="text-sm font-semibold text-white">{latest.company_name} <span className="text-slate-400 font-normal">({latest.company_nit})</span></p>
+                                    <p className="text-xs text-slate-400">{latest.period_month}/{latest.period_year} · {latest.country_code}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Riesgo Global</p>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-2xl font-black text-slate-900">{latest.risk_report?.score ?? 0}<span className="text-sm font-normal text-slate-400">/100</span></span>
-                                        <span className={cn('text-[10px] font-bold uppercase px-2 py-0.5 rounded border', (latest.risk_report?.level ?? 'low') === 'high' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100')}>
+                                        <span className="text-2xl font-black text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{latest.risk_report?.score ?? 0}<span className="text-sm font-normal text-slate-400">/100</span></span>
+                                        <span className={cn('text-[10px] font-bold uppercase px-2 py-0.5 rounded border', (latest.risk_report?.level ?? 'low') === 'high' ? 'bg-rose/20 text-rose-light border-rose/30' : 'bg-emerald/20 text-emerald-light border-emerald/30')}>
                                             Nivel {latest.risk_report?.level ?? 'bajo'}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('coverage')}</p>
-                                    <p className="text-sm font-semibold text-slate-700">{latest.detected_variables?.length ?? 0} Variables</p>
-                                    <p className="text-xs text-slate-500">{latest.mapped_fields?.length ?? 0} Mapeadas · {latest.file_count} Archivos</p>
+                                    <p className="text-sm font-semibold text-white">{latest.detected_variables?.length ?? 0} Variables</p>
+                                    <p className="text-xs text-slate-400">{latest.mapped_fields?.length ?? 0} Mapeadas · {latest.file_count} Archivos</p>
                                 </div>
                             </div>
 
@@ -326,63 +326,63 @@ export default function ReportsPage() {
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t('detectedVariables')}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {(latest.detected_variables ?? []).slice(0, 40).map((v) => (
-                                        <span key={v} className="text-[10px] font-medium bg-slate-50 border border-slate-100 text-slate-600 rounded px-2 py-0.5">{v}</span>
+                                        <span key={v} className="text-[10px] font-medium bg-white/5 border border-white/10 text-slate-300 rounded px-2 py-0.5">{v}</span>
                                     ))}
-                                    {(latest.detected_variables?.length ?? 0) > 40 && <span className="text-[10px] text-slate-400">+{latest.detected_variables!.length - 40} más</span>}
+                                    {(latest.detected_variables?.length ?? 0) > 40 && <span className="text-[10px] text-slate-500">+{latest.detected_variables!.length - 40} más</span>}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                                    <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Riesgo por Empleado</p>
+                                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-violet-light" /> Riesgo por Empleado</p>
                                     <div className="space-y-2">
                                         {(latest.employee_risk_summary?.topEmployees ?? []).slice(0, 5).map((emp) => {
                                             const realName = emp.name && emp.name !== 'Sin nombre' ? emp.name : findNameInMatrices(emp.document, latest);
                                             return (
-                                                <div key={`${emp.document}-${emp.name}`} className="flex items-center justify-between text-xs p-2 bg-white border border-slate-100 rounded-lg">
+                                                <div key={`${emp.document}-${emp.name}`} className="flex items-center justify-between text-xs p-2 bg-white/5 border border-white/10 rounded-lg">
                                                     <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-900 truncate max-w-[150px]">{realName}</span>
+                                                        <span className="font-bold text-white truncate max-w-[150px]">{realName}</span>
                                                         <span className="text-[10px] text-slate-400 font-mono">CC {emp.document}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-slate-500 italic max-w-[180px] truncate">{emp.findings[0]}</span>
-                                                        <span className={cn('font-black min-w-[24px] text-right', emp.score > 30 ? 'text-rose-600' : 'text-slate-400')}>{emp.score}</span>
+                                                        <span className="text-slate-400 italic max-w-[180px] truncate">{emp.findings[0]}</span>
+                                                        <span className={cn('font-black min-w-[24px] text-right', emp.score > 30 ? 'text-rose-light' : 'text-slate-400')}>{emp.score}</span>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                         {(!latest.employee_risk_summary?.topEmployees || latest.employee_risk_summary.topEmployees.length === 0) && (
-                                            <p className="text-xs text-slate-400 italic text-center py-4">{t('noIndividualRisk')}</p>
+                                            <p className="text-xs text-slate-500 italic text-center py-4">{t('noIndividualRisk')}</p>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                                    <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Validación Matemática</p>
+                                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-light" /> Validación Matemática</p>
                                     <div className="space-y-2">
                                         {(latest.calculation_validation_report?.checks as CheckResult[] ?? []).slice(0, 8).map((check) => {
                                             const totalAnalyzed = check.passedRows + check.failedRows;
                                             const hasMissing = check.missingDependencies && check.missingDependencies.length > 0;
                                             return (
-                                                <div key={check.id} className="text-xs p-2 bg-white border border-slate-100 rounded-lg">
+                                                <div key={check.id} className="text-xs p-2 bg-white/5 border border-white/10 rounded-lg">
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-semibold text-slate-800 truncate max-w-[200px]">{check.label}</span>
-                                                        <span className={cn('text-[10px] font-bold uppercase', check.failedRows > 0 ? 'text-rose-600' : hasMissing ? 'text-amber-600' : 'text-emerald-600')}>
+                                                        <span className="font-semibold text-slate-200 truncate max-w-[200px]">{check.label}</span>
+                                                        <span className={cn('text-[10px] font-bold uppercase', check.failedRows > 0 ? 'text-rose-light' : hasMissing ? 'text-amber-light' : 'text-emerald-light')}>
                                                             {check.failedRows > 0 ? `${check.failedRows} fallas` : hasMissing ? 'Incompleto' : 'Perfecto'}
                                                         </span>
                                                     </div>
                                                     {totalAnalyzed > 0 ? (
-                                                        <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden flex">
-                                                            <div className="bg-emerald-500 h-full" style={{ width: `${(check.passedRows / totalAnalyzed) * 100}%` }} />
-                                                            <div className="bg-rose-500 h-full" style={{ width: `${(check.failedRows / totalAnalyzed) * 100}%` }} />
+                                                        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden flex">
+                                                            <div className="bg-emerald h-full" style={{ width: `${(check.passedRows / totalAnalyzed) * 100}%` }} />
+                                                            <div className="bg-rose h-full" style={{ width: `${(check.failedRows / totalAnalyzed) * 100}%` }} />
                                                         </div>
                                                     ) : (
                                                         <div className="space-y-1">
-                                                            <p className="text-[10px] text-amber-600 font-medium italic flex items-center gap-1">
+                                                            <p className="text-[10px] text-amber-light font-medium italic flex items-center gap-1">
                                                                 <AlertTriangle className="w-3 h-3" /> {t('missingMapping')}: {check.missingDependencies?.join(', ')}
                                                             </p>
                                                             {check.potentialMatches && Object.keys(check.potentialMatches).length > 0 && (
-                                                                <p className="text-[9px] text-slate-400 bg-slate-50 p-1 rounded border border-dashed border-slate-200">
+                                                                <p className="text-[9px] text-slate-400 bg-white/5 p-1 rounded border border-dashed border-white/10">
                                                                     Sugerencia: {Object.entries(check.potentialMatches).map(([t, h]) => `${h} → ${t}`).join(' | ')}
                                                                 </p>
                                                             )}
@@ -399,36 +399,36 @@ export default function ReportsPage() {
                 </>
             ) : (
                 <Card>
-                    <CardContent className="py-20 text-center text-slate-400 text-sm">
+                    <CardContent className="py-20 text-center text-slate-500 text-sm">
                         <FileCheck2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
                         {t('noSavedReports')}
                     </CardContent>
                 </Card>
             )}
 
-            <Card className="border-slate-200">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <CalendarClock className="w-4 h-4 text-slate-500" />
+                    <CardTitle className="text-base flex items-center gap-2 text-white">
+                        <CalendarClock className="w-4 h-4 text-violet-light" />
                         {t('auditLog')}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table>
-                        <TableHeader className="bg-slate-50/50">
-                            <TableRow>
-                                <TableHead className="font-bold py-4">Fecha</TableHead>
-                                <TableHead className="font-bold">Empresa</TableHead>
-                                <TableHead className="font-bold">Periodo</TableHead>
-                                <TableHead className="text-center font-bold">Riesgo</TableHead>
-                                <TableHead className="font-bold">Estado</TableHead>
-                                <TableHead className="text-right font-bold pr-6">Acciones</TableHead>
+                        <TableHeader className="bg-black/30">
+                            <TableRow className="border-white/10">
+                                <TableHead className="font-bold py-4 text-slate-300">Fecha</TableHead>
+                                <TableHead className="font-bold text-slate-300">Empresa</TableHead>
+                                <TableHead className="font-bold text-slate-300">Periodo</TableHead>
+                                <TableHead className="text-center font-bold text-slate-300">Riesgo</TableHead>
+                                <TableHead className="font-bold text-slate-300">Estado</TableHead>
+                                <TableHead className="text-right font-bold pr-6 text-slate-300">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {rows.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-slate-400 py-12">
+                                <TableRow className="border-white/10">
+                                    <TableCell colSpan={6} className="text-center text-slate-500 py-12">
                                         No hay registros.
                                     </TableCell>
                                 </TableRow>
@@ -436,24 +436,24 @@ export default function ReportsPage() {
                             {rows.map((r) => {
                                 const isDeleting = deletingId === r.id;
                                 return (
-                                    <TableRow key={r.id} className={cn('group transition-colors', isDeleting && 'opacity-50')}>
-                                        <TableCell className="py-4 text-xs font-medium text-slate-600">
+                                    <TableRow key={r.id} className={cn('group transition-colors hover:bg-white/5 border-white/10', isDeleting && 'opacity-50')}>
+                                        <TableCell className="py-4 text-xs font-medium text-slate-400">
                                             {new Date(r.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-slate-900">{r.company_name}</span>
-                                                <span className="text-[10px] text-slate-400">{r.company_nit}</span>
+                                                <span className="text-xs font-bold text-white">{r.company_name}</span>
+                                                <span className="text-[10px] text-slate-500">{r.company_nit}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-xs text-slate-600">{String(r.period_month).padStart(2, '0')}/{r.period_year}</TableCell>
+                                        <TableCell className="text-xs text-slate-300">{String(r.period_month).padStart(2, '0')}/{r.period_year}</TableCell>
                                         <TableCell className="text-center">
-                                            <span className={cn('text-xs font-black', (r.risk_report?.score ?? 0) > 30 ? 'text-rose-600' : 'text-slate-600')}>
+                                            <span className={cn('text-xs font-black', (r.risk_report?.score ?? 0) > 30 ? 'text-rose-light' : 'text-slate-300')}>
                                                 {r.risk_report?.score ?? 0}
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <span className={cn('inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full', r.certification_ready ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>
+                                            <span className={cn('inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border', r.certification_ready ? 'bg-emerald/20 text-emerald-light border-emerald/30' : 'bg-rose/20 text-rose-light border-rose/30')}>
                                                 {r.certification_ready ? 'Certificable' : 'Faltantes'}
                                             </span>
                                         </TableCell>
@@ -461,7 +461,7 @@ export default function ReportsPage() {
                                             <button
                                                 onClick={() => void handleDeletePayroll(r.id)}
                                                 disabled={isDeleting}
-                                                className="p-2 rounded-lg hover:bg-rose-50 text-slate-300 hover:text-rose-600 transition-all opacity-0 group-hover:opacity-100"
+                                                className="p-2 rounded-lg hover:bg-rose/20 text-slate-500 hover:text-rose-light transition-all opacity-0 group-hover:opacity-100"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
