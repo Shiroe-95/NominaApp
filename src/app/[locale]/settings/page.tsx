@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User, Bell, Globe2, Shield, Info, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 const ROLES = [
     { id: 'admin', label: 'Administrador', desc: 'Acceso total: cargar, corregir, reportes y configurar reglas.' },
@@ -24,6 +25,18 @@ export default function SettingsPage() {
         Object.fromEntries(NOTIFICATIONS.map((n) => [n.id, n.defaultOn]))
     );
     const [saved, setSaved] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.email) {
+                setUserEmail(data.user.email);
+                setDisplayName(data.user.user_metadata?.full_name ?? data.user.email.split('@')[0]);
+            }
+        });
+    }, []);
 
     const handleSave = () => {
         setSaved(true);
@@ -51,13 +64,13 @@ export default function SettingsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</label>
-                        <input defaultValue="Admin User" className="h-10 w-full px-3" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Correo</label>
-                        <input defaultValue="admin@company.com" type="email" className="h-10 w-full px-3" readOnly />
-                    </div>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</label>
+                            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-10 w-full px-3" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Correo</label>
+                            <input value={userEmail} type="email" className="h-10 w-full px-3" readOnly />
+                        </div>
                 </div>
 
                 <div className="space-y-2">

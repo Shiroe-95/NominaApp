@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import UploadZone, { ParsedFile } from '@/components/ui/UploadZone';
 import MappingAI, { MappingResult } from '@/components/ui/MappingAI';
-import { Sparkles, Database, FileSpreadsheet, Building2, CalendarClock, CheckCircle2, AlertTriangle, Globe2, Trash2, ChevronDown, ChevronUp, Loader2, PenLine } from 'lucide-react';
+import { Sparkles, Database, FileSpreadsheet, Building2, CalendarClock, CheckCircle2, AlertTriangle, Globe2, Trash2, ChevronDown, ChevronUp, Loader2, PenLine, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { buildRiskReport, summarizeConcepts } from '@/lib/payroll/conceptClassifier';
@@ -650,6 +650,29 @@ export default function UploadPage() {
         }
     };
 
+    const handleExportExcel = () => {
+        if (!parsedMatrices || parsedMatrices.length === 0) return;
+
+        const workbook = XLSX.utils.book_new();
+        for (const [si, matrix] of parsedMatrices.entries()) {
+            const correctedRows = matrix.rows.map((row, ri) => {
+                const rowCorr = corrections.filter((c) => c.sheetIndex === si && c.rowIndex === ri);
+                if (!rowCorr.length) return row;
+                const newRow = [...row];
+                for (const c of rowCorr) newRow[c.colIndex] = c.newValue;
+                return newRow;
+            });
+            const wsData = [matrix.headers, ...correctedRows];
+            const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+            const sheetName = (matrix.sheetName ?? `Hoja${si + 1}`).slice(0, 31);
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        }
+
+        const company = selectedCompany?.name ?? 'nomina';
+        const filename = `${company}_${selectedCountry}_${periodYear}-${String(periodMonth).padStart(2, '0')}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+    };
+
     const canStartUpload = Boolean(selectedCompanyId);
 
     return (
@@ -1168,9 +1191,15 @@ export default function UploadPage() {
                                         <p className="text-xs text-emerald-600 mt-0.5">Puedes ver el reporte antes/después en la sección de Reportes.</p>
                                     </div>
                                 </div>
-                                <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult({ mappedTargets: [], createdTargets: [], mappingDetails: [] }); setCorrections([]); }}>
-                                    Cargar otra
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" onClick={handleExportExcel} disabled={!parsedMatrices}>
+                                        <Download className="w-4 h-4 mr-1.5" />
+                                        Exportar Excel
+                                    </Button>
+                                    <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult({ mappedTargets: [], createdTargets: [], mappingDetails: [] }); setCorrections([]); }}>
+                                        Cargar otra
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>

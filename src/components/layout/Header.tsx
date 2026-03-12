@@ -91,6 +91,18 @@ export default function Header() {
     const [notifOpen, setNotifOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [userInitial, setUserInitial] = useState('U');
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.email) {
+                setUserEmail(data.user.email);
+                setUserInitial(data.user.email[0].toUpperCase());
+            }
+        });
+    }, []);
 
     const pathname = usePathname();
     const router = useRouter();
@@ -204,19 +216,19 @@ export default function Header() {
                             className="group flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/5"
                         >
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet to-violet-light text-xs font-semibold text-white shadow-[0_0_10px_rgba(139,92,246,0.5)]">
-                                A
+                                {userInitial}
                             </div>
                             <span className="hidden text-sm font-medium text-slate-300 transition-colors group-hover:text-white sm:block">
-                                Admin
+                                {userEmail ? userEmail.split('@')[0] : 'Usuario'}
                             </span>
-                            <ChevronDown className={cn('hidden h-3.5 w-3.5 text-slate-400 transition-all duration-150 group-hover:text-slate-200 sm:block', profileOpen && 'rotate-180')} />
+                                <ChevronDown className={cn('hidden h-3.5 w-3.5 text-slate-400 transition-all duration-150 group-hover:text-slate-200 sm:block', profileOpen && 'rotate-180')} />
                         </button>
 
                         {profileOpen && (
                             <div className="absolute right-0 mt-1 w-56 overflow-hidden rounded-2xl border border-white/10 glass-panel shadow-2xl shadow-black/50">
                                 <div className="border-b border-white/10 px-4 py-3">
-                                    <p className="text-sm font-semibold text-white">Admin</p>
-                                    <p className="mt-0.5 text-xs text-slate-400">admin@nominasmart.co</p>
+                                    <p className="text-sm font-semibold text-white">{userEmail ? userEmail.split('@')[0] : 'Usuario'}</p>
+                                    <p className="mt-0.5 text-xs text-slate-400">{userEmail ?? ''}</p>
                                 </div>
                                 <div className="py-1.5">
                                     <button
