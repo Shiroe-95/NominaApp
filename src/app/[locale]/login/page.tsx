@@ -81,7 +81,7 @@ export default function LoginPage() {
             </div>
 
             {/* Right panel - form */}
-            <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
+            <div className="flex-1 flex items-center justify-center p-6 bg-navy-dark">
                 <div className="w-full max-w-md">
 
                     {/* Mobile logo */}
@@ -93,8 +93,8 @@ export default function LoginPage() {
                     </div>
 
                     <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-slate-900">Bienvenido de vuelta</h2>
-                        <p className="text-slate-500 text-sm mt-1">Inicia sesión para continuar</p>
+                        <h2 className="text-2xl font-bold text-white">Bienvenido de vuelta</h2>
+                        <p className="text-slate-400 text-sm mt-1">Inicia sesión para continuar</p>
                     </div>
 
                     <form className="space-y-4" onSubmit={handleLogin}>
@@ -108,12 +108,12 @@ export default function LoginPage() {
 
                         {/* Email */}
                         <div className="space-y-1.5">
-                            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+                            <label htmlFor="email" className="text-sm font-medium text-slate-300">
                                 Correo electrónico
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <Mail className="h-4 w-4 text-slate-400" />
+                                    <Mail className="h-4 w-4 text-slate-500" />
                                 </div>
                                 <input
                                     id="email"
@@ -123,7 +123,7 @@ export default function LoginPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="block w-full pl-10 pr-4 h-11 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet transition-all"
+                                    className="block w-full pl-10 pr-4 h-11 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet transition-all"
                                     placeholder="tu@empresa.com"
                                 />
                             </div>
@@ -131,12 +131,12 @@ export default function LoginPage() {
 
                         {/* Password */}
                         <div className="space-y-1.5">
-                            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                            <label htmlFor="password" className="text-sm font-medium text-slate-300">
                                 Contraseña
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <Lock className="h-4 w-4 text-slate-400" />
+                                    <Lock className="h-4 w-4 text-slate-500" />
                                 </div>
                                 <input
                                     id="password"
@@ -146,7 +146,7 @@ export default function LoginPage() {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-10 pr-4 h-11 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet transition-all"
+                                    className="block w-full pl-10 pr-4 h-11 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet transition-all"
                                     placeholder="••••••••"
                                 />
                             </div>
@@ -172,7 +172,7 @@ export default function LoginPage() {
 
                     {/* Trust badge */}
                     <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-light" />
                         Protegido por Supabase Auth · Datos cifrados en tránsito
                     </div>
                 </div>
