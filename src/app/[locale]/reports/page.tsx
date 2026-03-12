@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileCheck2, AlertTriangle, CheckCircle2, Building2, CalendarClock, ListChecks, Trash2, ShieldCheck } from 'lucide-react';
+import { FileCheck2, AlertTriangle, CheckCircle2, Building2, CalendarClock, ListChecks, Trash2, ShieldCheck, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 import { summarizeActions } from '@/lib/payroll/actions';
+import * as XLSX from 'xlsx';
 
 interface PayrollReport {
     id: string;
@@ -151,6 +152,65 @@ export default function ReportsPage() {
         return { total, certifiable, nonCertifiable, missingFields, missingCalcs };
     }, [rows]);
 
+    const handleExportReport = () => {
+        if (rows.length === 0) return;
+
+        // Sheet 1: Summary table
+        const summaryData = [
+            ['Fecha', 'Empresa', 'NIT', 'País', 'Período', 'Regla', 'Variables', 'Mapeados', 'Riesgo', 'Estado'],
+            ...rows.map((r) => [
+                new Date(r.created_at).toLocaleDateString('es-CO'),
+                r.company_name ?? '',
+                r.company_nit ?? '',
+                r.country_code,
+                `${String(r.period_month).padStart(2, '0')}/${r.period_year}`,
+                r.rule_label ?? '',
+                r.detected_variables?.length ?? 0,
+                r.mapped_fields?.length ?? 0,
+                r.risk_report?.score ?? 0,
+                r.certification_ready ? 'Certificable' : 'No certificable',
+            ]),
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+        // Sheet 2: Employee risk from latest
+        if (latest?.employee_risk_summary?.topEmployees) {
+            const empData = [
+                ['Documento', 'Nombre', 'Score Riesgo', 'Hallazgos'],
+                ...latest.employee_risk_summary.topEmployees.map((e) => [
+                    e.document,
+                    e.name,
+                    e.score,
+                    (e.findings ?? []).join('; '),
+                ]),
+            ];
+            const wsEmp = XLSX.utils.aoa_to_sheet(empData);
+            XLSX.utils.book_append_sheet(wb, wsEmp, 'Riesgo Empleados');
+        }
+
+        // Sheet 3: Actions queue
+        if (actions.length > 0) {
+            const actData = [
+                ['Empleado', 'Título', 'Prioridad', 'Estado', 'Asignado a'],
+                ...actions.map((a) => [
+                    a.employee_name,
+                    a.title,
+                    a.priority,
+                    a.status,
+                    a.assigned_to ?? '',
+                ]),
+            ];
+            const wsAct = XLSX.utils.aoa_to_sheet(actData);
+            XLSX.utils.book_append_sheet(wb, wsAct, 'Cola de Acciones');
+        }
+
+        const filename = `reporte_nominasmart_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        XLSX.writeFile(wb, filename);
+    };
+
     const actionsOverview = useMemo(() => {
         const top = latest?.employee_risk_summary?.topEmployees ?? [];
         return summarizeActions(
@@ -188,12 +248,22 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-5 pb-16">
-            <div>
-                <h1 className="text-xl font-bold text-slate-900 inline-flex items-center gap-2">
-                    <FileCheck2 className="w-5 h-5 text-violet" />
-                    {t('title')}
-                </h1>
-                <p className="text-sm text-slate-400 mt-0.5">{t('subtitle')}</p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-xl font-bold text-slate-900 inline-flex items-center gap-2">
+                        <FileCheck2 className="w-5 h-5 text-violet" />
+                        {t('title')}
+                    </h1>
+                    <p className="text-sm text-slate-400 mt-0.5">{t('subtitle')}</p>
+                </div>
+                <button
+                    onClick={handleExportReport}
+                    disabled={rows.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet text-white text-sm font-semibold hover:bg-violet-dark transition-colors disabled:opacity-40 shrink-0"
+                >
+                    <Download className="w-4 h-4" />
+                    Exportar Reporte
+                </button>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

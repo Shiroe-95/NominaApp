@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Bot, Send, X, Activity, CheckCircle2, AlertCircle, BookOpen, Sparkles } from 'lucide-react';
+import { Bot, Send, X, Activity, CheckCircle2, AlertCircle, BookOpen, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ActionPerformed {
@@ -32,6 +32,11 @@ const SUGGESTIONS = [
     'Quita el cálculo tope_40_no_salarial de Colombia 2025',
 ];
 
+const WELCOME_MESSAGE: Message = {
+    role: 'assistant',
+    text: 'Hola, soy tu Auditor IA de NóminaSmart.\n\nPuedo gestionar las reglas normativas directamente desde aquí: consultarlas, agregar o quitar campos/cálculos/verificaciones, crear nuevas reglas o eliminar existentes.\n\nTambién puedo explicar conceptos de nómina colombiana (IBC, UGPP, prestaciones, horas extras, Ley 1393 y más).',
+};
+
 interface AiSidebarProps {
     context?: string;
 }
@@ -39,14 +44,32 @@ interface AiSidebarProps {
 export default function AiSidebar({ context }: AiSidebarProps = {}) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: 'assistant',
-            text: 'Hola, soy tu Auditor IA de NóminaSmart.\n\nPuedo gestionar las reglas normativas directamente desde aquí: consultarlas, agregar o quitar campos/cálculos/verificaciones, crear nuevas reglas o eliminar existentes.\n\nTambién puedo explicar conceptos de nómina colombiana (IBC, UGPP, prestaciones, horas extras, Ley 1393 y más).',
-        },
-    ]);
+    const [messages, setMessages] = useState<Message[]>(() => {
+        if (typeof window === 'undefined') return [WELCOME_MESSAGE];
+        try {
+            const stored = localStorage.getItem('nominasmart_ai_history');
+            if (stored) {
+                const parsed = JSON.parse(stored) as Message[];
+                return parsed.length > 0 ? parsed : [WELCOME_MESSAGE];
+            }
+        } catch { /* ignore */ }
+        return [WELCOME_MESSAGE];
+    });
     const [input, setInput] = useState('');
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (messages.length > 1) {
+            try {
+                localStorage.setItem('nominasmart_ai_history', JSON.stringify(messages));
+            } catch { /* ignore */ }
+        }
+    }, [messages]);
+
+    const handleClearHistory = () => {
+        setMessages([WELCOME_MESSAGE]);
+        try { localStorage.removeItem('nominasmart_ai_history'); } catch { /* ignore */ }
+    };
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -121,9 +144,14 @@ export default function AiSidebar({ context }: AiSidebarProps = {}) {
                                 </div>
                             </div>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={handleClearHistory} title="Limpiar historial" className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-400" />
+                            </button>
+                            <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Messages */}

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { buildSuggestedActions, summarizeActions } from '@/lib/payroll/actions';
 import LivePayrollWorkbench from '@/components/ui/LivePayrollWorkbench';
+import { createClient } from '@/lib/supabase/client';
 
 interface RuleApiRow {
     country_code: string;
@@ -130,11 +131,23 @@ export default function ReconcilePage() {
     const t = useTranslations('Reconcile');
     const [rows, setRows] = useState<PayrollReview[]>([]);
     const [actionItems, setActionItems] = useState<ActionItem[]>([]);
-    const [assignee, setAssignee] = useState('Analista Nómina');
+    const [assignee, setAssignee] = useState('');
     const [isSavingAction, setIsSavingAction] = useState(false);
     const [allRules, setAllRules] = useState<RuleApiRow[]>([]);
     const [aiEmployeeFilter, setAiEmployeeFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
     const [aiEmployeeSearch, setAiEmployeeSearch] = useState('');
+
+    // Pre-fill assignee with authenticated user
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user?.email) {
+                setAssignee(data.user.email.split('@')[0]);
+            } else {
+                setAssignee('Analista Nómina');
+            }
+        });
+    }, []);
 
     useEffect(() => {
         const load = async () => {
