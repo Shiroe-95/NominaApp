@@ -193,47 +193,57 @@ nomina-smart/
 
 ## Guía de Inicio Rápido
 
-### 1. Prerrequisitos
-- **Node.js** V20+ y NPM instalados
-- Cuenta en **Supabase** (para base de datos)
-- API Keys de **OpenAI** y/o **Anthropic** (para funciones de IA)
+> **¿El proyecto no está ejecutando?** Lee [SETUP.md](./SETUP.md) para instrucciones detalladas.
 
-### 2. Instalación
+### Requisitos Previos
+- **Node.js** v20+ ([descargar](https://nodejs.org))
+- **npm** (incluido con Node.js)
+- **Cuenta Supabase** ([crear gratis](https://supabase.com/))
 
+### Instalación (3 pasos)
+
+**1. Instalar Dependencias**
 ```bash
-git clone https://github.com/Shiroe-95/NominaApp.git
-cd NominaApp
 npm install
 ```
 
-### 3. Variables de Entorno
-
-Configura tu archivo `.env.local`:
-
-```ini
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=tu_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=tu_supabase_service_role_key
-
-# Inteligencia Artificial
-OPENAI_API_KEY=tu_openai_api_key
-ANTHROPIC_API_KEY=tu_anthropic_api_key
+**2. Configurar Variables de Entorno**
+```bash
+cp .env.local.example .env.local
+# Edita .env.local con tus credenciales Supabase
 ```
 
-### 4. Ejecutar la Aplicación
-
-**Desarrollo:**
+**3. Iniciar Servidor de Desarrollo**
 ```bash
 npm run dev
-# Disponible en http://localhost:3000
 ```
 
-**Producción:**
+Accede a la aplicación en:
+- **Español:** http://localhost:3000/es
+- **Inglés:** http://localhost:3000/en
+
+### Obtener Credenciales Supabase
+
+1. Ve a [supabase.com](https://supabase.com) y crea un proyecto
+2. En **Settings → API**, copia:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **Anon Public Key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **Service Role Key** → `SUPABASE_SERVICE_ROLE_KEY`
+3. Pega en `.env.local`
+4. Ejecuta `npm run dev`
+
+### Inicializar Base de Datos (Opcional)
 ```bash
-npm run build
-npm start
+node scripts/setup-db.mjs
 ```
+Crea las tablas necesarias en tu base de datos Supabase.
+
+### Flujo de Trabajo
+1. **Login**: Inicia sesión con tu cuenta (crea una nueva si es necesario)
+2. **Dashboard**: Visualiza el estado global de nóminas
+3. **Upload**: Carga archivos Excel con datos de empleados
+4. **Reconcile**: Revisa automáticamente inconsistencias y riesgos
+5. **Reports**: Genera reportes de auditoría y certificaciones
 
 ---
 
@@ -250,6 +260,32 @@ npm start
 2. **Análisis Normativo**: El módulo **Reconciliador** verifica cumplimiento de la Ley 1393 y otras normativas.
 3. **Gestión de Hallazgos**: Asigna, prioriza y cierra casos desde el panel de acciones.
 4. **Monitoreo**: Visualiza el **Scoring de Salud de Nómina** en el Dashboard principal.
+
+---
+
+## Troubleshooting
+
+### "Cannot find module '@supabase/ssr'"
+```bash
+npm install
+```
+Ejecuta la instalación de dependencias.
+
+### "NEXT_PUBLIC_SUPABASE_URL is not defined"
+1. Copia `.env.local.example` a `.env.local`
+2. Rellena con tus credenciales Supabase
+3. Reinicia el servidor: `npm run dev`
+
+### Puerto 3000 ya en uso
+```bash
+npm run dev -- -p 3001
+```
+
+### Build Error con TypeScript
+Asegúrate de usar Node v20+:
+```bash
+node --version  # Debe ser v20 o superior
+```
 
 ---
 
