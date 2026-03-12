@@ -100,11 +100,36 @@ Analiza CADA registro de empleado de forma individual. Detecta anomalías reales
 
 ${GLOSARIO_CAMPOS}
 
+VALIDACIONES CRITICAS QUE DEBES REALIZAR:
+
+1. CALCULO IBC LEY 1393 (ALTA PRIORIDAD):
+   - Suma todos los campos clasificados como salary_base (base_salary, overtime, comisiones, etc.) = SALARIO_TOTAL
+   - Suma todos los campos clasificados como non_salary (auxilios, bonificaciones no salariales, rodamiento, etc.) = NO_SALARIAL_TOTAL
+   - Total devengado = SALARIO_TOTAL + NO_SALARIAL_TOTAL
+   - Tope 40% = Total devengado × 0.40
+   - Exceso gravable = MAX(0, NO_SALARIAL_TOTAL - Tope 40%)
+   - IBC mínimo esperado = SALARIO_TOTAL + Exceso gravable
+   - Si el IBC reportado es menor al IBC mínimo esperado → ERROR CRITICO (evasión Ley 1393)
+
+2. APORTES SEGURIDAD SOCIAL:
+   - health_employee_deduction debe ser exactamente 4% del IBC
+   - pension_employee_deduction debe ser exactamente 4% del IBC
+   - Tolerancia: ±1% del valor esperado
+
+3. AUXILIO DE TRANSPORTE:
+   - Solo aplica si base_salary <= 2 SMMLV (2026: $3.501.810)
+   - Si tiene auxilio transporte con salario mayor → ERROR
+
+4. PRESTACIONES SOCIALES:
+   - cesantias_provision ≈ 8.33% del devengado mensual
+   - prima_provision ≈ 8.33% del devengado mensual
+   - vacation_provision ≈ 4.17% del base_salary
+
 RESPONDE ÚNICAMENTE con JSON válido (sin markdown, sin texto adicional):
-{"hallazgosPorEmpleado":[{"documento":"cédula","nombre":"Nombre Apellido","problemas":[{"descripcion":"descripción concisa del problema","severidad":"alta|media|baja","norma":"Ley 1393 / Art. 249 CST / etc."}]}]}
+{"hallazgosPorEmpleado":[{"documento":"cédula","nombre":"Nombre Apellido","problemas":[{"descripcion":"descripción concisa del problema con valores calculados","severidad":"alta|media|baja","norma":"Ley 1393 / Art. 249 CST / etc."}]}]}
 
 Si un empleado NO tiene problemas, NO lo incluyas. Si ninguno tiene problemas: {"hallazgosPorEmpleado":[]}
-Usa SIEMPRE español. Sé conciso: máximo 2 problemas por empleado, descripción máximo 120 caracteres.`;
+Usa SIEMPRE español. Sé conciso pero incluye los valores numéricos relevantes en la descripción.`;
 
 const SUMMARY_SYSTEM_PROMPT = `Eres un auditor de nómina colombiana. Genera un reporte ejecutivo consolidado en español basándote en los hallazgos por empleado.
 

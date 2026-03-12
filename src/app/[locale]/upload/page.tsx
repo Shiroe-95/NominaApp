@@ -39,10 +39,29 @@ interface RuleApiRow {
 const FALLBACK_RULES: Record<'CO' | 'MX', Record<number, RuleSet>> = {
     CO: {
         2026: {
-            label: 'UGPP 2026',
-            requiredFields: ['document_number', 'first_name', 'last_name', 'base_salary', 'non_salary_payments'],
-            requiredCalculations: ['ibc_total', 'ibc_salud', 'ibc_pension'],
-            checks: ['Ley 1393 (limite 40% no salarial)'],
+            label: 'Colombia 2026 - Ley 1393 UGPP',
+            requiredFields: ['document_number', 'first_name', 'base_salary', 'non_salary_payments'],
+            requiredCalculations: ['ibc_total', 'health_employee_deduction', 'pension_employee_deduction'],
+            checks: [
+                'SMMLV 2026: $1.750.905',
+                'Auxilio de transporte 2026: $226.100 (solo aplica si salario <= 2 SMMLV)',
+                'IBC = Salario Base + Exceso No Salarial sobre 40% del total devengado',
+                'Exceso No Salarial = MAX(0, Pagos No Salariales - (Total Devengado * 0.40))',
+                'IBC minimo proporcional: SMMLV * (dias trabajados / 30)',
+                'IBC maximo: 25 SMMLV = $43.772.625',
+                'Aporte Salud Empleado: 4% del IBC',
+                'Aporte Pension Empleado: 4% del IBC',
+            ],
+        },
+        2025: {
+            label: 'Colombia 2025 - Ley 1393 UGPP',
+            requiredFields: ['document_number', 'first_name', 'base_salary', 'non_salary_payments'],
+            requiredCalculations: ['ibc_total', 'health_employee_deduction', 'pension_employee_deduction'],
+            checks: [
+                'SMMLV 2025: $1.423.500',
+                'Auxilio de transporte 2025: $200.000 (solo aplica si salario <= 2 SMMLV)',
+                'IBC = Salario Base + Exceso No Salarial sobre 40% del total devengado',
+            ],
         },
     },
     MX: {

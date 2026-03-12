@@ -91,12 +91,33 @@ function normalizeText(value: string) {
 function inferCategory(target: string, source: string): AnalysisCategory {
     const merged = `${normalizeText(target)} ${normalizeText(source)}`;
 
-    if (/document|identificacion|cedula|nit|name|nombre|apellido/.test(merged)) return 'identity';
-    if (/salario|sueldo|base_salary|devengado_basico/.test(merged) && !/no salarial|auxilio|bono/.test(merged)) return 'salary_base';
-    if (/non_salary|no_salarial|auxilio|rodamiento|movilidad|bono/.test(merged)) return 'non_salary';
-    if (/ibc|ibl/.test(merged)) return 'ibc';
-    if (/aporte|salud|pension|arl|parafiscal/.test(merged)) return 'contribution';
-    if (/fecha|ingreso|retiro|dias|tipo cotizante|contributor_type|worked_days/.test(merged)) return 'contract';
+    // Identity fields
+    if (/document_number|identificacion|cedula|nit|numero de documento/.test(merged)) return 'identity';
+    if (/first_name|last_name|nombre|apellido/.test(merged)) return 'identity';
+    
+    // IBC fields (most specific check)
+    if (/ibc|ibl|ingreso base/.test(merged)) return 'ibc';
+    
+    // Non-salary payments (check before salary_base to catch auxilios)
+    if (/non_salary|auxilio|rodamiento|movilidad|recreacion|educacion|vivienda|apoyo sostenimiento|bonificacion no salarial/.test(merged)) return 'non_salary';
+    if (/transport_allowance|subsidio de transporte|auxilio de transporte/.test(merged)) return 'non_salary';
+    
+    // Salary base - only if NOT non-salary
+    if (/base_salary|salario_basico|salario basico|sueldo|gross_pay|total_devengado|devengado|comision/.test(merged)) return 'salary_base';
+    
+    // Contributions (aportes)
+    if (/health_employee|pension_employee|descuento salud|descuento pension|aporte|eps|afp/.test(merged)) return 'contribution';
+    if (/salud_empleador|pension_empleador|arl_value|parafiscal/.test(merged)) return 'contribution';
+    
+    // Contract info
+    if (/hire_date|fecha_ingreso|fecha de ingreso|fecha de retiro|worked_days|dias_trabajados|dias trabajados|contributor_type|tipo_cotizante/.test(merged)) return 'contract';
+    
+    // Provisions (prestaciones sociales) - also classify as salary_base for calculation purposes
+    if (/cesantias|prima|vacaciones|provision/.test(merged)) return 'salary_base';
+    
+    // Overtime - classify as salary_base
+    if (/hora extra|overtime|recargo|dominical|festiva|nocturna/.test(merged)) return 'salary_base';
+    
     return 'informational';
 }
 
@@ -141,19 +162,40 @@ export async function POST(req: Request) {
         const requiredCalculations = incomingRequiredCalculations.length > 0 ? incomingRequiredCalculations : fallbackRule.requiredCalculations;
 
         const prompt = `
-Eres un motor experto de mapeo de columnas para nomina.
+Eres un motor experto de mapeo de columnas para nomina colombiana.
 Contexto normativo: pais=${countryCode}, anio=${Number.isFinite(year) ? year : 'desconocido'}.
 
-Reglas obligatorias:
-1) Debes mapear TODAS las columnas de entrada.
-2) CRITICO: Prioriza USAR LOS CAMPOS OBLIGATORIOS (requiredFields) Y CALCULOS OBLIGATORIOS (requiredCalculations) si hay la mas minima coincidencia semantica.
-3) AMBIGUEDAD NOMBRES: Si una columna contiene "Nombre Completo", "Empleado" o nombres combinados, mapeala SIEMPRE a "first_name". No crees campos nuevos como "nombre_completo".
-4) AMBIGUEDAD DIAS: Si una columna contiene "Dias", "Dias Lab", "Dias Trab", "Tiempo", mapeala SIEMPRE a "worked_days".
-5) AMBIGUEDAD TIPO COTIZANTE: Si una columna dice "Tipo", "Cotizante" o "Tipo Cotizante", mapeala a "contributor_type".
-6) AMBIGUEDAD NO SALARIAL: Si hay campos como "Bono", "Viatico", "Rodamiento", "No salarial", mapealos a "non_salary_payments". Puedes mapear MULTIPLES columnas de origen al MISMO campo de destino.
-7) Si definitivamente NO existe buen match, crea un campo nuevo en snake_case (minusculas con guion bajo).
-8) NO dejes columnas sin valor.
-9) Responde SOLO JSON valido, sin markdown.
+DICCIONARIO DE SINONIMOS COLOMBIA (usa estos para mapear):
+- "NUMERO DE DOCUMENTO", "CEDULA", "NIT", "IDENTIFICACION", "NO. DOCUMENTO" → document_number
+- "NOMBRE COMPLETO", "NOMBRE", "NOMBRES", "EMPLEADO", "TRABAJADOR" → first_name
+- "APELLIDO", "APELLIDOS" → last_name
+- "SUELDO", "SALARIO", "SALARIO BASICO", "BASICO", "SALARIO BASE" → base_salary
+- "AUXILIO DE TRANSPORTE", "SUBSIDIO DE TRANSPORTE", "TRANSPORTE" → transport_allowance
+- "AUXILIO DE VIVIENDA", "AUXILIO DE RODAMIENTO", "AUXILIO DE MOVILIDAD", "AUXILIO DE EDUCACION", "AUXILIO DE RECREACION", "AUXILIO DE SALUD", "AUXILIO", "BONIFICACION", "BONO", "RODAMIENTO", "MOVILIDAD", "EDUCACION", "RECREACION", "APOYO SOSTENIMIENTO" → non_salary_payments
+- "TOTAL DEVENGADO", "DEVENGADO", "TOTAL INGRESOS", "BRUTO" → gross_pay
+- "IBC", "IBL", "BASE DE COTIZACION", "IBC TOTAL", "IBC SALUD", "IBC PENSION" → ibc_total (o ibc_salud/ibc_pension segun contexto)
+- "APORTE SALUD", "DESCUENTO SALUD", "EPS", "SALUD EMPLEADO" → health_employee_deduction
+- "APORTE PENSION", "DESCUENTO PENSION", "AFP", "PENSION EMPLEADO" → pension_employee_deduction
+- "CESANTIAS", "CESANTIAS PARCIALES", "CESANTIAS DEFINITIVAS" → cesantias_provision
+- "PRIMA", "PRIMA LEGAL", "PRIMA DE SERVICIOS" → prima_provision
+- "VACACIONES", "VACACIONES DISFRUTADAS" → vacation_provision
+- "HORA EXTRA", "HORAS EXTRAS", "HE DIURNA", "HE NOCTURNA", "RECARGO" → overtime_hours_day o overtime_hours_night
+- "INCAPACIDAD", "LICENCIA", "ATEP" → informational
+- "FECHA DE INGRESO", "FECHA INGRESO" → hire_date
+- "DIAS TRABAJADOS", "DIAS", "TIEMPO" → worked_days
+- "TIPO COTIZANTE", "TIPO", "COTIZANTE" → contributor_type
+- "CODIGO EMPLEADO", "CODIGO", "ID" → informational (no es document_number)
+- "CARGO", "CARGO EMPLEADO", "PUESTO" → informational
+
+REGLAS CRITICAS:
+1) MAPEA TODAS las columnas de entrada usando el diccionario de sinonimos.
+2) PRIORIZA los campos obligatorios (requiredFields y requiredCalculations).
+3) MULTIPLES COLUMNAS pueden mapearse al MISMO destino (ej: todos los "AUXILIO DE X" → non_salary_payments).
+4) Para columnas que claramente son DEVENGOS SALARIALES (SUELDO, SALARIO BASICO, COMISIONES): → base_salary
+5) Para columnas que claramente son DEVENGOS NO SALARIALES (AUXILIOS, BONIFICACIONES NO SALARIALES): → non_salary_payments
+6) Si NO hay match claro, crea un campo nuevo en snake_case.
+7) NUNCA dejes columnas sin valor.
+8) Responde SOLO JSON valido, sin markdown.
 
 Columnas de entrada:
 ${JSON.stringify(uploadedColumns)}
