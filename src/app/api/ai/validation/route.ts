@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createGroq } from '@ai-sdk/groq';
+import { generateText } from 'ai';
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
+}
 
+function getOpenAI() {
+    if (!process.env.OPENAI_API_KEY) return null;
+    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+function getGroq() {
+    if (!process.env.GROQ_API_KEY) return null;
+    return createGroq({ apiKey: process.env.GROQ_API_KEY });
+}
+
+function isAIAvailable() {
+    return !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
 }
 
 export interface AiEmployeeIssue {
@@ -134,7 +149,8 @@ function toEnglishAliases(findings: AiEmployeeFinding[]): AiValidationReport['em
 }
 
 async function processBatch(
-    openai: OpenAI,
+    openai: OpenAI | null,
+    groq: ReturnType<typeof createGroq> | null,
     rows: Record<string, unknown>[],
     countryCode: string,
     year: number,
@@ -152,24 +168,52 @@ ${rulesContext}
 REGISTROS (campos relevantes por empleado):
 ${JSON.stringify(trimmedRows)}`;
 
-    const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-            { role: 'system', content: BATCH_SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 4096,
-    });
+    // Try OpenAI first
+    if (openai) {
+        try {
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: BATCH_SYSTEM_PROMPT },
+                    { role: 'user', content: userPrompt },
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+                max_tokens: 4096,
+            });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) return [];
-    return safeParseEmployeeFindings(content);
+            const content = completion.choices[0]?.message?.content;
+            if (content) return safeParseEmployeeFindings(content);
+        } catch (openaiError) {
+            console.error('OpenAI batch error, trying Groq:', openaiError);
+        }
+    }
+
+    // Fallback to Groq
+    if (groq) {
+        try {
+            const result = await generateText({
+                model: groq('llama-3.3-70b-versatile'),
+                system: BATCH_SYSTEM_PROMPT,
+                prompt: userPrompt + '\n\nIMPORTANT: Respond ONLY with valid JSON, no markdown.',
+                maxTokens: 4096,
+            });
+            let jsonStr = result.text.trim();
+            if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+            }
+            return safeParseEmployeeFindings(jsonStr);
+        } catch (groqError) {
+            console.error('Groq batch error:', groqError);
+        }
+    }
+
+    return [];
 }
 
 async function generateSummary(
-    openai: OpenAI,
+    openai: OpenAI | null,
+    groq: ReturnType<typeof createGroq> | null,
     allFindings: AiEmployeeFinding[],
     totalRows: number,
     batchesProcessed: number,
@@ -178,6 +222,13 @@ async function generateSummary(
 ): Promise<Pick<AiValidationReport, 'resumen' | 'riesgoGlobal' | 'analisisNarrativo' | 'hallazgos'>> {
     const altaCount = allFindings.filter((e) => e.problemas?.some((p) => p.severidad === 'alta')).length;
     const mediaCount = allFindings.filter((e) => e.problemas?.some((p) => p.severidad === 'media')).length;
+
+    const defaultResult = {
+        resumen: `${allFindings.length} de ${totalRows} empleados presentan hallazgos.`,
+        riesgoGlobal: (altaCount > 0 ? 'alto' : mediaCount > 0 ? 'medio' : 'bajo') as 'alto' | 'medio' | 'bajo',
+        analisisNarrativo: '',
+        hallazgos: [] as AiValidationReport['hallazgos'],
+    };
 
     const userPrompt = `País: ${countryCode} | Año: ${year}
 Total registros analizados: ${totalRows} (en ${batchesProcessed} lotes)
@@ -188,46 +239,63 @@ Empleados con hallazgos: ${allFindings.length}
 MUESTRA DE HALLAZGOS (primeros 40):
 ${JSON.stringify(allFindings.slice(0, 40))}`;
 
-    const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-            { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.15,
-        max_tokens: 2048,
-    });
+    // Try OpenAI first
+    if (openai) {
+        try {
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
+                    { role: 'user', content: userPrompt },
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.15,
+                max_tokens: 2048,
+            });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-        return {
-            resumen: `${allFindings.length} de ${totalRows} empleados presentan hallazgos.`,
-            riesgoGlobal: altaCount > 0 ? 'alto' : mediaCount > 0 ? 'medio' : 'bajo',
-            analisisNarrativo: '',
-            hallazgos: [],
-        };
+            const content = completion.choices[0]?.message?.content;
+            if (content) {
+                try {
+                    return JSON.parse(content) as Pick<AiValidationReport, 'resumen' | 'riesgoGlobal' | 'analisisNarrativo' | 'hallazgos'>;
+                } catch { /* continue to fallback */ }
+            }
+        } catch (openaiError) {
+            console.error('OpenAI summary error, trying Groq:', openaiError);
+        }
     }
 
-    try {
-        return JSON.parse(content) as Pick<AiValidationReport, 'resumen' | 'riesgoGlobal' | 'analisisNarrativo' | 'hallazgos'>;
-    } catch {
-        return {
-            resumen: `${allFindings.length} de ${totalRows} empleados presentan hallazgos.`,
-            riesgoGlobal: altaCount > 0 ? 'alto' : mediaCount > 0 ? 'medio' : 'bajo',
-            analisisNarrativo: '',
-            hallazgos: [],
-        };
+    // Fallback to Groq
+    if (groq) {
+        try {
+            const result = await generateText({
+                model: groq('llama-3.3-70b-versatile'),
+                system: SUMMARY_SYSTEM_PROMPT,
+                prompt: userPrompt + '\n\nIMPORTANT: Respond ONLY with valid JSON, no markdown.',
+                maxTokens: 2048,
+            });
+            let jsonStr = result.text.trim();
+            if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+            }
+            return JSON.parse(jsonStr) as Pick<AiValidationReport, 'resumen' | 'riesgoGlobal' | 'analisisNarrativo' | 'hallazgos'>;
+        } catch (groqError) {
+            console.error('Groq summary error:', groqError);
+        }
     }
+
+    return defaultResult;
 }
 
 export async function POST(req: Request) {
     try {
-        if (!process.env.OPENAI_API_KEY) {
+        const openai = getOpenAI();
+        const groq = getGroq();
+
+        if (!isAIAvailable()) {
             return NextResponse.json({ 
-                error: 'OpenAI API key not configured',
+                error: 'No AI provider configured',
                 report: {
-                    resumen: 'Servicio de IA no disponible',
+                    resumen: 'Servicio de IA no disponible. Configura OPENAI_API_KEY o GROQ_API_KEY.',
                     riesgoGlobal: 'bajo',
                     analisisNarrativo: '',
                     hallazgos: [],
@@ -237,8 +305,6 @@ export async function POST(req: Request) {
                 }
             });
         }
-
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
         const body = await req.json();
 
@@ -259,11 +325,11 @@ export async function POST(req: Request) {
 
         const allEmployeeFindings: AiEmployeeFinding[] = [];
         for (let i = 0; i < batches.length; i++) {
-            const batchFindings = await processBatch(openai, batches[i], countryCode, year, ruleChecks, i);
+            const batchFindings = await processBatch(openai, groq, batches[i], countryCode, year, ruleChecks, i);
             allEmployeeFindings.push(...batchFindings);
         }
 
-        const summaryResult = await generateSummary(openai, allEmployeeFindings, rowsToProcess.length, batches.length, countryCode, year);
+        const summaryResult = await generateSummary(openai, groq, allEmployeeFindings, rowsToProcess.length, batches.length, countryCode, year);
 
         const employeeFindings = toEnglishAliases(allEmployeeFindings);
 

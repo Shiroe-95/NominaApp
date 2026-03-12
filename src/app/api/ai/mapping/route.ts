@@ -1,8 +1,20 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createGroq } from '@ai-sdk/groq';
+import { generateText } from 'ai';
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
+}
+
+function getOpenAI() {
+    if (!process.env.OPENAI_API_KEY) return null;
+    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+function getGroq() {
+    if (!process.env.GROQ_API_KEY) return null;
+    return createGroq({ apiKey: process.env.GROQ_API_KEY });
 }
 
 const TARGET_COLUMNS = [
@@ -108,21 +120,8 @@ function getRuleSet(countryCode: string, year: number) {
 
 export async function POST(req: Request) {
     try {
-        if (!process.env.OPENAI_API_KEY) {
-            // Return basic mapping without AI
-            const body = await req.json();
-            const uploadedColumns = body.uploadedColumns;
-            if (!uploadedColumns || !Array.isArray(uploadedColumns)) {
-                return NextResponse.json({ error: 'Uploaded columns array is required' }, { status: 400 });
-            }
-            const basicMapping: Record<string, string> = {};
-            for (const col of uploadedColumns) {
-                basicMapping[col] = toSnakeCase(String(col));
-            }
-            return NextResponse.json({ mapping: basicMapping, relations: {} });
-        }
-
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = getOpenAI();
+        const groq = getGroq();
 
         const body = await req.json();
         const uploadedColumns = body.uploadedColumns;
@@ -175,15 +174,48 @@ Formato de salida esperado:
 }
         `;
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.0,
-            response_format: { type: 'json_object' },
-            max_tokens: 500,
-        });
+        let rawMapping: Record<string, string> = {};
 
-        const rawMapping = JSON.parse(response.choices[0]?.message?.content || '{}') as Record<string, string>;
+        // Try OpenAI first
+        if (openai) {
+            try {
+                const response = await openai.chat.completions.create({
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.0,
+                    response_format: { type: 'json_object' },
+                    max_tokens: 500,
+                });
+                rawMapping = JSON.parse(response.choices[0]?.message?.content || '{}') as Record<string, string>;
+            } catch (openaiError) {
+                console.error('OpenAI mapping error, trying Groq:', openaiError);
+            }
+        }
+
+        // Fallback to Groq
+        if (Object.keys(rawMapping).length === 0 && groq) {
+            try {
+                const result = await generateText({
+                    model: groq('llama-3.3-70b-versatile'),
+                    prompt: prompt + '\n\nIMPORTANT: Respond ONLY with valid JSON, no markdown or explanations.',
+                    maxTokens: 500,
+                });
+                let jsonStr = result.text.trim();
+                if (jsonStr.startsWith('```')) {
+                    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+                }
+                rawMapping = JSON.parse(jsonStr) as Record<string, string>;
+            } catch (groqError) {
+                console.error('Groq mapping error:', groqError);
+            }
+        }
+
+        // Fallback to basic mapping if no AI worked
+        if (Object.keys(rawMapping).length === 0) {
+            for (const col of uploadedColumns) {
+                rawMapping[String(col)] = toSnakeCase(String(col));
+            }
+        }
         const mappingResult: Record<string, string> = {};
         const relations: Record<string, MappingRelation> = {};
         const requiredSet = new Set([...requiredFields, ...requiredCalculations].map((x) => toSnakeCase(String(x))));
