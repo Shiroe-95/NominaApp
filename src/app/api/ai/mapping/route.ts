@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
 }
@@ -112,6 +108,22 @@ function getRuleSet(countryCode: string, year: number) {
 
 export async function POST(req: Request) {
     try {
+        if (!process.env.OPENAI_API_KEY) {
+            // Return basic mapping without AI
+            const body = await req.json();
+            const uploadedColumns = body.uploadedColumns;
+            if (!uploadedColumns || !Array.isArray(uploadedColumns)) {
+                return NextResponse.json({ error: 'Uploaded columns array is required' }, { status: 400 });
+            }
+            const basicMapping: Record<string, string> = {};
+            for (const col of uploadedColumns) {
+                basicMapping[col] = toSnakeCase(String(col));
+            }
+            return NextResponse.json({ mapping: basicMapping, relations: {} });
+        }
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
         const body = await req.json();
         const uploadedColumns = body.uploadedColumns;
         const countryCode = typeof body.countryCode === 'string' ? body.countryCode.toUpperCase() : 'CO';

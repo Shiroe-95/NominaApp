@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export interface AiCorrectionSuggestion {
     rowIndex: number;
     field: string;
@@ -13,6 +11,12 @@ export interface AiCorrectionSuggestion {
 
 export async function POST(req: Request) {
     try {
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ suggestions: [], error: 'OpenAI API key not configured' });
+        }
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
         const body = await req.json();
         const rows: Record<string, unknown>[] = Array.isArray(body.rows) ? body.rows : [];
         const findings: string[] = Array.isArray(body.findings) ? body.findings : [];

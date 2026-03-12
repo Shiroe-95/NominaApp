@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
+
 }
 
 export interface AiEmployeeIssue {
@@ -135,6 +134,7 @@ function toEnglishAliases(findings: AiEmployeeFinding[]): AiValidationReport['em
 }
 
 async function processBatch(
+    openai: OpenAI,
     rows: Record<string, unknown>[],
     countryCode: string,
     year: number,
@@ -169,6 +169,7 @@ ${JSON.stringify(trimmedRows)}`;
 }
 
 async function generateSummary(
+    openai: OpenAI,
     allFindings: AiEmployeeFinding[],
     totalRows: number,
     batchesProcessed: number,
@@ -222,6 +223,23 @@ ${JSON.stringify(allFindings.slice(0, 40))}`;
 
 export async function POST(req: Request) {
     try {
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ 
+                error: 'OpenAI API key not configured',
+                report: {
+                    resumen: 'Servicio de IA no disponible',
+                    riesgoGlobal: 'bajo',
+                    analisisNarrativo: '',
+                    hallazgos: [],
+                    hallazgosPorEmpleado: [],
+                    registrosAnalizados: 0,
+                    lotesProcessados: 0,
+                }
+            });
+        }
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
         const body = await req.json();
 
         const allRows: Record<string, unknown>[] = Array.isArray(body.allRows) ? body.allRows : [];
@@ -241,11 +259,11 @@ export async function POST(req: Request) {
 
         const allEmployeeFindings: AiEmployeeFinding[] = [];
         for (let i = 0; i < batches.length; i++) {
-            const batchFindings = await processBatch(batches[i], countryCode, year, ruleChecks, i);
+            const batchFindings = await processBatch(openai, batches[i], countryCode, year, ruleChecks, i);
             allEmployeeFindings.push(...batchFindings);
         }
 
-        const summaryResult = await generateSummary(allEmployeeFindings, rowsToProcess.length, batches.length, countryCode, year);
+        const summaryResult = await generateSummary(openai, allEmployeeFindings, rowsToProcess.length, batches.length, countryCode, year);
 
         const employeeFindings = toEnglishAliases(allEmployeeFindings);
 
