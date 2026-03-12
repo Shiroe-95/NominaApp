@@ -98,37 +98,62 @@ const DEFAULT_RULES = [
 ];
 
 export async function GET(req: Request) {
-    const supabase = createAdminClient();
-    const { searchParams } = new URL(req.url);
-    const countryCode = searchParams.get('countryCode');
+    try {
+        const supabase = createAdminClient();
+        const { searchParams } = new URL(req.url);
+        const countryCode = searchParams.get('countryCode');
 
-    let query = supabase
-        .from('country_year_rules')
-        .select('country_code, rule_year, label, required_fields, required_calculations, checks')
-        .order('rule_year', { ascending: true });
-
-    if (countryCode) query = query.eq('country_code', countryCode);
-
-    const { data, error } = await query;
-
-    if (error) {
-        console.error('Rules GET error:', error);
-        return NextResponse.json({ error: getErrorMessage(error, 'Failed to load rules') }, { status: 500 });
-    }
-
-    // Auto-seed default CO rules if none exist for the requested country
-    if (data.length === 0 && (countryCode === 'CO' || !countryCode)) {
-        const { error: seedError } = await supabase
+        let query = supabase
             .from('country_year_rules')
-            .upsert(DEFAULT_RULES, { onConflict: 'country_code,rule_year' });
+            .select('id, country_code, year, label, required_fields, required_calculations, checks, created_at')
+            .order('year', { ascending: true });
 
-        if (!seedError) {
-            const { data: seeded } = await query;
-            return NextResponse.json({ rules: seeded ?? [] });
+        if (countryCode) query = query.eq('country_code', countryCode);
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Rules GET error:', error);
+            // Return default rules if table doesn't exist yet
+            return NextResponse.json({ rules: DEFAULT_RULES });
         }
-    }
 
-    return NextResponse.json({ rules: data });
+        // Auto-seed default CO rules if none exist for the requested country
+        if (data.length === 0 && (countryCode === 'CO' || !countryCode)) {
+            const rulesToInsert = DEFAULT_RULES.map(rule => ({
+                country_code: rule.country_code,
+                year: rule.rule_year,
+                label: rule.label,
+                required_fields: rule.required_fields,
+                required_calculations: rule.required_calculations,
+                checks: rule.checks
+            }));
+
+            const { error: seedError } = await supabase
+                .from('country_year_rules')
+                .upsert(rulesToInsert, { onConflict: 'country_code,year' });
+
+            if (!seedError) {
+                const { data: seeded } = await query;
+                return NextResponse.json({ rules: seeded ?? [] });
+            }
+        }
+
+        // Format response to match expected schema
+        const formattedRules = (data || []).map(rule => ({
+            country_code: rule.country_code,
+            rule_year: rule.year,
+            label: rule.label,
+            required_fields: rule.required_fields,
+            required_calculations: rule.required_calculations,
+            checks: rule.checks
+        }));
+
+        return NextResponse.json({ rules: formattedRules });
+    } catch (error) {
+        console.error('Rules GET error:', error);
+        return NextResponse.json({ rules: DEFAULT_RULES });
+    }
 }
 
 export async function DELETE(req: Request) {
@@ -145,7 +170,7 @@ export async function DELETE(req: Request) {
         .from('country_year_rules')
         .delete()
         .eq('country_code', countryCode)
-        .eq('rule_year', ruleYear);
+        .eq('year', ruleYear);
 
     if (error) {
         return NextResponse.json({ error: getErrorMessage(error, 'No se pudo eliminar la regla') }, { status: 500 });
@@ -173,10 +198,17 @@ export async function POST(req: Request) {
         const { data, error } = await supabase
             .from('country_year_rules')
             .upsert(
-                { country_code: countryCode, rule_year: ruleYear, label, required_fields: requiredFields, required_calculations: requiredCalculations, checks, updated_at: new Date().toISOString() },
-                { onConflict: 'country_code,rule_year' }
+                { 
+                    country_code: countryCode, 
+                    year: ruleYear, 
+                    label, 
+                    required_fields: requiredFields, 
+                    required_calculations: requiredCalculations, 
+                    checks
+                },
+                { onConflict: 'country_code,year' }
             )
-            .select('country_code, rule_year, label, required_fields, required_calculations, checks')
+            .select('id, country_code, year, label, required_fields, required_calculations, checks')
             .single();
 
         if (error) {
@@ -184,7 +216,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: getErrorMessage(error, 'Failed to save rule') }, { status: 500 });
         }
 
-        return NextResponse.json({ rule: data });
+        // Format response
+        const formattedRule = data ? {
+            country_code: data.country_code,
+            rule_year: data.year,
+            label: data.label,
+            required_fields: data.required_fields,
+            required_calculations: data.required_calculations,
+            checks: data.checks
+        } : null;
+
+        return NextResponse.json({ rule: formattedRule });
     } catch (error: unknown) {
         console.error('Rules POST error:', error);
         return NextResponse.json({ error: getErrorMessage(error, 'Failed to save rule') }, { status: 500 });
