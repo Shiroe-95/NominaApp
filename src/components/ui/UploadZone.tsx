@@ -77,6 +77,12 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
         setIsDragging(false);
     };
 
+    /**
+     * Extrae los datos de una hoja individual del libro Excel.
+     * @param workbook - Libro Excel abierto con XLSX
+     * @param sheetName - Nombre de la hoja a procesar
+     * @returns Datos parseados de la hoja ({@link ParsedSheet})
+     */
     const getSheetData = (workbook: XLSX.WorkBook, sheetName: string): ParsedSheet => {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
@@ -90,6 +96,12 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
         };
     };
 
+    /**
+     * Genera la unión de encabezados de las hojas seleccionadas (sin duplicados).
+     * @param sheets - Todas las hojas parseadas del archivo
+     * @param selectedSheetNames - Nombres de las hojas actualmente seleccionadas
+     * @returns Array de encabezados únicos combinados
+     */
     const getMergedHeaders = (sheets: ParsedSheet[], selectedSheetNames: string[]) => {
         return Array.from(
             new Set(
@@ -100,6 +112,11 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
         );
     };
 
+    /**
+     * Procesa un archivo individual: valida tamaño, parsea con XLSX y agrega al estado.
+     * Si el parseo falla, agrega el archivo con hojas vacías para que el usuario lo vea.
+     * @param file - Objeto File del navegador a procesar
+     */
     const processFile = async (file: File) => {
         if (file.size > MAX_FILE_SIZE_BYTES) {
             console.error(`Archivo ${file.name} excede el limite de 1GB`);
@@ -157,6 +174,11 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
         }
     };
 
+    /**
+     * Formatea bytes a una representación legible (B, KB, MB, GB).
+     * @param bytes - Tamaño en bytes
+     * @returns Cadena formateada (ej: "2.5 MB")
+     */
     const formatSize = (bytes: number) => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -165,6 +187,12 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
+    /**
+     * Alterna la selección de una hoja y recalcula los encabezados unificados.
+     * @param fileIdx - Índice del archivo en el array de archivos subidos
+     * @param sheetName - Nombre de la hoja a activar/desactivar
+     * @param isSelected - true para seleccionar, false para deseleccionar
+     */
     const handleSheetToggle = (fileIdx: number, sheetName: string, isSelected: boolean) => {
         const fileData = uploadedFiles[fileIdx];
         if (!fileData) return;
@@ -256,7 +284,6 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
                     Dianis: &quot;Solo arrastra tu archivo y yo me encargo del resto&quot; ✨
                   </span>
                 </div>
-            </div>
             </div>
 
             {uploadedFiles.length > 0 && (
