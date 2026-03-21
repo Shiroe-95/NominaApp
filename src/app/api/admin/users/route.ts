@@ -58,7 +58,12 @@ export async function GET(req: Request) {
       display_name: p.display_name,
       role: p.role,
       company_id: p.company_id,
-      company_name: (p.companies as { id: string; name: string } | null)?.name ?? null,
+      company_name: (() => {
+        const c = p.companies;
+        if (Array.isArray(c) && c.length > 0) return c[0].name ?? null;
+        if (c && typeof c === 'object' && !Array.isArray(c)) return (c as { name?: string }).name ?? null;
+        return null;
+      })(),
       is_active: (p as Record<string, unknown>).is_active ?? true,
       created_at: p.created_at,
     }));
