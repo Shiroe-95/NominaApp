@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+lint_results.txt
+*.docx
+.claude/
 
 # debug
 npm-debug.log*
