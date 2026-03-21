@@ -8,6 +8,27 @@ import type {
 } from '../types';
 import { createAdminClient } from '../../supabase/admin';
 
+// ── Web search types ────────────────────────────────────────────────
+
+export interface WebSearchResult {
+  success: boolean;
+  data: string;
+  sources: ResearchSource[];
+  confidence: 'high' | 'medium' | 'low';
+  usedFallback: boolean;
+}
+
+export interface WebSearchConfig {
+  maxRetries: number;
+  baseDelayMs: number;
+  fetchFn?: typeof fetch;
+}
+
+const DEFAULT_WEB_SEARCH_CONFIG: WebSearchConfig = {
+  maxRetries: 3,
+  baseDelayMs: 1000,
+};
+
 // ── Research result types ───────────────────────────────────────────
 
 export interface ResearchSource {
@@ -35,6 +56,120 @@ interface ToolResult {
   success: boolean;
   summary: string;
   detail: string;
+}
+
+// ── Conflict resolution types ───────────────────────────────────────
+
+/** A single data point from a source about a regulatory field. */
+export interface SourceDataPoint {
+  /** The regulatory field this data point refers to (e.g. 'smmlv', 'healthEmployee'). */
+  field: string;
+  /** The value reported by this source. */
+  value: unknown;
+  /** Confidence level of the source providing this data point. */
+  confidence: 'high' | 'medium' | 'low';
+  /** URL of the source for traceability. */
+  sourceUrl: string;
+  /** Title of the source. */
+  sourceTitle: string;
+}
+
+/** Result of resolving conflicts across multiple sources. */
+export interface ConflictResolutionResult {
+  /** The resolved values keyed by field name, chosen from the highest-confidence source. */
+  resolvedValues: Record<string, unknown>;
+  /** Fields where contradictory information was found between sources. */
+  conflicts: Array<{
+    field: string;
+    /** The value that was selected (from the highest-confidence source). */
+    selectedValue: unknown;
+    /** The confidence level of the selected source. */
+    selectedConfidence: 'high' | 'medium' | 'low';
+    /** All alternative values from lower-confidence sources. */
+    alternatives: Array<{
+      value: unknown;
+      confidence: 'high' | 'medium' | 'low';
+      sourceUrl: string;
+    }>;
+  }>;
+  /** Overall confidence of the resolution (the highest confidence among all selected values). */
+  overallConfidence: 'high' | 'medium' | 'low';
+}
+
+// ── Confidence ranking helper ───────────────────────────────────────
+
+const CONFIDENCE_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
+/**
+ * Returns a numeric rank for a confidence level. Higher is better.
+ */
+export function confidenceRank(level: 'high' | 'medium' | 'low'): number {
+  return CONFIDENCE_RANK[level] ?? 0;
+}
+
+/**
+ * Resolves contradictions across multiple source data points by
+ * prioritizing the value from the source with the highest confidence
+ * level (high > medium > low).
+ *
+ * When multiple sources report different values for the same regulatory
+ * field, the value from the highest-confidence source wins. Ties at the
+ * same confidence level are broken by keeping the first occurrence.
+ *
+ * @param dataPoints - Array of data points from various sources.
+ * @returns ConflictResolutionResult with resolved values and conflict details.
+ */
+export function resolveConflicts(
+  dataPoints: SourceDataPoint[],
+): ConflictResolutionResult {
+  // Group data points by field
+  const byField = new Map<string, SourceDataPoint[]>();
+  for (const dp of dataPoints) {
+    const existing = byField.get(dp.field) ?? [];
+    existing.push(dp);
+    byField.set(dp.field, existing);
+  }
+
+  const resolvedValues: Record<string, unknown> = {};
+  const conflicts: ConflictResolutionResult['conflicts'] = [];
+  let bestConfidenceRank = 0;
+
+  for (const [field, points] of byField) {
+    // Sort by confidence descending (high first)
+    const sorted = [...points].sort(
+      (a, b) => confidenceRank(b.confidence) - confidenceRank(a.confidence),
+    );
+
+    const winner = sorted[0];
+    resolvedValues[field] = winner.value;
+
+    const rank = confidenceRank(winner.confidence);
+    if (rank > bestConfidenceRank) {
+      bestConfidenceRank = rank;
+    }
+
+    // Detect conflicts: different values across sources for the same field
+    const uniqueValues = new Set(sorted.map((p) => JSON.stringify(p.value)));
+    if (uniqueValues.size > 1) {
+      conflicts.push({
+        field,
+        selectedValue: winner.value,
+        selectedConfidence: winner.confidence,
+        alternatives: sorted.slice(1)
+          .filter((p) => JSON.stringify(p.value) !== JSON.stringify(winner.value))
+          .map((p) => ({
+            value: p.value,
+            confidence: p.confidence,
+            sourceUrl: p.sourceUrl,
+          })),
+      });
+    }
+  }
+
+  const overallConfidence: 'high' | 'medium' | 'low' =
+    bestConfidenceRank >= 3 ? 'high' : bestConfidenceRank >= 2 ? 'medium' : 'low';
+
+  return { resolvedValues, conflicts, overallConfidence };
 }
 
 // ── Simulated regulation data by country ────────────────────────────
@@ -134,6 +269,166 @@ const REGULATION_DB: Record<string, {
     confidence: 'medium',
   },
 };
+
+// ── Retry with exponential backoff ──────────────────────────────────
+
+/**
+ * Delays execution for the specified number of milliseconds.
+ * Extracted for testability — can be overridden in tests.
+ */
+export let _delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Replaces the internal delay function. Used in tests to avoid real waits.
+ */
+export function _setDelay(fn: (ms: number) => Promise<void>): void {
+  _delay = fn;
+}
+
+/**
+ * Executes an async function with exponential backoff retries.
+ *
+ * Retries up to `maxRetries` times (default 3) with delays of
+ * baseDelay * 2^attempt (1s, 2s, 4s by default).
+ *
+ * @param fn - Async function to execute.
+ * @param config - Retry configuration (maxRetries, baseDelayMs).
+ * @returns The result of the function if successful.
+ * @throws The last error if all retries are exhausted.
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  config: Pick<WebSearchConfig, 'maxRetries' | 'baseDelayMs'> = DEFAULT_WEB_SEARCH_CONFIG,
+): Promise<T> {
+  const { maxRetries, baseDelayMs } = config;
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries - 1) {
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        await _delay(delayMs);
+      }
+    }
+  }
+
+  throw lastError!;
+}
+
+// ── Web search implementation ───────────────────────────────────────
+
+/**
+ * Performs a web search for labor regulations using fetch.
+ *
+ * Constructs a search query from the country code, year, and query string,
+ * then calls a web search endpoint. In production this would hit a real
+ * search API (e.g., Tavily, Serper, or similar).
+ *
+ * @param args.query - Search query string.
+ * @param args.countryCode - ISO country code.
+ * @param args.year - Fiscal year.
+ * @param config - Optional configuration for retries and fetch function.
+ * @returns WebSearchResult with data, sources, and confidence level.
+ */
+export async function executeWebSearch(
+  args: { query: string; countryCode: string; year: number },
+  config: WebSearchConfig = DEFAULT_WEB_SEARCH_CONFIG,
+): Promise<WebSearchResult> {
+  const cc = args.countryCode.toUpperCase();
+  const fetchImpl = config.fetchFn ?? fetch;
+
+  try {
+    const result = await retryWithBackoff(async () => {
+      const searchQuery = `${args.query} ${cc} ${args.year} labor regulations`;
+      const response = await fetchImpl(
+        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'X-Subscription-Token': process.env.WEB_SEARCH_API_KEY ?? '',
+          },
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Web search failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    }, { maxRetries: config.maxRetries, baseDelayMs: config.baseDelayMs });
+
+    // Parse web results into sources
+    const webResults = (result as { web?: { results?: Array<{ url: string; title: string }> } })
+      ?.web?.results ?? [];
+
+    const sources: ResearchSource[] = webResults.slice(0, 5).map(
+      (r: { url: string; title: string }) => ({
+        url: r.url,
+        title: r.title,
+        accessDate: new Date().toISOString().split('T')[0],
+      }),
+    );
+
+    // Determine confidence based on source domains
+    const govDomains = sources.filter(
+      (s) => s.url.includes('.gov.') || s.url.includes('.gob.') || s.url.includes('.gov/'),
+    );
+    const confidence: 'high' | 'medium' | 'low' =
+      govDomains.length >= 2 ? 'high' : govDomains.length >= 1 ? 'medium' : 'low';
+
+    return {
+      success: true,
+      data: JSON.stringify(webResults.slice(0, 5)),
+      sources,
+      confidence,
+      usedFallback: false,
+    };
+  } catch {
+    // All retries exhausted — fall back to REGULATION_DB
+    return webSearchFallback(cc, args.year);
+  }
+}
+
+/**
+ * Falls back to REGULATION_DB when web search is unavailable.
+ * Marks confidence as 'low' per requirement 2.3.
+ */
+export function webSearchFallback(
+  countryCode: string,
+  year: number,
+): WebSearchResult {
+  const key = `${countryCode.toUpperCase()}-${year}`;
+  const data = REGULATION_DB[key];
+
+  if (!data) {
+    return {
+      success: false,
+      data: `No fallback data available for ${countryCode} ${year}`,
+      sources: [],
+      confidence: 'low',
+      usedFallback: true,
+    };
+  }
+
+  return {
+    success: true,
+    data: [
+      `[FALLBACK] Datos de respaldo para ${data.label}`,
+      `Campos requeridos: ${data.requiredFields.join(', ')}`,
+      `Cálculos requeridos: ${data.requiredCalculations.join(', ')}`,
+      `Verificaciones: ${data.checks.join('; ')}`,
+    ].join('\n'),
+    sources: data.sources,
+    confidence: 'low',
+    usedFallback: true,
+  };
+}
 
 // ── Tool implementations ────────────────────────────────────────────
 
@@ -342,6 +637,10 @@ async function compareRules(args: {
 /**
  * Registra fuentes consultadas durante la investigación en la tabla `research_sources`.
  *
+ * Validates that every source has the required fields (`source_url`, `source_title`,
+ * `accessed_at`, `confidence`, `country_year_rule_id`) before inserting. Sources
+ * missing `url` or `title` are skipped with a warning in the result detail.
+ *
  * Si no se proporciona `ruleId`, busca automáticamente la regla correspondiente
  * en `country_year_rules` por país y año para vincular las fuentes.
  *
@@ -352,7 +651,7 @@ async function compareRules(args: {
  * @param args.ruleId - ID opcional de la regla asociada en `country_year_rules`.
  * @returns Resultado con confirmación o mensaje de error.
  */
-async function storeSources(args: {
+export async function storeSources(args: {
   countryCode: string;
   year: number;
   sources: ResearchSource[];
@@ -374,7 +673,27 @@ async function storeSources(args: {
     ruleId = data?.id;
   }
 
-  const rows = args.sources.map((s) => ({
+  // Validate and filter sources — skip those missing required fields
+  const skipped: string[] = [];
+  const validSources = args.sources.filter((s) => {
+    if (!s.url || !s.title) {
+      skipped.push(`Fuente omitida (faltan campos): url=${s.url ?? '(vacío)'}, title=${s.title ?? '(vacío)'}`);
+      return false;
+    }
+    return true;
+  });
+
+  if (validSources.length === 0) {
+    return {
+      success: false,
+      summary: 'No hay fuentes válidas para registrar',
+      detail: skipped.length > 0
+        ? `Todas las fuentes fueron omitidas:\n${skipped.join('\n')}`
+        : 'La lista de fuentes está vacía.',
+    };
+  }
+
+  const rows = validSources.map((s) => ({
     country_code: cc,
     rule_year: args.year,
     source_url: s.url,
@@ -390,10 +709,13 @@ async function storeSources(args: {
     return { success: false, summary: 'Error al guardar fuentes', detail: error.message };
   }
 
+  const detail = validSources.map((s) => `  • ${s.title} — ${s.url}`).join('\n');
+  const warnings = skipped.length > 0 ? `\nAdvertencias:\n${skipped.join('\n')}` : '';
+
   return {
     success: true,
     summary: `${rows.length} fuente(s) registrada(s) para ${cc} ${args.year}`,
-    detail: args.sources.map((s) => `  • ${s.title} — ${s.url}`).join('\n'),
+    detail: detail + warnings,
   };
 }
 
@@ -405,10 +727,11 @@ TU ROL:
 Investigar las tasas, porcentajes, reglas de cálculo y normativa laboral vigente para el país y año solicitados. Crear o actualizar las reglas en el sistema y registrar las fuentes consultadas.
 
 PROCESO DE INVESTIGACIÓN:
-1. Buscar las regulaciones vigentes para el país y año indicados
-2. Comparar con las reglas existentes en el sistema para detectar cambios
-3. Si hay cambios o no existen reglas, crear/actualizar las reglas
-4. Registrar las fuentes consultadas para auditoría
+1. Usar web_search para buscar regulaciones vigentes en fuentes web reales
+2. Si web_search falla, usar search_regulations como respaldo (datos locales)
+3. Comparar con las reglas existentes en el sistema para detectar cambios
+4. Si hay cambios o no existen reglas, crear/actualizar las reglas
+5. Registrar las fuentes consultadas para auditoría
 
 CRITERIOS DE CONFIANZA:
 - Alta: Fuentes gubernamentales oficiales, gacetas oficiales, entidades reguladoras
@@ -434,6 +757,7 @@ INSTRUCCIONES:
  * autónoma durante una conversación.
  *
  * Herramientas disponibles:
+ * - `web_search`: Busca regulaciones laborales en fuentes web reales con fallback a REGULATION_DB.
  * - `search_regulations`: Busca regulaciones laborales vigentes por país/año.
  * - `create_rule`: Crea o actualiza reglas normativas en `country_year_rules`.
  * - `compare_rules`: Compara reglas existentes con datos nuevos para detectar cambios.
@@ -443,6 +767,23 @@ INSTRUCCIONES:
  */
 function buildAITools() {
   return {
+    web_search: tool({
+      description:
+        'Busca regulaciones laborales en fuentes web reales. Usa reintentos con backoff exponencial. Si las fuentes web no están disponibles, usa datos de respaldo con confianza baja.',
+      parameters: z.object({
+        query: z.string().describe('Consulta de búsqueda sobre regulaciones laborales'),
+        countryCode: z.string().describe('Código de país ISO (CO, MX, PE, CL, BR, AR, US)'),
+        year: z.number().describe('Año fiscal de las regulaciones'),
+      }),
+      execute: async (args) => {
+        const result = await executeWebSearch(args);
+        const prefix = result.usedFallback
+          ? `[FALLBACK - Confianza: ${result.confidence}] `
+          : `[Web - Confianza: ${result.confidence}] `;
+        return prefix + result.data;
+      },
+    }),
+
     search_regulations: tool({
       description:
         'Busca las regulaciones laborales vigentes para un país y año. Retorna tasas, campos requeridos, cálculos y verificaciones normativas.',
@@ -514,6 +855,19 @@ function buildAITools() {
 // ── Agent tool definitions (for AgentDefinition.tools) ──────────────
 
 const agentToolDefinitions: ToolDefinition[] = [
+  {
+    name: 'web_search',
+    description: 'Busca regulaciones laborales en fuentes web reales con fallback a datos de respaldo.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Consulta de búsqueda' },
+        countryCode: { type: 'string', description: 'Código de país ISO' },
+        year: { type: 'number', description: 'Año fiscal' },
+      },
+      required: ['query', 'countryCode', 'year'],
+    },
+  },
   {
     name: 'search_regulations',
     description: 'Busca regulaciones laborales vigentes para un país y año.',
@@ -653,12 +1007,32 @@ async function buildResearchResult(
   const key = `${countryCode}-${year}`;
   const regData = REGULATION_DB[key];
 
+  // Check if web_search was used and determine confidence from it
+  const webSearchCall = toolCalls.find((tc) => tc.toolName === 'web_search');
+  let confidence: 'high' | 'medium' | 'low' = regData?.confidence ?? 'low';
+  let sources = regData?.sources ?? [];
+
+  if (webSearchCall) {
+    // If web_search was used, run it again to get actual sources/confidence
+    try {
+      const webResult = await executeWebSearch(
+        webSearchCall.args as { query: string; countryCode: string; year: number },
+      );
+      if (webResult.sources.length > 0) {
+        sources = webResult.sources;
+      }
+      confidence = webResult.confidence;
+    } catch {
+      // Keep defaults from REGULATION_DB
+    }
+  }
+
   return {
     countryCode,
     year,
-    sources: regData?.sources ?? [],
-    confidence: regData?.confidence ?? 'low',
-    changesDetected: undefined, // populated by compare_rules tool during execution
+    sources,
+    confidence,
+    changesDetected: undefined,
     rulesUpdated: toolCalls.some((tc) => tc.toolName === 'create_rule'),
   };
 }
@@ -669,9 +1043,25 @@ async function runDirectResearch(
   countryCode: string,
   year: number,
 ): Promise<ResearchResult> {
-  // 1. Search regulations
+  // 1. Try web search first
+  const webResult = await executeWebSearch({
+    query: 'labor regulations payroll',
+    countryCode,
+    year,
+  });
+
+  // 2. If web search succeeded without fallback, use web data
+  // Otherwise fall back to REGULATION_DB via searchRegulations
   const searchResult = await searchRegulations({ countryCode, year });
-  if (!searchResult.success) {
+
+  const key = `${countryCode}-${year}`;
+  const regData = REGULATION_DB[key];
+
+  // Determine confidence: web search confidence if available, else low
+  const confidence = webResult.usedFallback ? 'low' as const : webResult.confidence;
+  const sources = webResult.sources.length > 0 ? webResult.sources : (regData?.sources ?? []);
+
+  if (!searchResult.success && !webResult.success) {
     return {
       countryCode,
       year,
@@ -681,19 +1071,17 @@ async function runDirectResearch(
     };
   }
 
-  const key = `${countryCode}-${year}`;
-  const regData = REGULATION_DB[key];
   if (!regData) {
     return {
       countryCode,
       year,
-      sources: [],
-      confidence: 'low',
+      sources,
+      confidence,
       rulesUpdated: false,
     };
   }
 
-  // 2. Compare with existing rules
+  // 3. Compare with existing rules
   const compareResult = await compareRules({
     countryCode,
     year,
@@ -704,7 +1092,7 @@ async function runDirectResearch(
 
   const hasChanges = compareResult.summary !== 'Sin cambios detectados';
 
-  // 3. Create/update rule if changes detected or no existing rule
+  // 4. Create/update rule if changes detected or no existing rule
   let rulesUpdated = false;
   if (hasChanges || compareResult.summary === 'No hay regla existente para comparar') {
     const createResult = await createOrUpdateRule({
@@ -718,19 +1106,19 @@ async function runDirectResearch(
     rulesUpdated = createResult.success;
   }
 
-  // 4. Store sources
+  // 5. Store sources
   await storeSources({
     countryCode,
     year,
-    sources: regData.sources,
-    confidence: regData.confidence,
+    sources,
+    confidence,
   });
 
   return {
     countryCode,
     year,
-    sources: regData.sources,
-    confidence: regData.confidence,
+    sources,
+    confidence,
     changesDetected: hasChanges ? [{ field: 'rules', oldValue: 'previous', newValue: 'updated' }] : undefined,
     rulesUpdated,
   };

@@ -1,18 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2, Save, X, ShieldCheck, Info, FileCheck2, Calculator, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Pencil, Trash2, Save, X, ShieldCheck, Info, FileCheck2, Calculator, ClipboardList, CheckCircle2, XCircle, History } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
+interface AuditEntryRow {
+    id: string;
+    action: string;
+    origin: string;
+    created_at: string;
+    user_id?: string;
+}
+
 interface RuleRow {
+    id?: string;
     country_code: string;
     rule_year: number;
     label: string;
     required_fields: string[];
     required_calculations: string[];
     checks: string[];
+    status?: string;
 }
 
 const EMPTY_RULE: RuleRow = {
@@ -45,6 +55,10 @@ export default function RulesPage() {
     const [deleting, setDeleting] = useState<string | null>(null);
     const [filterCountry, setFilterCountry] = useState<string>('todos');
     const [showHelp, setShowHelp] = useState(false);
+    const [approvingKey, setApprovingKey] = useState<string | null>(null);
+    const [rejectingKey, setRejectingKey] = useState<string | null>(null);
+    const [auditKey, setAuditKey] = useState<string | null>(null);
+    const [auditEntries, setAuditEntries] = useState<AuditEntryRow[]>([]);
 
     // Draft state for editing/creating
     const [draft, setDraft] = useState<RuleRow & { fieldsText: string; calculationsText: string; checksText: string }>({
@@ -155,6 +169,57 @@ export default function RulesPage() {
 
     const countries = ['todos', ...Array.from(new Set(rules.map((r) => r.country_code)))];
     const filtered = filterCountry === 'todos' ? rules : rules.filter((r) => r.country_code === filterCountry);
+
+    const approveRule = async (rule: RuleRow) => {
+        if (!rule.id) return;
+        const key = ruleKey(rule);
+        setApprovingKey(key);
+        try {
+            const res = await fetch(`/api/admin/rules/${rule.id}/approve`, { method: 'PATCH' });
+            if (res.ok) await loadRules();
+        } catch (err) {
+            console.error('Error aprobando regla:', err);
+        } finally {
+            setApprovingKey(null);
+        }
+    };
+
+    const rejectRule = async (rule: RuleRow) => {
+        if (!rule.id) return;
+        const key = ruleKey(rule);
+        setRejectingKey(key);
+        try {
+            const res = await fetch(`/api/admin/rules/${rule.id}/reject`, { method: 'PATCH' });
+            if (res.ok) await loadRules();
+        } catch (err) {
+            console.error('Error rechazando regla:', err);
+        } finally {
+            setRejectingKey(null);
+        }
+    };
+
+    const toggleAudit = async (rule: RuleRow) => {
+        if (!rule.id) return;
+        const key = ruleKey(rule);
+        if (auditKey === key) {
+            setAuditKey(null);
+            setAuditEntries([]);
+            return;
+        }
+        setAuditKey(key);
+        try {
+            const res = await fetch(`/api/audit/${rule.id}`);
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.history)) {
+                setAuditEntries(data.history);
+            } else {
+                setAuditEntries([]);
+            }
+        } catch (err) {
+            console.error('Error cargando auditoría:', err);
+            setAuditEntries([]);
+        }
+    };
 
     return (
         <div className="space-y-5">
@@ -301,6 +366,18 @@ export default function RulesPage() {
                                         >
                                             <ShieldCheck className={cn('w-4 h-4 shrink-0', isEditing ? 'text-violet' : 'text-indigo-500')} />
                                             <span className="font-semibold text-slate-800 text-sm">{rule.label}</span>
+                                            {rule.status === 'approved' && (
+                                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">Aprobada</span>
+                                            )}
+                                            {rule.status === 'pending_review' && (
+                                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">Pendiente de revisión</span>
+                                            )}
+                                            {rule.status === 'draft' && (
+                                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">Borrador</span>
+                                            )}
+                                            {rule.status === 'rejected' && (
+                                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">Rechazada</span>
+                                            )}
                                             <span className="text-xs text-slate-400 font-mono">{rule.country_code} {rule.rule_year}</span>
                                             <span className="text-xs text-slate-400 ml-auto mr-2">
                                                 {rule.checks.length} verificaciones · {rule.required_fields.length} campos · {rule.required_calculations.length} cálculos
@@ -308,6 +385,48 @@ export default function RulesPage() {
                                             {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
                                         </button>
                                         <div className="flex items-center gap-1">
+                                            {rule.status === 'pending_review' && rule.id && (
+                                                <>
+                                                    <button
+                                                        onClick={() => void approveRule(rule)}
+                                                        disabled={approvingKey === key}
+                                                        className="p-1.5 rounded hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                                                        title="Aprobar"
+                                                    >
+                                                        {approvingKey === key ? (
+                                                            <span className="w-4 h-4 block border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => void rejectRule(rule)}
+                                                        disabled={rejectingKey === key}
+                                                        className="p-1.5 rounded hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors disabled:opacity-50"
+                                                        title="Rechazar"
+                                                    >
+                                                        {rejectingKey === key ? (
+                                                            <span className="w-4 h-4 block border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                        ) : (
+                                                            <XCircle className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                </>
+                                            )}
+                                            {rule.id && (
+                                                <button
+                                                    onClick={() => void toggleAudit(rule)}
+                                                    className={cn(
+                                                        'p-1.5 rounded transition-colors',
+                                                        auditKey === key
+                                                            ? 'bg-indigo-50 text-indigo-600'
+                                                            : 'hover:bg-slate-100 text-slate-500 hover:text-indigo-600'
+                                                    )}
+                                                    title="Auditoría"
+                                                >
+                                                    <History className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => (isEditing ? cancelEdit() : startEdit(rule))}
                                                 className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-violet transition-colors"
@@ -341,6 +460,48 @@ export default function RulesPage() {
                                         ) : (
                                             <RuleView rule={rule} />
                                         )}
+                                    </CardContent>
+                                )}
+
+                                {auditKey === key && (
+                                    <CardContent className="pt-2 pb-4">
+                                        <div className="border border-indigo-200 rounded-lg overflow-hidden">
+                                            <div className="px-3 py-2 bg-indigo-50 flex items-center gap-2">
+                                                <History className="w-3.5 h-3.5 text-indigo-500" />
+                                                <span className="text-xs font-semibold text-indigo-800">Historial de auditoría</span>
+                                            </div>
+                                            {auditEntries.length === 0 ? (
+                                                <div className="px-3 py-4 text-center text-xs text-slate-400">
+                                                    Sin registros de auditoría.
+                                                </div>
+                                            ) : (
+                                                <div className="divide-y divide-indigo-100">
+                                                    {auditEntries.map((entry) => (
+                                                        <div key={entry.id} className="px-3 py-2 flex items-center gap-3 text-xs">
+                                                            <span className={cn(
+                                                                'px-1.5 py-0.5 rounded font-semibold',
+                                                                entry.action === 'approved' && 'bg-emerald-100 text-emerald-700',
+                                                                entry.action === 'rejected' && 'bg-rose-100 text-rose-700',
+                                                                entry.action === 'created' && 'bg-blue-100 text-blue-700',
+                                                                entry.action === 'updated' && 'bg-amber-100 text-amber-700',
+                                                                !['approved', 'rejected', 'created', 'updated'].includes(entry.action) && 'bg-slate-100 text-slate-600',
+                                                            )}>
+                                                                {entry.action}
+                                                            </span>
+                                                            <span className="text-slate-500">{entry.origin}</span>
+                                                            <span className="text-slate-400 ml-auto">
+                                                                {new Date(entry.created_at).toLocaleString('es')}
+                                                            </span>
+                                                            {entry.user_id && (
+                                                                <span className="text-slate-400 font-mono text-[10px]" title={entry.user_id}>
+                                                                    {entry.user_id.slice(0, 8)}…
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </CardContent>
                                 )}
                             </Card>

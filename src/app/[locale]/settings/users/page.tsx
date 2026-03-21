@@ -15,12 +15,12 @@ interface User {
   company_name: string | null;
   is_active: boolean;
   created_at: string;
+  invitation_status?: string;
 }
 
-/** Datos del formulario para crear un nuevo usuario. */
+/** Datos del formulario para invitar un nuevo usuario. */
 interface UserForm {
   email: string;
-  password: string;
   display_name: string;
   role: string;
   company_id: string;
@@ -31,7 +31,6 @@ interface UserForm {
 /** Estado inicial vacío del formulario de creación de usuario. */
 const EMPTY_FORM: UserForm = {
   email: '',
-  password: '',
   display_name: '',
   role: 'client',
   company_id: '',
@@ -89,6 +88,9 @@ export default function UsersPage() {
     is_active: boolean;
   }>({ display_name: '', role: 'client', company_id: '', is_active: true });
 
+  // Resend invite state
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
   const fetchUsers = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -126,12 +128,11 @@ export default function UsersPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: form.email,
-          password: form.password,
           display_name: form.display_name,
           role: form.role,
           company_id: form.company_id || undefined,
@@ -139,10 +140,10 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Error al crear usuario');
+        setError(data.error ?? 'Error al invitar usuario');
         return;
       }
-      setSuccess('Usuario creado correctamente');
+      setSuccess('Invitación enviada correctamente');
       resetForm();
       fetchUsers();
     } catch {
@@ -213,6 +214,26 @@ export default function UsersPage() {
     }
   };
 
+  const handleResendInvite = async (id: string) => {
+    setResendingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${id}/resend-invite`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess('Invitación reenviada correctamente');
+      } else {
+        setError(data.error ?? 'Error al reenviar invitación');
+      }
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const inputCls =
     'h-10 w-full px-3 rounded-lg border border-slate-200 text-sm text-slate-800 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet/30 focus:border-violet/50';
   const selectCls =
@@ -242,15 +263,11 @@ export default function UsersPage() {
       {/* ── Create form ──────────────────────────────────── */}
       {showForm && (
         <form onSubmit={handleCreate} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-700">Crear usuario</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Invitar usuario</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-500 mb-1">Email</label>
               <input className={inputCls} type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Contraseña</label>
-              <input className={inputCls} type="password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">Nombre</label>
@@ -269,7 +286,7 @@ export default function UsersPage() {
               <input className={inputCls} value={form.company_id} onChange={(e) => setForm({ ...form, company_id: e.target.value })} />
             </div>
           </div>
-          <Button size="sm" disabled={saving}>{saving ? 'Creando…' : 'Crear usuario'}</Button>
+          <Button size="sm" disabled={saving}>{saving ? 'Enviando…' : 'Enviar invitación'}</Button>
         </form>
       )}
 
@@ -303,6 +320,7 @@ export default function UsersPage() {
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Estado invitación</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -349,6 +367,17 @@ export default function UsersPage() {
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    {u.invitation_status === 'pending' ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pendiente</span>
+                    ) : u.invitation_status === 'accepted' || u.invitation_status === 'active' ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Activo</span>
+                    ) : u.invitation_status === 'expired' ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700">Expirado</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right space-x-1">
                     {editInlineId === u.id ? (
                       <>
@@ -360,6 +389,11 @@ export default function UsersPage() {
                         <Button size="sm" variant="ghost" onClick={() => startInlineEdit(u)}>Editar</Button>
                         {u.is_active && (
                           <Button size="sm" variant="ghost" onClick={() => handleDeactivate(u.id)}>Desactivar</Button>
+                        )}
+                        {u.invitation_status === 'pending' && (
+                          <Button size="sm" variant="ghost" onClick={() => handleResendInvite(u.id)} disabled={resendingId === u.id}>
+                            {resendingId === u.id ? 'Reenviando…' : 'Reenviar invitación'}
+                          </Button>
                         )}
                       </>
                     )}

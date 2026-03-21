@@ -1,7 +1,8 @@
 'use client';
 
-import { Menu, Bell, ChevronDown, Settings, LogOut, User, AlertTriangle, ShieldCheck, CheckCircle2, X, ArrowRight } from 'lucide-react';
+import { Menu, ChevronDown, Settings, LogOut, User, ArrowRight } from 'lucide-react';
 import LanguageToggle from '../ui/LanguageToggle';
+import NotificationBell from '../ui/NotificationBell';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './Sidebar';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
@@ -41,39 +42,6 @@ const pageMeta: Record<string, { title: string; subtitle: string; ctaLabel?: str
     },
 };
 
-const MOCK_NOTIFICATIONS = [
-    {
-        id: 1,
-        icon: AlertTriangle,
-        iconColor: 'text-amber',
-        iconBg: 'bg-amber/10',
-        title: 'Desviacion detectada',
-        desc: '3 empleados con diferencia en aportes de salud',
-        time: 'Hace 5 min',
-        unread: true,
-    },
-    {
-        id: 2,
-        icon: ShieldCheck,
-        iconColor: 'text-emerald',
-        iconBg: 'bg-emerald/10',
-        title: 'Nomina validada',
-        desc: 'La nomina de enero 2026 paso controles UGPP',
-        time: 'Hace 1 h',
-        unread: true,
-    },
-    {
-        id: 3,
-        icon: CheckCircle2,
-        iconColor: 'text-violet',
-        iconBg: 'bg-violet/10',
-        title: 'Carga completada',
-        desc: 'El archivo nomina_feb.xlsx se proceso correctamente',
-        time: 'Ayer',
-        unread: false,
-    },
-];
-
 function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
     useEffect(() => {
         function handleMouseDown(event: MouseEvent) {
@@ -88,9 +56,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () =
 
 export default function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [notifOpen, setNotifOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
-    const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [userInitial, setUserInitial] = useState('U');
 
@@ -108,17 +74,9 @@ export default function Header() {
     const router = useRouter();
     const meta = useMemo(() => pageMeta[pathname] ?? { title: 'NominaSmart', subtitle: 'Auditoria inteligente de nomina.' }, [pathname]);
 
-    const notifRef = useRef<HTMLDivElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    useClickOutside(notifRef, () => setNotifOpen(false));
     useClickOutside(profileRef, () => setProfileOpen(false));
-
-    const unreadCount = notifications.filter((n) => n.unread).length;
-
-    function markAllRead() {
-        setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-    }
 
     function handleLogout() {
         setProfileOpen(false);
@@ -152,67 +110,14 @@ export default function Header() {
                 )}
 
                 <div className="flex items-center gap-1">
-                    <div ref={notifRef} className="relative">
-                        <button
-                            type="button"
-                            onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false); }}
-                            className="relative rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
-                        >
-                            <span className="sr-only">Notificaciones</span>
-                            <Bell className="h-[18px] w-[18px]" aria-hidden="true" />
-                            {unreadCount > 0 && (
-                                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose ring-2 ring-white" />
-                            )}
-                        </button>
-
-                        {notifOpen && (
-                            <div className="absolute right-0 mt-1 w-80 overflow-hidden rounded-2xl border border-white/10 glass-panel shadow-2xl shadow-black/50">
-                                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                                    <p className="text-sm font-semibold text-white">Notificaciones</p>
-                                    <div className="flex items-center gap-2">
-                                        {unreadCount > 0 && (
-                                            <button
-                                                onClick={markAllRead}
-                                                className="text-xs font-medium text-violet transition-colors hover:text-violet-dark"
-                                            >
-                                                Marcar todas
-                                            </button>
-                                        )}
-                                        <button onClick={() => setNotifOpen(false)} className="rounded p-0.5 text-slate-400 hover:text-slate-600">
-                                            <X className="h-3.5 w-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="divide-y divide-white/5">
-                                    {notifications.map((n) => {
-                                        const Icon = n.icon;
-                                        return (
-                                            <div key={n.id} className={cn('flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5', n.unread && 'bg-violet/[0.05]')}>
-                                                <div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', n.iconBg)}>
-                                                    <Icon className={cn('h-4 w-4', n.iconColor)} />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <p className="truncate text-xs font-semibold text-slate-200">{n.title}</p>
-                                                        {n.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-light glowing-dot" />}
-                                                    </div>
-                                                    <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{n.desc}</p>
-                                                    <p className="mt-1 text-[11px] text-slate-400">{n.time}</p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <NotificationBell />
 
                     <LanguageToggle />
                     <div className="mx-1 hidden h-5 w-px bg-white/10 sm:block" />
 
                     <div ref={profileRef} className="relative">
                         <button
-                            onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false); }}
+                            onClick={() => { setProfileOpen((v) => !v); }}
                             className="group flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/5"
                         >
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet to-violet-light text-xs font-semibold text-white shadow-[0_0_10px_rgba(139,92,246,0.5)]">

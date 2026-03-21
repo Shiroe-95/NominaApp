@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
+import type { SyncHistoryRow } from '@/lib/types/regulatory-sync';
 
 /**
  * Representa un país configurado en el sistema con su moneda y formato de localización.
@@ -27,6 +28,9 @@ interface Country {
   is_active: boolean;
 }
 
+/** Map of country_code → latest sync history entry. */
+type SyncHistoryMap = Record<string, SyncHistoryRow>;
+
 /** Valores por defecto para el formulario de creación de un país nuevo. */
 const empty: Omit<Country, 'id'> = {
   country_code: '',
@@ -45,14 +49,19 @@ const empty: Omit<Country, 'id'> = {
  * Permite crear, editar, eliminar y consultar los países configurados en la plataforma.
  * Cada país define su moneda, formato de localización y separadores numéricos.
  * Incluye un botón "Investigar" que invoca al Agente Investigador de IA
- * para obtener normativa laboral vigente del país seleccionado.
+ * para obtener normativa laboral vigente del país seleccionado, y un botón
+ * "Sincronizar ahora" que ejecuta la sincronización regulatoria manual.
  *
  * Secciones:
  * - Formulario de creación/edición de país.
- * - Tabla con listado de países, estado (activo/inactivo) y acciones (editar, investigar, eliminar).
+ * - Tabla con listado de países, estado (activo/inactivo), última sincronización
+ *   (fecha, estado, cambios detectados) y acciones (editar, investigar, sincronizar, eliminar).
  *
- * Consume la API `/api/admin/countries` (GET, POST, PUT, DELETE)
- * y `/api/ai/orchestrate` (POST, type: "research") para la investigación con IA.
+ * Consume las APIs:
+ * - `/api/admin/countries` (GET, POST, PUT, DELETE) — CRUD de países.
+ * - `/api/ai/orchestrate` (POST, type: "research") — investigación con IA.
+ * - `/api/sync/history` (GET) — historial de sincronización por país.
+ * - `/api/sync/run` (POST) — sincronización regulatoria manual.
  */
 export default function CountriesPage() {
   const [countries, setCountries] = useState<Country[]>([]);
@@ -62,6 +71,8 @@ export default function CountriesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Country, 'id'>>(empty);
   const [researchingId, setResearchingId] = useState<string | null>(null);
+  const [syncHistory, setSyncHistory] = useState<SyncHistoryMap>({});
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   /** Obtiene la lista de países desde la API. */
   const fetchCountries = useCallback(async () => {
@@ -77,7 +88,32 @@ export default function CountriesPage() {
     }
   }, []);
 
+  /** Obtiene el historial de sincronización y extrae la última entrada por país. */
+  const fetchSyncHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sync/history');
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.history)) {
+        const map: SyncHistoryMap = {};
+        for (const entry of data.history as SyncHistoryRow[]) {
+          // History is ordered by created_at desc, so first occurrence per country is the latest
+          if (!map[entry.country_code]) {
+            map[entry.country_code] = entry;
+          }
+        }
+        setSyncHistory(map);
+      }
+    } catch {
+      // Silently fail — sync history is supplementary info
+    }
+  }, []);
+
   useEffect(() => { fetchCountries(); }, [fetchCountries]);
+
+  /** Fetch sync history once countries are loaded. */
+  useEffect(() => {
+    if (countries.length > 0) fetchSyncHistory();
+  }, [countries, fetchSyncHistory]);
 
   /** Reinicia el formulario al estado de creación. */
   const resetForm = () => { setEditId(null); setForm(empty); };
@@ -165,6 +201,47 @@ export default function CountriesPage() {
       setError('Connection error');
     } finally {
       setResearchingId(null);
+    }
+  };
+
+  /** Ejecuta sincronización manual para un país. */
+  const handleSync = async (c: Country) => {
+    setSyncingId(c.id);
+    setError(null);
+    try {
+      const res = await fetch('/api/sync/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          countryCode: c.country_code,
+          year: new Date().getFullYear(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? 'Sync request failed');
+      } else {
+        await fetchSyncHistory();
+      }
+    } catch {
+      setError('Connection error');
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  /** Formatea una fecha ISO a formato legible en español. */
+  const formatSyncDate = (iso: string): string => {
+    try {
+      return new Date(iso).toLocaleDateString('es', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return iso;
     }
   };
 
@@ -305,6 +382,7 @@ export default function CountriesPage() {
                 <th className="px-4 py-3">Símbolo</th>
                 <th className="px-4 py-3">Locale</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Última sincronización</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -327,6 +405,39 @@ export default function CountriesPage() {
                       {c.is_active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const sync = syncHistory[c.country_code];
+                      if (!sync) {
+                        return (
+                          <span className="text-xs text-slate-500">Sin sincronizar</span>
+                        );
+                      }
+                      const statusConfig: Record<string, { label: string; cls: string }> = {
+                        completed: { label: 'Completada', cls: 'bg-emerald-500/10 text-emerald-400' },
+                        failed: { label: 'Fallida', cls: 'bg-rose-500/10 text-rose-400' },
+                        in_progress: { label: 'En progreso', cls: 'bg-amber-500/10 text-amber-400' },
+                      };
+                      const cfg = statusConfig[sync.status] ?? statusConfig.failed;
+                      return (
+                        <div className="space-y-0.5">
+                          <div className="text-xs text-slate-300">
+                            {formatSyncDate(sync.started_at)}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${cfg.cls}`}>
+                              {cfg.label}
+                            </span>
+                            {sync.changes_detected > 0 && (
+                              <span className="text-[10px] text-violet-400">
+                                {sync.changes_detected} cambio{sync.changes_detected !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-right space-x-1">
                     <Button size="sm" variant="ghost" onClick={() => startEdit(c)}>
                       Editar
@@ -338,6 +449,14 @@ export default function CountriesPage() {
                       disabled={researchingId === c.id}
                     >
                       {researchingId === c.id ? 'Investigando…' : '🔍 Investigar'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleSync(c)}
+                      disabled={syncingId === c.id}
+                    >
+                      {syncingId === c.id ? 'Sincronizando…' : '🔄 Sincronizar ahora'}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)}>
                       Eliminar

@@ -131,10 +131,11 @@ El panel de chat lateral (`AiSidebar`) muestra en tiempo real qué agente está 
 
 | Característica | Descripción |
 |----------------|-------------|
+| **Sincronización Regulatoria Automática** | Detección periódica de cambios normativos por país vía cron, con investigación web real, generación de borradores de reglas y notificaciones. |
 | **Actualizaciones en Tiempo Real** | Cambios reflejados instantáneamente en todos los módulos. Notificaciones push para eventos críticos. |
 | **Automatización de Procesos** | Programación de liquidaciones, generación automática de archivos y alertas de vencimientos. |
 | **Panel Financiero de IA** | Dashboard administrativo con métricas de consumo de tokens, costos estimados por proveedor, ingresos por tareas, margen de ganancia y costo promedio por nómina procesada. Filtrable por rango de fechas. |
-| **Internacionalización (i18n)** | Soporte completo para Inglés y Español. Rutas localizadas (`/es/reconcile`, `/en/reconcile`). |
+| **Internacionalización (i18n)** | Soporte completo para Inglés, Español y Portugués. Rutas localizadas (`/es/reconcile`, `/en/reconcile`). |
 | **Responsive Design** | Experiencia optimizada para desktop, tablet y móvil sin perder funcionalidad. |
 | **Seguridad Empresarial** | Autenticación robusta, roles y permisos granulares, encriptación de datos sensibles. |
 
@@ -158,6 +159,8 @@ Esta plataforma ha sido construida con lo último en desarrollo Fullstack Server
 | **Supabase (PostgreSQL)** | Base de datos transaccional de alto rendimiento con Row Level Security |
 | **API Routes (Next.js)** | Endpoints serverless para operaciones de negocio |
 | **Vercel AI SDK + Multi-proveedor** | Orquestación multi-agente de IA (OpenAI, Anthropic, Groq, Google, OpenRouter) con fallback automático |
+| **Resend** | Envío de correos electrónicos transaccionales (invitaciones, alertas regulatorias, resúmenes) |
+| **Vercel Cron Jobs** | Sincronización regulatoria automática periódica (semanal por defecto) |
 
 ### Herramientas de Desarrollo
 | Tecnología | Propósito |
@@ -180,7 +183,7 @@ nomina-smart/
 │   └── settings/
 │       └── mcp.json          # Configuración de servidores MCP (Next.js DevTools, Supabase, Vercel)
 ├── messages/                 # Diccionarios de internacionalización (es.json, en.json)
-├── scripts/                  # Scripts de configuración y mantenimiento
+├── scripts/                  # Scripts SQL de migración y utilidades de mantenimiento
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/         # Rutas con soporte multilenguaje
@@ -199,13 +202,18 @@ nomina-smart/
 │   ├── lib/
 │   │   ├── ai/               # Capa de IA multi-agente
 │   │   │   ├── agents/       # Agentes especializados (master, auditor, writer, corrector, mapper, payroll-expert, researcher, agent-bus)
+│   │   │   ├── rule-engine.ts # Motor de reglas dinámico multi-país (carga desde BD)
 │   │   │   ├── providers.ts  # Registry dinámico multi-proveedor (Vercel AI SDK)
 │   │   │   ├── fallback.ts   # Cadena de fallback entre proveedores
 │   │   │   ├── encryption.ts # Cifrado/descifrado de API keys (AES-256-GCM)
 │   │   │   └── usage-logger.ts # Registro de uso de IA en ai_usage_logs
+│   │   ├── audit/            # Servicio de auditoría de cambios en reglas normativas
 │   │   ├── auth/             # Autenticación y perfiles de usuario por rol
 │   │   ├── db/               # Esquemas y queries de base de datos
+│   │   ├── email/            # Servicio de email transaccional (Resend) y plantillas localizadas
+│   │   ├── notifications/    # Servicio de notificaciones in-app para administradores
 │   │   ├── payroll/          # Lógica de negocio de nómina
+│   │   ├── sync/             # Servicio de sincronización regulatoria automática (cron)
 │   │   └── supabase/         # Clientes de Supabase (admin, server, client)
 │   └── middleware.ts         # Middleware de autenticación y locale
 ├── package.json
@@ -233,8 +241,13 @@ npm install
 **2. Configurar Variables de Entorno**
 ```bash
 cp .env.local.example .env.local
-# Edita .env.local con tus credenciales Supabase
+# Edita .env.local con tus credenciales Supabase, Resend y Cron
 ```
+
+Variables requeridas adicionales para sincronización regulatoria:
+- `RESEND_API_KEY` — API key de [Resend](https://resend.com) para envío de emails
+- `RESEND_FROM_EMAIL` — Dirección de remitente (ej: `noreply@tudominio.com`)
+- `CRON_SECRET` — Secret para autenticar los cron jobs de Vercel
 
 **3. Iniciar Servidor de Desarrollo**
 ```bash
