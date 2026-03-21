@@ -5,25 +5,61 @@ import { UploadCloud, X, CheckCircle2, FileSpreadsheet } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import * as XLSX from 'xlsx';
 
+/**
+ * Representa una hoja individual parseada de un archivo Excel.
+ * Contiene los encabezados detectados y la cantidad de filas de datos.
+ */
 export interface ParsedSheet {
+    /** Nombre de la hoja dentro del libro Excel */
     name: string;
+    /** Encabezados de columna detectados en la primera fila */
     headers: string[];
+    /** Cantidad de filas de datos (excluyendo la fila de encabezados) */
     rowCount: number;
 }
 
+/**
+ * Representa un archivo Excel/CSV/XML procesado y listo para mapeo.
+ * Incluye las hojas parseadas, la selección del usuario y los encabezados
+ * unificados de las hojas seleccionadas.
+ */
 export interface ParsedFile {
+    /** Nombre original del archivo */
     name: string;
+    /** Tamaño del archivo en bytes */
     size: number;
+    /** Tipo MIME del archivo */
     type: string;
+    /** Hojas detectadas dentro del archivo */
     sheets: ParsedSheet[];
+    /** Nombres de las hojas seleccionadas por el usuario para procesar */
     selectedSheets: string[];
+    /** Encabezados unificados (merge) de todas las hojas seleccionadas */
     extractedHeaders: string[];
+    /** Referencia al objeto File original para envío posterior */
     rawFile: File;
 }
 
+/** Tamaño máximo permitido por archivo: 1 GB */
 const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+/**
+ * Zona de carga de archivos de nómina con soporte drag-and-drop.
+ *
+ * Parsea archivos Excel (.xlsx/.xls), CSV y XML usando la librería XLSX,
+ * detecta hojas y encabezados automáticamente, y permite al usuario
+ * seleccionar qué hojas incluir antes de continuar al paso de mapeo IA.
+ *
+ * Importa {@link AgentAvatar} para mostrar el avatar del agente IA asociado
+ * al paso de carga (preparado para integración futura en la UI).
+ *
+ * @param props.onProceed - Callback invocado al hacer clic en "Continuar a mapeo con IA".
+ *   Recibe el array de archivos parseados ({@link ParsedFile}[]) con las hojas seleccionadas.
+ * @returns Componente de zona de carga con lista de archivos procesados y selector de hojas.
+ */
 
 export default function UploadZone({ onProceed }: { onProceed?: (fileData: ParsedFile[]) => void }) {
     const t = useTranslations('Upload');
@@ -212,6 +248,15 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
                         }}
                     />
                 </Button>
+
+                {/* Dianis tip */}
+                <div className="mt-4 flex items-center gap-2 relative z-10">
+                  <AgentAvatar agentId="master" size={20} animate={false} />
+                  <span className="text-[11px] text-slate-400 italic">
+                    Dianis: &quot;Solo arrastra tu archivo y yo me encargo del resto&quot; ✨
+                  </span>
+                </div>
+            </div>
             </div>
 
             {uploadedFiles.length > 0 && (

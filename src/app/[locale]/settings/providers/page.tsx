@@ -123,6 +123,7 @@ const MODEL_CATALOG: Record<ProviderType, { label: string; icon: string; hint: s
   },
 };
 
+/** Estado inicial vacío para el formulario de proveedor. */
 const EMPTY_FORM: FormData = { provider_type: 'openrouter', display_name: '', api_key: '', model_id: '', priority: 0, is_active: true };
 
 export default function ProvidersPage() {
@@ -139,6 +140,7 @@ export default function ProvidersPage() {
   const freeModels = catalog.models.filter((m) => m.free);
   const paidModels = catalog.models.filter((m) => !m.free);
 
+  /** Carga la lista de proveedores desde la API. */
   const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch('/api/settings/providers');
@@ -152,17 +154,21 @@ export default function ProvidersPage() {
   useEffect(() => { fetchProviders(); }, [fetchProviders]);
   useEffect(() => { if (!success) return; const t = setTimeout(() => setSuccess(null), 4000); return () => clearTimeout(t); }, [success]);
 
+  /** Reinicia el formulario al estado vacío y cierra el panel de edición. */
   const resetForm = () => { setForm(EMPTY_FORM); setEditingId(null); setShowForm(false); setError(null); };
 
+  /** Carga los datos de un proveedor existente en el formulario para edición. */
   const handleEdit = (p: Provider) => {
     setForm({ provider_type: p.provider_type, display_name: p.display_name, api_key: '', model_id: p.model_id, priority: p.priority, is_active: p.is_active });
     setEditingId(p.id); setShowForm(true);
   };
 
+  /** Selecciona un modelo del catálogo y auto-completa el nombre visible si está vacío. */
   const selectModel = (model: ModelOption) => {
     setForm((prev) => ({ ...prev, model_id: model.id, display_name: prev.display_name || `${catalog.label} - ${model.label}` }));
   };
 
+  /** Crea o actualiza un proveedor según si `editingId` está definido (PUT) o no (POST). */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setError(null);
     try {
@@ -179,6 +185,7 @@ export default function ProvidersPage() {
     finally { setSaving(false); }
   };
 
+  /** Elimina un proveedor previa confirmación del usuario. */
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar este proveedor?')) return;
     try {
@@ -188,6 +195,7 @@ export default function ProvidersPage() {
     } catch { setError('Error de conexion'); }
   };
 
+  /** Ejecuta un test de conectividad contra el proveedor seleccionado. */
   const handleTest = async (id: string) => {
     try {
       const res = await fetch(`/api/settings/providers/${id}/test`, { method: 'POST' });
@@ -198,6 +206,7 @@ export default function ProvidersPage() {
     } catch { setError('Error de conexion'); }
   };
 
+  /** Intercambia la prioridad de un proveedor con su vecino (arriba o abajo). */
   const handleMove = async (index: number, direction: 'up' | 'down') => {
     const swapIdx = direction === 'up' ? index - 1 : index + 1;
     if (swapIdx < 0 || swapIdx >= providers.length) return;

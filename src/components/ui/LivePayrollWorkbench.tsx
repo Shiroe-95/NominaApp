@@ -7,6 +7,8 @@ import PayrollEditor, { type CorrectionEntry } from '@/components/ui/PayrollEdit
 import { validatePayrollCalculations, type MappingAnalysisCategory, type MappingRelationInput, type MatrixInput, type ValidationReport } from '@/lib/payroll/ruleValidation';
 import type { AiValidationReport } from '@/app/api/ai/validation/route';
 import { Loader2 } from 'lucide-react';
+import { GuidedFlow } from '@/components/ui/GuidedFlow';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
 
 interface LivePayrollWorkbenchProps {
     payrollId: string | null;
@@ -98,6 +100,15 @@ export default function LivePayrollWorkbench({
     const [aiReport, setAiReport] = useState<AiValidationReport | null>(null);
     const [corrections, setCorrections] = useState<CorrectionEntry[]>([]);
     const [isPreparing, setIsPreparing] = useState(false);
+
+    // Guided flow step: 0=upload, 1=mapping, 2=validation, 3=results
+    const guidedStep = useMemo(() => {
+        if (!matrices || matrices.length === 0) return 0; // upload
+        if (isPreparing) return 1; // mapping in progress
+        if (validationReport && (aiReport || validationReport.rowsAnalyzed > 0)) return 3; // results ready
+        if (relations.length > 0) return 2; // validation
+        return 1; // mapping
+    }, [matrices, relations, validationReport, aiReport, isPreparing]);
 
     const yearsOptions = useMemo(() => {
         const current = new Date().getFullYear();
@@ -216,6 +227,8 @@ export default function LivePayrollWorkbench({
                 </div>
             </div>
 
+            <GuidedFlow currentStep={guidedStep} />
+
             {canLoadStored && (
                 <div className="rounded-xl border border-violet-500/30 glass-panel bg-violet-950/30 p-3 shadow-inner">
                     <p className="text-xs text-violet-100">También puedes reabrir la última nómina guardada sin volver a subir archivo.</p>
@@ -228,17 +241,24 @@ export default function LivePayrollWorkbench({
             <UploadZone onProceed={(files) => { void processLiveFiles(files); }} />
 
             {isPreparing && (
-                <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-950/40 p-3 text-sm text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.3)] animate-pulse-glow">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Procesando nómina y preparando sugerencias IA...
+                <div className="flex items-center gap-3 rounded-xl border border-violet-500/30 bg-violet-950/40 p-4 text-sm text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.3)] animate-pulse-glow">
+                    <AgentAvatar agentId="mapper" size={28} animate />
+                    <div className="flex-1">
+                        <p className="font-semibold text-white text-xs">🐈‍⬛ Gyoru mapeando columnas...</p>
+                        <p className="text-[11px] text-violet-300 mt-0.5">Juli y Wil están listos para validar cuando termine</p>
+                    </div>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                 </div>
             )}
 
             {matrices && matrices.length > 0 && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="rounded-xl border border-white/10 glass-panel bg-black/20 p-3 shadow-sm">
-                        <p className="text-sm font-semibold text-white drop-shadow-sm">Nómina lista para corrección</p>
-                        <p className="mt-1 text-xs text-slate-300">
+                        <div className="flex items-center gap-2">
+                            <AgentAvatar agentId="auditor" size={22} animate={false} />
+                            <p className="text-sm font-semibold text-white drop-shadow-sm">Nómina lista para corrección</p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-300 ml-7">
                             {validationReport?.rowsAnalyzed ?? 0} filas analizadas · {validationReport?.rowsWithFindings ?? 0} con hallazgos · {validationReport?.criticalFindings ?? 0} críticos
                             {aiReport?.hallazgosPorEmpleado?.length ? ` · ${aiReport.hallazgosPorEmpleado.length} empleados con hallazgos IA` : ''}
                         </p>
