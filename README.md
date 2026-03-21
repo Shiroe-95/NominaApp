@@ -133,6 +133,7 @@ El panel de chat lateral (`AiSidebar`) muestra en tiempo real qué agente está 
 |----------------|-------------|
 | **Actualizaciones en Tiempo Real** | Cambios reflejados instantáneamente en todos los módulos. Notificaciones push para eventos críticos. |
 | **Automatización de Procesos** | Programación de liquidaciones, generación automática de archivos y alertas de vencimientos. |
+| **Panel Financiero de IA** | Dashboard administrativo con métricas de consumo de tokens, costos estimados por proveedor, ingresos por tareas, margen de ganancia y costo promedio por nómina procesada. Filtrable por rango de fechas. |
 | **Internacionalización (i18n)** | Soporte completo para Inglés y Español. Rutas localizadas (`/es/reconcile`, `/en/reconcile`). |
 | **Responsive Design** | Experiencia optimizada para desktop, tablet y móvil sin perder funcionalidad. |
 | **Seguridad Empresarial** | Autenticación robusta, roles y permisos granulares, encriptación de datos sensibles. |
