@@ -3,18 +3,31 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 
+/**
+ * Representa un país configurado en el sistema con su moneda y formato de localización.
+ * Corresponde a la tabla `countries` en Supabase.
+ */
 interface Country {
   id: string;
+  /** Código ISO del país (ej. "CO", "MX") */
   country_code: string;
+  /** Nombre legible del país */
   country_name: string;
+  /** Código ISO 4217 de la moneda (ej. "COP", "USD") */
   currency_code: string;
+  /** Símbolo de la moneda (ej. "$", "€") */
   currency_symbol: string;
+  /** Identificador de locale (ej. "es-CO") */
   locale_format: string;
+  /** Separador decimal usado en el locale */
   decimal_separator: string;
+  /** Separador de miles usado en el locale */
   thousands_separator: string;
+  /** Indica si el país está habilitado para uso en la plataforma */
   is_active: boolean;
 }
 
+/** Valores por defecto para el formulario de creación de un país nuevo. */
 const empty: Omit<Country, 'id'> = {
   country_code: '',
   country_name: '',
@@ -26,6 +39,21 @@ const empty: Omit<Country, 'id'> = {
   is_active: true,
 };
 
+/**
+ * Página de administración de países soportados.
+ *
+ * Permite crear, editar, eliminar y consultar los países configurados en la plataforma.
+ * Cada país define su moneda, formato de localización y separadores numéricos.
+ * Incluye un botón "Investigar" que invoca al Agente Investigador de IA
+ * para obtener normativa laboral vigente del país seleccionado.
+ *
+ * Secciones:
+ * - Formulario de creación/edición de país.
+ * - Tabla con listado de países, estado (activo/inactivo) y acciones (editar, investigar, eliminar).
+ *
+ * Consume la API `/api/admin/countries` (GET, POST, PUT, DELETE)
+ * y `/api/ai/orchestrate` (POST, type: "research") para la investigación con IA.
+ */
 export default function CountriesPage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +63,7 @@ export default function CountriesPage() {
   const [form, setForm] = useState<Omit<Country, 'id'>>(empty);
   const [researchingId, setResearchingId] = useState<string | null>(null);
 
+  /** Obtiene la lista de países desde la API. */
   const fetchCountries = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/countries');
@@ -50,8 +79,10 @@ export default function CountriesPage() {
 
   useEffect(() => { fetchCountries(); }, [fetchCountries]);
 
+  /** Reinicia el formulario al estado de creación. */
   const resetForm = () => { setEditId(null); setForm(empty); };
 
+  /** Carga los datos de un país existente en el formulario para edición. */
   const startEdit = (c: Country) => {
     setEditId(c.id);
     setForm({
@@ -66,6 +97,7 @@ export default function CountriesPage() {
     });
   };
 
+  /** Crea o actualiza un país según si `editId` está definido (PUT) o no (POST). */
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -91,6 +123,7 @@ export default function CountriesPage() {
     }
   };
 
+  /** Elimina un país previa confirmación del usuario. */
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this country?')) return;
     setError(null);
@@ -111,6 +144,7 @@ export default function CountriesPage() {
     }
   };
 
+  /** Invoca al Agente Investigador de IA para obtener normativa laboral vigente del país. */
   const handleResearch = async (c: Country) => {
     setResearchingId(c.id);
     setError(null);
@@ -134,6 +168,7 @@ export default function CountriesPage() {
     }
   };
 
+  /** Helper para actualizar un campo del formulario de forma tipada. */
   const set = (field: keyof Omit<Country, 'id'>, value: string | boolean) =>
     setForm((f) => ({ ...f, [field]: value }));
 
@@ -253,3 +288,67 @@ export default function CountriesPage() {
           )}
         </div>
       </div>
+
+      {/* ── Table ────────────────────────────────────────── */}
+      {loading ? (
+        <p className="text-sm text-slate-400">Cargando…</p>
+      ) : countries.length === 0 ? (
+        <p className="text-sm text-slate-400">No hay países configurados.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-white/10">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-navy-light/60 text-xs text-slate-400 uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3">Código</th>
+                <th className="px-4 py-3">País</th>
+                <th className="px-4 py-3">Moneda</th>
+                <th className="px-4 py-3">Símbolo</th>
+                <th className="px-4 py-3">Locale</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {countries.map((c) => (
+                <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-4 py-3 font-mono text-slate-200">{c.country_code}</td>
+                  <td className="px-4 py-3 text-slate-200">{c.country_name}</td>
+                  <td className="px-4 py-3 text-slate-300">{c.currency_code}</td>
+                  <td className="px-4 py-3 text-slate-300">{c.currency_symbol}</td>
+                  <td className="px-4 py-3 text-slate-400 font-mono text-xs">{c.locale_format}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        c.is_active
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-slate-500/10 text-slate-400'
+                      }`}
+                    >
+                      {c.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-1">
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(c)}>
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleResearch(c)}
+                      disabled={researchingId === c.id}
+                    >
+                      {researchingId === c.id ? 'Investigando…' : '🔍 Investigar'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(c.id)}>
+                      Eliminar
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

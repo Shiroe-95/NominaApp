@@ -185,6 +185,7 @@ nomina-smart/
 │   ├── app/
 │   │   ├── [locale]/         # Rutas con soporte multilenguaje
 │   │   │   ├── login/        # Autenticación de usuarios
+│   │   │   ├── admin/        # Paneles de administración (finanzas, países, uso, precios)
 │   │   │   ├── reconcile/    # Módulo de conciliación y validación
 │   │   │   ├── reports/      # Reportes y analíticas
 │   │   │   ├── rules/        # Configuración de reglas de negocio
