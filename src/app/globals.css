@@ -209,3 +209,12 @@ select {
   to   { opacity: 1; transform: scale(1); }
 }
 
+@keyframes avatar-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-avatar-float {
+  animation: avatar-float 3s ease-in-out infinite;
+}
+

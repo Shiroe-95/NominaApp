@@ -4,6 +4,8 @@ import { useRef, useEffect, useState } from 'react';
 import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentChip } from '@/components/ui/AgentChip';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { getPersona, getAgentDisplayName, AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -61,7 +63,7 @@ const SUGGESTIONS = [
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  text: 'Hola, soy tu asistente IA de NóminaSmart.\n\nPuedo gestionar reglas normativas, validar nóminas, corregir errores y explicar conceptos de nómina colombiana.\n\nMis agentes especializados trabajan en equipo para darte la mejor respuesta.',
+  text: '¡Hola! Soy Dianis 👑, tu directora de orquestación.\n\nYo coordino a todo el equipo de agentes para ayudarte:\n\n🔍 Juli — Auditora de nómina\n📝 Ana — Redactora de reportes\n⚙️ Wil — Ingeniero de correcciones\n🐕 Soul — Investigadora regulatoria\n🐈‍⬛ Gyoru — Mapeadora de campos\n\nDime qué necesitas y yo me encargo de asignar al equipo correcto. ¡Es súper fácil!',
 };
 
 // ── Component ───────────────────────────────────────────────────────
@@ -215,14 +217,12 @@ export default function AiSidebar({ context }: AiSidebarProps) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-navy-dark text-white shrink-0">
             <div className="flex items-center gap-3">
-              <div className="bg-white/10 p-2 rounded-lg">
-                <Bot className="w-5 h-5 text-emerald-400" />
-              </div>
+              <AgentAvatar agentId="master" size={36} animate />
               <div>
-                <h3 className="font-semibold text-sm">Asistente IA</h3>
+                <h3 className="font-semibold text-sm">👑 Dianis</h3>
                 <div className="flex items-center gap-1.5 text-xs text-slate-300">
                   <Activity className="w-3 h-3 text-emerald-400" />
-                  Multi-agente · Orquestador activo
+                  Directora · Equipo listo
                 </div>
               </div>
             </div>
@@ -257,32 +257,36 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                 {/* Agent result chips */}
                 {msg.agentResults && msg.agentResults.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5 w-full">
-                    {msg.agentResults.map((result, ri) => (
-                      <div key={ri} className="flex flex-col items-start">
-                        <AgentChip
-                          agentName={result.agentName}
-                          active={activeAgents.includes(result.agentName)}
-                        />
-                        <span className="text-[10px] text-slate-400 ml-2.5 mt-0.5">
-                          {result.tokensUsed} tokens · {result.latencyMs}ms
-                          {!result.success && ' · error'}
-                        </span>
-                      </div>
-                    ))}
+                    {msg.agentResults.map((result, ri) => {
+                      const persona = getPersona(result.agentName);
+                      return (
+                        <div key={ri} className="flex items-center gap-1.5">
+                          <AgentAvatar agentId={result.agentName} size={20} animate={false} />
+                          <AgentChip
+                            agentName={result.agentName}
+                            active={activeAgents.includes(result.agentName)}
+                          />
+                          <span className="text-[10px] text-slate-400">
+                            {result.tokensUsed}t · {result.latencyMs}ms
+                            {!result.success && ' · ⚠️'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Inter-agent communication flow */}
+                {/* Flujo de comunicación del equipo — muestra nombres amigables (emoji + nombre) vía getAgentDisplayName */}
                 {msg.busHistory && msg.busHistory.length > 0 && (
                   <div className="mt-1.5 ml-3 pl-3 border-l-2 border-slate-200 space-y-1">
                     <span className="text-[9px] uppercase tracking-wider text-slate-300 font-semibold">
-                      Comunicación inter-agente
+                      Comunicación del equipo
                     </span>
                     {msg.busHistory.map((bm, bi) => (
                       <div key={bi} className="text-[10px] text-slate-400 flex items-center gap-1">
-                        <span className="font-medium text-slate-500">{bm.fromAgent}</span>
+                        <span className="font-medium text-slate-500">{getAgentDisplayName(bm.fromAgent)}</span>
                         <span>→</span>
-                        <span className="font-medium text-slate-500">{bm.toAgent}</span>
+                        <span className="font-medium text-slate-500">{getAgentDisplayName(bm.toAgent)}</span>
                         <span className="text-slate-300">·</span>
                         <span>{bm.queryType}</span>
                       </div>
@@ -316,6 +320,7 @@ export default function AiSidebar({ context }: AiSidebarProps) {
             {isLoading && (
               <div className="flex flex-col gap-2 mr-auto">
                 <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm shadow-sm px-4 py-3 flex items-center gap-2">
+                  <AgentAvatar agentId="master" size={22} animate />
                   <div className="flex gap-1">
                     {[0, 150, 300].map((delay) => (
                       <span
@@ -325,12 +330,12 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-slate-400">Agentes procesando...</span>
+                  <span className="text-xs text-slate-400">Dianis coordinando...</span>
                 </div>
                 {activeAgents.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {activeAgents.map((name) => (
-                      <AgentChip key={name} agentName={name} active />
+                      <AgentChip key={name} agentName={name} active showAvatar />
                     ))}
                   </div>
                 )}
@@ -365,7 +370,7 @@ export default function AiSidebar({ context }: AiSidebarProps) {
               </button>
             </div>
             <p className="text-[10px] text-center text-slate-400 mt-2 flex items-center justify-center gap-1">
-              <Bot className="w-3 h-3" /> Multi-agente: auditor · writer · corrector · payroll
+              <Bot className="w-3 h-3" /> Equipo: Juli · Ana · Wil · Soul · Gyoru
             </p>
           </div>
         </div>

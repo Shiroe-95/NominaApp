@@ -15,6 +15,7 @@ import { createCorrectorAgent } from './corrector';
 import { createMapperAgent } from './mapper';
 import { createPayrollExpertAgent } from './payroll-expert';
 import { AgentBus } from './agent-bus';
+import { getAgentLabel as getPersonaLabel } from '@/lib/ai/agent-personas';
 
 // ── Intent classification ───────────────────────────────────────────
 
@@ -234,14 +235,7 @@ export function consolidateResults(
 }
 
 function getAgentLabel(agentName: string): string {
-  const labels: Record<string, string> = {
-    auditor: '🔍 Agente Auditor',
-    writer: '📝 Agente Redactor',
-    corrector: '🔧 Agente Corrector',
-    mapper: '🗺️ Agente Mapeador',
-    'payroll-expert': '💼 Agente de Nómina',
-  };
-  return labels[agentName] ?? `Agente ${agentName}`;
+  return getPersonaLabel(agentName);
 }
 
 function formatAgentResult(result: AgentResult, description?: string): string {
