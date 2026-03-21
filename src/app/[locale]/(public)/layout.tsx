@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/routing';
 
 const navLinks = [
   { href: '/' as const, label: 'Inicio' },
+  { href: '/about' as const, label: 'Nosotros' },
   { href: '/pricing' as const, label: 'Precios' },
   { href: '/contact' as const, label: 'Contacto' },
 ];

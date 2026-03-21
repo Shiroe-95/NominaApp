@@ -187,6 +187,7 @@ nomina-smart/
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/         # Rutas con soporte multilenguaje
+│   │   │   ├── (public)/     # Páginas públicas sin autenticación (about, contact, pricing)
 │   │   │   ├── login/        # Autenticación de usuarios
 │   │   │   ├── admin/        # Paneles de administración (finanzas, países, uso, precios)
 │   │   │   ├── reconcile/    # Módulo de conciliación y validación

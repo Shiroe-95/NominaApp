@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ProviderCard } from '@/components/ui/ProviderCard';
+import { Shield, Sparkles, Zap, Info } from 'lucide-react';
 
 const PROVIDER_TYPES = ['openai', 'anthropic', 'groq', 'google', 'openrouter'] as const;
 type ProviderType = (typeof PROVIDER_TYPES)[number];
@@ -28,8 +29,78 @@ interface FormData {
   is_active: boolean;
 }
 
+interface ModelOption {
+  id: string;
+  label: string;
+  free: boolean;
+  context: string;
+  recommended?: boolean;
+}
+
+// ── Catálogo de modelos por proveedor ───────────────────────────────
+
+const MODEL_CATALOG: Record<ProviderType, { label: string; icon: string; hint: string; models: ModelOption[] }> = {
+  openrouter: {
+    label: 'OpenRouter',
+    icon: '🌐',
+    hint: 'Acceso a múltiples modelos con una sola API key. Incluye modelos gratuitos.',
+    models: [
+      { id: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (gratis)', free: true, context: '1M tokens', recommended: true },
+      { id: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (gratis)', free: true, context: '96K tokens' },
+      { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (gratis)', free: true, context: '64K tokens', recommended: true },
+      { id: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 Reasoning (gratis)', free: true, context: '64K tokens' },
+      { id: 'meta-llama/llama-4-maverick:free', label: 'Llama 4 Maverick (gratis)', free: true, context: '128K tokens' },
+      { id: 'meta-llama/llama-4-scout:free', label: 'Llama 4 Scout (gratis)', free: true, context: '512K tokens' },
+      { id: 'qwen/qwen3-235b-a22b:free', label: 'Qwen 3 235B (gratis)', free: true, context: '40K tokens' },
+      { id: 'microsoft/mai-ds-r1:free', label: 'MAI DS R1 (gratis)', free: true, context: '64K tokens' },
+      { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', free: false, context: '128K tokens' },
+      { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', free: false, context: '200K tokens' },
+    ],
+  },
+  openai: {
+    label: 'OpenAI',
+    icon: '🤖',
+    hint: 'Modelos GPT directamente desde OpenAI.',
+    models: [
+      { id: 'gpt-4o-mini', label: 'GPT-4o Mini', free: false, context: '128K tokens', recommended: true },
+      { id: 'gpt-4o', label: 'GPT-4o', free: false, context: '128K tokens' },
+      { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', free: false, context: '128K tokens' },
+      { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', free: false, context: '16K tokens' },
+    ],
+  },
+  anthropic: {
+    label: 'Anthropic',
+    icon: '🧠',
+    hint: 'Modelos Claude de Anthropic.',
+    models: [
+      { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', free: false, context: '200K tokens', recommended: true },
+      { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', free: false, context: '200K tokens' },
+    ],
+  },
+  groq: {
+    label: 'Groq',
+    icon: '⚡',
+    hint: 'Inferencia ultra-rápida. Modelos open-source acelerados.',
+    models: [
+      { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', free: false, context: '128K tokens', recommended: true },
+      { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', free: false, context: '128K tokens' },
+      { id: 'gemma2-9b-it', label: 'Gemma 2 9B', free: false, context: '8K tokens' },
+    ],
+  },
+  google: {
+    label: 'Google AI',
+    icon: '🔮',
+    hint: 'Modelos Gemini directamente desde Google.',
+    models: [
+      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', free: false, context: '1M tokens', recommended: true },
+      { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', free: false, context: '2M tokens' },
+      { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', free: false, context: '1M tokens' },
+    ],
+  },
+};
+
 const EMPTY_FORM: FormData = {
-  provider_type: 'openai',
+  provider_type: 'openrouter',
   display_name: '',
   api_key: '',
   model_id: '',
@@ -48,6 +119,10 @@ export default function ProvidersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const catalog = MODEL_CATALOG[form.provider_type];
+  const freeModels = catalog.models.filter((m) => m.free);
+  const paidModels = catalog.models.filter((m) => !m.free);
+
   const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch('/api/settings/providers');
@@ -65,7 +140,7 @@ export default function ProvidersPage() {
 
   useEffect(() => {
     if (!success) return;
-    const t = setTimeout(() => setSuccess(null), 3000);
+    const t = setTimeout(() => setSuccess(null), 4000);
     return () => clearTimeout(t);
   }, [success]);
 
@@ -87,6 +162,14 @@ export default function ProvidersPage() {
     });
     setEditingId(p.id);
     setShowForm(true);
+  };
+
+  const selectModel = (model: ModelOption) => {
+    setForm((prev) => ({
+      ...prev,
+      model_id: model.id,
+      display_name: prev.display_name || `${catalog.label} — ${model.label}`,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,7 +197,7 @@ export default function ProvidersPage() {
         return;
       }
 
-      setSuccess(isEdit ? 'Proveedor actualizado' : 'Proveedor creado');
+      setSuccess(isEdit ? 'Proveedor actualizado correctamente ✓' : 'Proveedor creado y probado ✓');
       resetForm();
       fetchProviders();
     } catch {
@@ -145,7 +228,7 @@ export default function ProvidersPage() {
     try {
       const res = await fetch(`/api/settings/providers/${id}/test`, { method: 'POST' });
       const data = await res.json();
-      if (data.success) setSuccess('Conectividad OK');
+      if (data.success) setSuccess('Conectividad OK ✓');
       else setError(data.error ?? 'Test fallido');
       fetchProviders();
     } catch {
@@ -175,178 +258,3 @@ export default function ProvidersPage() {
       setError('Error de conexión');
     }
   };
-
-  return (
-    <div className="space-y-5 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Proveedores de IA</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Configura y prioriza los proveedores de inteligencia artificial.</p>
-        </div>
-        {!showForm && (
-          <Button onClick={() => { resetForm(); setShowForm(true); }}>
-            + Agregar proveedor
-          </Button>
-        )}
-      </div>
-
-      {error && (
-        <div className="p-3 rounded-xl border border-rose-200 bg-rose-50 text-sm text-rose-700">
-          {error}
-          <button onClick={() => setError(null)} className="ml-2 underline text-xs">cerrar</button>
-        </div>
-      )}
-      {success && (
-        <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
-          {success}
-        </div>
-      )}
-
-      {/* CRUD Form */}
-      {showForm && (
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-          <h2 className="text-sm font-semibold text-slate-800">
-            {editingId ? 'Editar proveedor' : 'Nuevo proveedor'}
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Tipo</label>
-              <select
-                value={form.provider_type}
-                onChange={(e) => setForm({ ...form, provider_type: e.target.value as ProviderType })}
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 text-sm bg-white"
-              >
-                {PROVIDER_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</label>
-              <input
-                value={form.display_name}
-                onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-                placeholder="Mi proveedor"
-                required
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                API Key {editingId && <span className="text-slate-400 normal-case">(dejar vacío para mantener)</span>}
-              </label>
-              <input
-                type="password"
-                value={form.api_key}
-                onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-                placeholder={editingId ? '••••••••' : 'sk-...'}
-                required={!editingId}
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 text-sm font-mono"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Modelo</label>
-              <input
-                value={form.model_id}
-                onChange={(e) => setForm({ ...form, model_id: e.target.value })}
-                placeholder="gpt-4o-mini"
-                required
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 text-sm font-mono"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Prioridad</label>
-              <input
-                type="number"
-                min={0}
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
-                className="h-10 w-full px-3 rounded-lg border border-slate-200 text-sm"
-              />
-            </div>
-
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="w-4 h-4 rounded border-slate-300 text-violet-600"
-                />
-                <span className="text-sm text-slate-700">Activo</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Guardando…' : editingId ? 'Actualizar' : 'Crear proveedor'}
-            </Button>
-            <Button type="button" variant="ghost" onClick={resetForm}>Cancelar</Button>
-          </div>
-        </form>
-      )}
-
-      {/* Provider List */}
-      {loading ? (
-        <div className="text-sm text-slate-400 py-8 text-center">Cargando proveedores…</div>
-      ) : providers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
-          <p className="text-sm text-slate-500">No hay proveedores configurados.</p>
-          <p className="text-xs text-slate-400 mt-1">Agrega uno para empezar a usar la IA.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {providers.map((p, idx) => (
-            <div key={p.id} className="flex items-start gap-2">
-              {/* Priority controls */}
-              <div className="flex flex-col gap-1 pt-3">
-                <button
-                  onClick={() => handleMove(idx, 'up')}
-                  disabled={idx === 0}
-                  className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
-                  title="Subir prioridad"
-                >
-                  ▲
-                </button>
-                <button
-                  onClick={() => handleMove(idx, 'down')}
-                  disabled={idx === providers.length - 1}
-                  className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-xs"
-                  title="Bajar prioridad"
-                >
-                  ▼
-                </button>
-              </div>
-
-              <div className="flex-1">
-                <ProviderCard
-                  name={p.display_name}
-                  providerType={p.provider_type}
-                  model={p.model_id}
-                  isActive={p.is_active}
-                  lastTestSuccess={p.last_test_success}
-                  onTest={() => handleTest(p.id)}
-                  onEdit={() => handleEdit(p)}
-                  onDelete={() => handleDelete(p.id)}
-                />
-                {testingId === p.id && (
-                  <p className="text-xs text-slate-400 mt-1 ml-1">Probando conectividad…</p>
-                )}
-              </div>
-
-              <div className="pt-4 text-xs text-slate-300 font-mono w-6 text-center">
-                #{idx + 1}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
