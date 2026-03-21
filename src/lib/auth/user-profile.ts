@@ -26,11 +26,18 @@ const ANALYST_ROUTES = ['/upload', '/reconcile', '/rules'];
 const PUBLIC_ROUTE_PREFIXES = ['/login', '/auth'];
 
 /**
- * Check if a path (without locale prefix) is a public route.
+ * Determina si una ruta (sin prefijo de locale) es pública y no requiere autenticación.
+ *
+ * Se consideran públicas:
+ * - Rutas del grupo `(public)`: `/`, `/pricing`, `/contact`, `/about`
+ * - Rutas que comienzan con prefijos públicos: `/login`, `/auth`
+ *
+ * @param pathWithoutLocale - Ruta sin prefijo de locale (ej: `/pricing`, `/about`)
+ * @returns `true` si la ruta es pública y accesible sin autenticación
  */
 export function isPublicRoute(pathWithoutLocale: string): boolean {
-  // Public group routes are handled by the (public) route group — they don't
-  // have /public in the URL, they're at the root level: /, /pricing, /contact
+  // Rutas del route group (public) — no llevan /public en la URL,
+  // están en la raíz: /, /pricing, /contact, /about
   const publicGroupPaths = ['/', '/pricing', '/contact', '/about'];
   if (publicGroupPaths.includes(pathWithoutLocale)) return true;
 
