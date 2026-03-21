@@ -31,7 +31,7 @@ const PUBLIC_ROUTE_PREFIXES = ['/login', '/auth'];
 export function isPublicRoute(pathWithoutLocale: string): boolean {
   // Public group routes are handled by the (public) route group — they don't
   // have /public in the URL, they're at the root level: /, /pricing, /contact
-  const publicGroupPaths = ['/', '/pricing', '/contact'];
+  const publicGroupPaths = ['/', '/pricing', '/contact', '/about'];
   if (publicGroupPaths.includes(pathWithoutLocale)) return true;
 
   return PUBLIC_ROUTE_PREFIXES.some((prefix) =>
