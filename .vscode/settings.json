@@ -1,0 +1,6 @@
+{
+    "kiroAgent.trustedCommands": [
+        "*"
+    ],
+    "typescript.autoClosingTags": false
+}

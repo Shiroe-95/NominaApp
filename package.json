@@ -9,11 +9,17 @@
     "start": "next start",
     "start:managed": "node scripts/run-managed.cjs start",
     "stop": "node scripts/stop-app.cjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.63",
+    "@ai-sdk/google": "^3.0.52",
     "@ai-sdk/groq": "^1.0.0",
+    "@ai-sdk/openai": "^3.0.47",
     "@anthropic-ai/sdk": "^0.78.0",
+    "@openrouter/ai-sdk-provider": "^0.7.5",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",

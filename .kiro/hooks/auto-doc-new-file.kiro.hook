@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "name": "Documentar Archivo Nuevo",
+  "description": "Cuando se crea cualquier archivo nuevo en el proyecto, el agente genera documentación base y actualiza el README.md si el archivo representa un nuevo módulo o funcionalidad.",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.css",
+      "scripts/**/*",
+      "messages/**/*.json",
+      "*.ts",
+      "*.mjs",
+      "*.json",
+      "*.sql"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Se creó un nuevo archivo. Genera la documentación completa:\n\n## Documentación inline del archivo nuevo:\n1. Añade un comentario de header describiendo su propósito y módulo al que pertenece.\n2. Documenta todas las funciones exportadas con JSDoc/TSDoc (descripción, @param, @returns).\n3. Si es un componente React, documenta las props y el propósito del componente.\n4. Si es una API route, documenta el endpoint: método HTTP, parámetros, respuesta y errores.\n5. Si es un módulo de lógica de negocio, documenta las reglas de negocio.\n6. Si es un archivo de configuración, documenta las opciones principales.\n7. Si es un script, documenta su propósito, parámetros y cómo ejecutarlo.\n8. Si es un archivo SQL, documenta tablas, columnas clave y relaciones.\n\n## Actualización del README.md:\n9. Evalúa si este archivo nuevo representa un módulo, ruta, funcionalidad o tecnología nueva.\n10. Si es así, actualiza el README.md: añade el nuevo módulo a la sección de arquitectura, actualiza el árbol de directorios, y documenta la nueva funcionalidad donde corresponda.\n11. Mantén el formato y estilo existente del README.\n\nUsa español para toda la documentación. No modifiques la lógica del código."
+  }
+}

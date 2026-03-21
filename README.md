@@ -94,6 +94,16 @@ El sistema utiliza algoritmos impulsados por Inteligencia Artificial para inferi
 
 ### Capacidades de Auditoría con IA
 
+El sistema utiliza una **arquitectura de agentes especializados** orquestados por un Agente Maestro:
+- **Agente Auditor**: Valida 14 verificaciones matemáticas y normativas (IBC, Ley 1393, UGPP).
+- **Agente Redactor**: Genera reportes ejecutivos narrativos con hallazgos priorizados.
+- **Agente Corrector**: Propone correcciones numéricas determinísticas con fórmulas normativas.
+- **Agente Mapeador**: Mapea columnas de archivos Excel a campos estándar con IA.
+- **Agente de Nómina**: Asistente conversacional de normativa laboral y cálculos.
+- **Agente Investigador**: Investiga normativa laboral vigente por país/año, compara cambios regulatorios y registra fuentes consultadas.
+
+El panel de chat lateral (`AiSidebar`) muestra en tiempo real qué agente está procesando, con chips de resultado por agente (tokens, latencia, éxito/error) y un flujo visual de comunicación inter-agente (AgentBus) para trazabilidad completa de la orquestación.
+
 <table>
   <tr>
     <td width="50%">
@@ -146,7 +156,7 @@ Esta plataforma ha sido construida con lo último en desarrollo Fullstack Server
 |------------|-----------|
 | **Supabase (PostgreSQL)** | Base de datos transaccional de alto rendimiento con Row Level Security |
 | **API Routes (Next.js)** | Endpoints serverless para operaciones de negocio |
-| **Anthropic / OpenAI SDK** | Inteligencia Artificial para mapeo automático y análisis predictivo |
+| **Vercel AI SDK + Multi-proveedor** | Orquestación multi-agente de IA (OpenAI, Anthropic, Groq, Google, OpenRouter) con fallback automático |
 
 ### Herramientas de Desarrollo
 | Tecnología | Propósito |
@@ -155,6 +165,7 @@ Esta plataforma ha sido construida con lo último en desarrollo Fullstack Server
 | **next-intl** | Gestión de internacionalización y rutas localizadas |
 | **XLSX** | Procesamiento eficiente de hojas de cálculo en memoria |
 | **ESLint** | Aseguramiento de calidad y consistencia del código |
+| **Kiro IDE + MCP** | Asistente IA con servidores MCP para Next.js DevTools, Supabase y Vercel |
 
 ---
 
@@ -164,6 +175,9 @@ El proyecto sigue una arquitectura modular y escalable, diseñada para facilitar
 
 ```
 nomina-smart/
+├── .kiro/
+│   └── settings/
+│       └── mcp.json          # Configuración de servidores MCP (Next.js DevTools, Supabase, Vercel)
 ├── messages/                 # Diccionarios de internacionalización (es.json, en.json)
 ├── scripts/                  # Scripts de configuración y mantenimiento
 ├── src/
@@ -181,6 +195,13 @@ nomina-smart/
 │   │   └── ui/               # Componentes reutilizables
 │   ├── i18n/                 # Configuración de internacionalización
 │   ├── lib/
+│   │   ├── ai/               # Capa de IA multi-agente
+│   │   │   ├── agents/       # Agentes especializados (master, auditor, writer, corrector, mapper, payroll-expert, researcher, agent-bus)
+│   │   │   ├── providers.ts  # Registry dinámico multi-proveedor (Vercel AI SDK)
+│   │   │   ├── fallback.ts   # Cadena de fallback entre proveedores
+│   │   │   ├── encryption.ts # Cifrado/descifrado de API keys (AES-256-GCM)
+│   │   │   └── usage-logger.ts # Registro de uso de IA en ai_usage_logs
+│   │   ├── auth/             # Autenticación y perfiles de usuario por rol
 │   │   ├── db/               # Esquemas y queries de base de datos
 │   │   ├── payroll/          # Lógica de negocio de nómina
 │   │   └── supabase/         # Clientes de Supabase (admin, server, client)
@@ -237,6 +258,16 @@ Accede a la aplicación en:
 node scripts/setup-db.mjs
 ```
 Crea las tablas necesarias en tu base de datos Supabase.
+
+### Configurar MCP (Kiro IDE)
+
+Si usas Kiro como IDE, el proyecto incluye configuración MCP en `.kiro/settings/mcp.json` con tres servidores:
+
+- **next-devtools**: Diagnóstico y herramientas de desarrollo para Next.js (inspección de rutas, errores, caché).
+- **supabase**: Interacción directa con tu proyecto Supabase (SQL, migraciones, Edge Functions).
+- **vercel**: Gestión de deployments, dominios, variables de entorno y búsqueda de documentación de Vercel. Usa OAuth — al conectar por primera vez se abrirá el navegador para autorizar tu cuenta.
+
+Para activar el servidor Supabase, configura tu token personal de acceso en `.kiro/settings/mcp.json`. Puedes generarlo en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). **Importante:** Asegúrate de que `.kiro/settings/mcp.json` esté incluido en `.gitignore` para no exponer credenciales en el repositorio.
 
 ### Flujo de Trabajo
 1. **Login**: Inicia sesión con tu cuenta (crea una nueva si es necesario)

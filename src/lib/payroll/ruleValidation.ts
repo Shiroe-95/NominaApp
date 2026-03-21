@@ -23,6 +23,12 @@ export interface MatrixInput {
     sheetName?: string;
 }
 
+import {
+    getHardcodedConstants,
+    loadRulesForCountry,
+    type CountryYearRuleRow,
+} from '@/lib/ai/rule-engine';
+
 interface RuleConstants {
     smmlv: number;
     ibcMaxSmmlv: number;
@@ -94,10 +100,35 @@ function toNumber(value: unknown) {
     return 0;
 }
 
-function getRuleConstants(countryCode: string, year: number): RuleConstants | null {
-    if (countryCode === 'CO' && year === 2025) return { smmlv: 1423500, ibcMaxSmmlv: 25 };
-    if (countryCode === 'CO' && year === 2026) return { smmlv: 1750905, ibcMaxSmmlv: 25 };
-    return null;
+/**
+ * Extract numeric constants from a DB rule row's checks array.
+ * Looks for SMMLV value patterns like "$1.423.500" in check strings.
+ */
+function parseConstantsFromDbRule(rule: CountryYearRuleRow): RuleConstants | null {
+    const checksText = rule.checks.join('\n');
+
+    // Match SMMLV value: look for patterns like "SMMLV 2025: $1.423.500" or "Salario minimo (SMMLV) 2026: $1.750.905"
+    const smmlvMatch = checksText.match(/SMMLV[^$]*\$([0-9.,]+)/i);
+    // Match IBC max: "IBC maximo: 25 SMMLV"
+    const ibcMaxMatch = checksText.match(/IBC\s*m[aá]ximo[^0-9]*(\d+)\s*SMMLV/i);
+
+    if (!smmlvMatch) return null;
+
+    const smmlv = Number(smmlvMatch[1].replace(/\./g, '').replace(',', '.'));
+    const ibcMaxSmmlv = ibcMaxMatch ? Number(ibcMaxMatch[1]) : 25;
+
+    if (!Number.isFinite(smmlv) || smmlv <= 0) return null;
+    return { smmlv, ibcMaxSmmlv };
+}
+
+function getRuleConstants(countryCode: string, year: number, dbRule?: CountryYearRuleRow | null): RuleConstants | null {
+    // 1. Try to extract from DB rule if provided
+    if (dbRule) {
+        const parsed = parseConstantsFromDbRule(dbRule);
+        if (parsed) return parsed;
+    }
+    // 2. Fall back to hardcoded constants
+    return getHardcodedConstants(countryCode, year);
 }
 
 function allIndexesForTarget(
@@ -150,8 +181,10 @@ export function validatePayrollCalculations(input: {
     year: number;
     matrices: MatrixInput[];
     relations: MappingRelationInput[];
+    /** Pre-loaded DB rule row. When provided, constants are extracted from it. */
+    dbRule?: CountryYearRuleRow | null;
 }): ValidationReport {
-    const rule = getRuleConstants(input.countryCode, input.year);
+    const rule = getRuleConstants(input.countryCode, input.year, input.dbRule);
 
     const dependencies: Record<string, string[]> = {
         ibc_rule_1393: ['base_salary', 'non_salary_payments', 'ibc_total'],
@@ -631,4 +664,21 @@ export function validatePayrollCalculations(input: {
         ...report,
         checks: finalChecks.filter(c => c.passedRows > 0 || c.failedRows > 0 || (c.missingDependencies && c.missingDependencies.length > 0)),
     };
+}
+
+
+/**
+ * Async wrapper that loads rules from the DB for the given country/year,
+ * then delegates to `validatePayrollCalculations`.
+ * Falls back to hardcoded Colombian rules when the DB is unavailable.
+ */
+export async function validatePayrollWithDynamicRules(input: {
+    countryCode: string;
+    year: number;
+    matrices: MatrixInput[];
+    relations: MappingRelationInput[];
+    baseUrl?: string;
+}): Promise<ValidationReport> {
+    const dbRule = await loadRulesForCountry(input.countryCode, input.year, input.baseUrl);
+    return validatePayrollCalculations({ ...input, dbRule });
 }

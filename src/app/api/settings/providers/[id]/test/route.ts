@@ -1,0 +1,75 @@
+import { NextResponse } from 'next/server';
+import { generateText } from 'ai';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { decryptApiKey } from '@/lib/ai/encryption';
+import { buildRegistry } from '@/lib/ai/providers';
+import type { ProviderConfig } from '@/lib/ai/types';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error)
+    return String((error as { message: unknown }).message);
+  return error instanceof Error ? error.message : fallback;
+}
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+/** POST /api/settings/providers/:id/test — test connectivity for a provider */
+export async function POST(_req: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const supabase = createAdminClient();
+
+  try {
+    const { data: row, error: fetchErr } = await supabase
+      .from('ai_providers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !row) {
+      return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+    }
+
+    const apiKey = decryptApiKey(row.api_key_encrypted);
+
+    const config: ProviderConfig = {
+      id: row.id,
+      provider_type: row.provider_type,
+      api_key: apiKey,
+      model_id: row.model_id,
+      display_name: row.display_name,
+      priority: 0,
+      is_active: true,
+    };
+
+    let success = false;
+    let errorMsg: string | null = null;
+
+    try {
+      const registry = buildRegistry([config]);
+      const model = registry.getModel(row.id);
+      await generateText({ model, prompt: 'Hello', maxTokens: 5 });
+      success = true;
+    } catch (err) {
+      errorMsg = getErrorMessage(err, 'Connectivity test failed');
+    }
+
+    // Update test status in DB
+    await supabase
+      .from('ai_providers')
+      .update({
+        last_test_at: new Date().toISOString(),
+        last_test_success: success,
+        is_active: success ? row.is_active : false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    return NextResponse.json({ success, error: errorMsg });
+  } catch (error) {
+    console.error('Provider test error:', error);
+    return NextResponse.json(
+      { error: getErrorMessage(error, 'Failed to test provider') },
+      { status: 500 },
+    );
+  }
+}

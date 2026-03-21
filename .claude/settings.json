@@ -1,23 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/wvarg/.claude/projects/c--Users-wvarg-Documents-NominaApp/memory/**)",
-      "Bash(\"c:/Users/wvarg/Documents/NominaApp/src/components/ui/Button.tsx\":*)",
-      "Bash(npm install @anthropic-ai/sdk)",
-      "Bash(node -e \"require\\(''@anthropic-ai/sdk''\\)\")",
-      "Bash(npx tsc --noEmit)",
-      "WebFetch(domain:www.gerencie.com)",
-      "Bash(dir /s /b \"c:\\\\Users\\\\wvarg\\\\Documents\\\\NominaApp\\\\src\\\\app\\\\*page.tsx\")",
-      "Bash(find /c/Users/wvarg/Documents/NominaApp/src/app/[locale] -type f -name \"*.tsx\")",
-      "Bash(grep -r \"payroll\" /c/Users/wvarg/Documents/NominaApp/src/app/[locale]/*.tsx)",
-      "Bash(grep -r \"payroll\\\\|Planilla\" /c/Users/wvarg/Documents/NominaApp/src/app/[locale] --include=\"*.tsx\")",
-      "Bash(npx eslint src/components/ui/PayrollEditor.tsx src/app/api/ai/corrections/route.ts src/app/api/payrolls/route.ts --max-warnings=0)",
-      "Bash(npx eslint src/components/ui/PayrollEditor.tsx src/app/api/ai/corrections/route.ts src/app/api/payrolls/route.ts src/app/[locale]/upload/page.tsx --max-warnings=0)",
-      "Read(//c/Users/wvarg/.claude/projects/c--Users-wvarg-Documents-NominaApp/memory 2>/dev/**)",
-      "Bash(npx next build)",
-      "Read(//c/Users/wvarg/Documents/NominaApp/src/components/ui 2>/dev/**)",
-      "Bash(npx eslint src/app/[locale]/settings/page.tsx src/components/ui/PayrollEditor.tsx src/app/[locale]/upload/page.tsx --max-warnings=0)",
-      "Bash(npm run:*)"
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "WebFetch(*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\wvarg\\Documents\\NominaApp\\src\\app\\[locale]",

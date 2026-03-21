@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 type NavigationKey = 'dashboard' | 'upload' | 'reconcile' | 'reports' | 'rules';
 
 const navigation = [
-    { name: 'dashboard' as NavigationKey, href: '/', icon: LayoutDashboard, hint: 'Visión ejecutiva' },
+    { name: 'dashboard' as NavigationKey, href: '/dashboard', icon: LayoutDashboard, hint: 'Visión ejecutiva' },
     { name: 'upload' as NavigationKey, href: '/upload', icon: UploadCloud, hint: 'Sube y normaliza datos' },
     { name: 'reconcile' as NavigationKey, href: '/reconcile', icon: GitMerge, hint: 'Revisión y acciones' },
     { name: 'reports' as NavigationKey, href: '/reports', icon: FileCheck2, hint: 'Reporte de certificación' },
