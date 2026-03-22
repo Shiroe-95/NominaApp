@@ -2,86 +2,94 @@
   <img src="https://img.icons8.com/color/144/artificial-intelligence.png" alt="Nomina Smart Logo" width="120" />
   
   # Nomina Smart
-  
-  **Plataforma de Nómina de Clase Mundial: Confiable, Intuitiva y Altamente Eficiente**
+
+  **Plataforma de Nómina Inteligente Multi-País con IA Multi-Agente**
 
   <p align="center">
-    <a href="#visión-del-proyecto">Visión</a> •
-    <a href="#características-principales">Características</a> •
-    <a href="#diagramas">Diagramas</a> •
-    <a href="#tecnologías-tech-stack">Tecnologías</a> •
-    <a href="#guía-de-inicio-rápido">Inicio Rápido</a> •
-    <a href="#configuración-detallada">Configuración</a> •
-    <a href="#esquema-de-base-de-datos">Base de Datos</a> •
-    <a href="#referencia-de-api">API</a> •
-    <a href="#seguridad">Seguridad</a> •
-    <a href="#troubleshooting">Troubleshooting</a>
+    <a href="#-visión-del-proyecto">Visión</a> •
+    <a href="#-qué-es-nomina-smart">¿Qué es?</a> •
+    <a href="#-características-principales">Características</a> •
+    <a href="#-diagramas-de-arquitectura">Diagramas</a> •
+    <a href="#-tech-stack">Tech Stack</a> •
+    <a href="#-guía-de-inicio-rápido">Inicio Rápido</a> •
+    <a href="#-configuración-detallada">Configuración</a> •
+    <a href="#-esquema-de-base-de-datos">Base de Datos</a> •
+    <a href="#-referencia-de-api">API</a> •
+    <a href="#-design-system-obsidian-ledger">Design System</a> •
+    <a href="#-seguridad">Seguridad</a> •
+    <a href="#-testing">Testing</a> •
+    <a href="#-despliegue">Despliegue</a> •
+    <a href="#-troubleshooting">Troubleshooting</a>
   </p>
 
   ![Status](https://img.shields.io/badge/Estado-Activo-success?style=for-the-badge)
   ![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=next.js)
   ![React](https://img.shields.io/badge/React-19.2-00d8ff?style=for-the-badge&logo=react)
-  ![Supabase](https://img.shields.io/badge/Supabase-Database-3ecf8e?style=for-the-badge&logo=supabase)
-  ![OpenAI](https://img.shields.io/badge/AI-OpenAI%20/%20Anthropic-blue?style=for-the-badge&logo=openai)
+  ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?style=for-the-badge&logo=supabase)
+  ![AI](https://img.shields.io/badge/AI-Multi--Agent-blue?style=for-the-badge&logo=openai)
+  ![i18n](https://img.shields.io/badge/i18n-ES%20%7C%20EN%20%7C%20PT-orange?style=for-the-badge)
+  ![Countries](https://img.shields.io/badge/Países-7-purple?style=for-the-badge)
 </div>
 
 ---
 
-## Visión del Proyecto
+## 🎯 Visión del Proyecto
 
-**Nomina Smart** tiene como objetivo convertirse en una de las mejores aplicaciones de nómina del mercado, destacándose por su **alta confiabilidad**, **experiencia de usuario excepcional** y **eficiencia operativa**.
+**Nomina Smart** es una plataforma de clase mundial para gestión, auditoría y cumplimiento de nómina, diseñada para empresas que operan en múltiples países de Latinoamérica y Estados Unidos.
 
 ### Objetivos Estratégicos
 
 | Pilar | Descripción |
 |-------|-------------|
-| **Confiabilidad** | Cálculos precisos garantizados, auditoría continua y cumplimiento normativo al 100%. |
-| **Usabilidad** | Interfaz intuitiva que reduce la curva de aprendizaje. |
-| **Eficiencia** | Automatización inteligente que reduce tiempos de procesamiento de nómina de días a minutos. |
-| **Escalabilidad** | Arquitectura diseñada para crecer desde PYMEs hasta grandes corporaciones. |
+| 🔒 **Confiabilidad** | Cálculos precisos garantizados, auditoría continua con 14 verificaciones matemáticas y cumplimiento normativo al 100% |
+| 🎨 **Usabilidad** | Interfaz oscura premium (Obsidian Ledger) con glassmorphism, agentes IA con personalidad y experiencia conversacional |
+| ⚡ **Eficiencia** | Automatización inteligente que reduce tiempos de procesamiento de nómina de días a minutos |
+| 🌎 **Escalabilidad** | Arquitectura multi-país (7 países), multi-idioma (3 idiomas) y multi-proveedor IA (5 proveedores) |
 
 ### Principios de Desarrollo
 
-- **Seguridad First**: Encriptación AES-256-GCM, RBAC en middleware y API routes, rate limiting por IP, sanitización de inputs, validación de UUIDs, logs de auditoría.
-- **Mantenibilidad**: Código limpio, modular y bien documentado.
-- **Responsividad**: Experiencia fluida en cualquier dispositivo.
-- **Integración Continua**: APIs robustas para conectar con ERPs, sistemas contables y plataformas bancarias (roadmap).
+- **Security First**: Encriptación AES-256-GCM, RBAC en middleware y API routes, rate limiting por IP, RLS en PostgreSQL
+- **AI-Native**: Sistema multi-agente con 7 agentes especializados, selección inteligente de modelos y fallback chain
+- **Multi-Country**: Reglas normativas dinámicas por país/año, sincronización regulatoria automática semanal
+- **Observable**: Logs de auditoría con retención 5 años, tracking de uso IA (tokens, latencia, costo), notificaciones in-app
 
 ---
 
-## ¿Qué es Nomina Smart?
+## 🧠 ¿Qué es Nomina Smart?
 
-**Nomina Smart** revoluciona el proceso de gestión y auditoría salarial. Realiza una verificación de **"Triple Match"**, cruzando inteligentemente información entre:
+Nomina Smart revoluciona el proceso de gestión y auditoría salarial mediante un sistema de **"Triple Match"** que cruza inteligentemente:
 
-1. **Nómina Interna** (Archivos fuente extraídos desde tu ERP).
-2. **Pago PILA** (Planilla Integrada de Liquidación de Aportes).
-3. **Estándar UGPP** (Cálculo normativo oficial y regulatorio).
+1. **Nómina Interna** — Archivos fuente extraídos desde tu ERP (Excel/CSV)
+2. **Pago PILA / Seguridad Social** — Planilla de aportes del país correspondiente
+3. **Estándar Regulatorio** — Cálculo normativo oficial (UGPP en CO, IMSS en MX, CLT en BR, etc.)
 
-El sistema utiliza IA para inferir mapeos automáticos, detectar inconsistencias críticas, calcular el **Nivel de Riesgo por Empleado**, sugerir reparaciones proactivas y gestionar hallazgos a través de un panel colaborativo.
+El sistema utiliza **7 agentes de IA especializados** para inferir mapeos automáticos, detectar inconsistencias críticas, calcular el nivel de riesgo por empleado, sugerir correcciones determinísticas y generar reportes ejecutivos narrativos.
 
 ---
 
-## Características Principales
+## 🚀 Características Principales
 
 ### Sistema Multi-Agente de IA
 
-| Agente | Persona | Rol | Descripción |
-|--------|---------|-----|-------------|
-| 👑 **Dianis** (Master) | Mujer | Directora de Orquestación | Coordina a todo el equipo, decide qué agentes invocar y en qué orden |
-| 🔍 **Juli** (Auditor) | Mujer | Auditora de Nómina | Ejecuta 14 verificaciones matemáticas y normativas (IBC, Ley 1393, UGPP). Inyecta contexto normativo del país en el prompt de IA y solicita auto-correcciones al Corrector vía AgentBus |
-| 📝 **Ana** (Writer) | Mujer | Redactora de Reportes | Genera reportes ejecutivos narrativos con hallazgos priorizados |
-| ⚙️ **Wil** (Corrector) | Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas. Incluye guía experta para hallazgos no determinísticos |
-| 🐈‍⬛ **Gyoru** (Mapper) | Gato | Mapeadora de Campos | Mapea columnas de archivos Excel a campos estándar con fuzzy matching |
-| 💼 **Dianis** (Payroll Expert) | Mujer | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países (CO, MX, PE, CL, BR, AR, US) con cálculos paso a paso, comparación entre países y gestión CRUD de reglas |
-| 🐕 **Soul** (Researcher) | Perro | Investigadora Regulatoria | Investiga normativa laboral vigente por país/año, compara cambios y registra fuentes |
+Nomina Smart implementa un sistema de agentes con personalidades únicas que colaboran a través de un **AgentBus** (bus de comunicación inter-agente):
+
+| Agente | Persona | Avatar | Rol | Descripción |
+|--------|---------|--------|-----|-------------|
+| 👑 **Dianis** | Master | 👩 Mujer | Directora de Orquestación | Coordina a todo el equipo, clasifica intención del usuario, construye plan de ejecución y consolida resultados |
+| 🔍 **Juli** | Auditor | 👩 Mujer | Auditora de Nómina | Ejecuta 14 verificaciones matemáticas y normativas. Inyecta contexto normativo del país en el prompt. Solicita auto-correcciones al Corrector vía AgentBus |
+| 📝 **Ana** | Writer | 👩 Mujer | Redactora de Reportes | Genera reportes ejecutivos narrativos con hallazgos agrupados por categoría y priorizados por severidad |
+| ⚙️ **Wil** | Corrector | 👨 Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas. Incluye guía experta para hallazgos no determinísticos |
+| 🐈‍⬛ **Gyoru** | Mapper | 🐱 Gato | Mapeadora de Campos | Mapea columnas de archivos Excel a campos estándar con diccionario de sinónimos + fuzzy matching IA |
+| 💼 **Dianis** | Payroll Expert | 👩 Mujer | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países con cálculos paso a paso y gestión CRUD de reglas |
+| 🐕 **Soul** | Researcher | 🐕 Perro | Investigadora Regulatoria | Investiga normativa laboral vigente por país/año con búsqueda web (Firecrawl), resolución de conflictos entre fuentes y fallback a REGULATION_DB |
 
 ### 14 Verificaciones Matemáticas del Auditor
 
 | # | Verificación | Fórmula / Regla |
 |---|-------------|-----------------|
 | 1 | IBC Ley 1393 | Pagos no salariales ≤ 40% del total devengado |
-| 2 | Deducción Salud | 4% del IBC |
-| 3 | Deducción Pensión | 4% del IBC |
+| 2 | Deducción Salud Empleado | 4% del IBC |
+| 3 | Deducción Pensión Empleado | 4% del IBC |
 | 4 | Cesantías | Salario × días / 360 |
 | 5 | Intereses Cesantías | Cesantías × días × 12% / 360 |
 | 6 | Prima de Servicios | Salario × días / 360 |
@@ -94,24 +102,38 @@ El sistema utiliza IA para inferir mapeos automáticos, detectar inconsistencias
 | 13 | Tope IBC Máximo | Máximo 25 SMMLV |
 | 14 | Tope IBC Mínimo | Mínimo 1 SMMLV |
 
+> Los porcentajes y valores se cargan dinámicamente desde `country_year_rules` según el país y año del contexto. Los valores anteriores son los defaults para Colombia.
+
+### Países Soportados
+
+| País | Código | Normativa Principal | Moneda |
+|------|--------|-------------------|--------|
+| 🇨🇴 Colombia | CO | UGPP, Ley 100, CST, PILA, Ley 1393 | COP |
+| 🇲🇽 México | MX | IMSS, ISR, LFT, INFONAVIT, SAR | MXN |
+| 🇵🇪 Perú | PE | AFP, ONP, EsSalud, CTS, Gratificaciones | PEN |
+| 🇨🇱 Chile | CL | AFP, FONASA/Isapre, Seguro Cesantía, Código del Trabajo | CLP |
+| 🇧🇷 Brasil | BR | CLT, INSS, FGTS, IRRF, 13º Salário, Férias | BRL |
+| 🇦🇷 Argentina | AR | SIPA, Obra Social, ART, Convenios Colectivos, Aguinaldo | ARS |
+| 🇺🇸 Estados Unidos | US | FICA, FUTA, SUTA, Federal/State Withholding, 401(k) | USD |
+
 ### Características Transversales
 
 | Característica | Descripción |
 |----------------|-------------|
-| **Rate Limiting** | Presets por endpoint: auth (10/min), AI (20/min), chat (30/min), admin writes (30/min), reads (60/min), writes (40/min), cron (5/min). |
-| **Sincronización Regulatoria** | Cron semanal (lunes 6:00 UTC) con investigación web, borradores de reglas, notificaciones y reintentos con backoff exponencial. Bootstrap automático de reglas iniciales para países nuevos o despliegues frescos. |
-| **Panel Financiero de IA** | KPIs financieros, desglose por proveedor/cliente, gráficos de tendencia y exportación CSV. |
-| **Optimización de Tokens** | Selección inteligente de modelos por complejidad, score compuesto (costo × calidad), estrategias: cost-first, quality-first, balanced. |
-| **i18n** | Español, Inglés y Portugués con rutas localizadas. |
-| **Multi-País** | 7 países: CO, MX, PE, CL, BR, AR, US. Cada uno con moneda, formato y reglas propias. El auditor inyecta dinámicamente las reglas normativas del país en el prompt de IA para interpretaciones contextualizadas. |
-| **Email Transaccional** | Resend: invitaciones, alertas regulatorias, resúmenes semanales. Plantillas localizadas con retry. |
-| **Notificaciones In-App** | Severidad (info/warning/critical), tipos: cambio regulatorio, sync completado, regla pendiente. |
-| **Auditoría de Cambios** | Registro de cambios en reglas con retención 5 años. Trazabilidad de origen y fuentes. |
-| **Obsidian Ledger (Design System)** | Tokens de diseño oscuro con jerarquía de superficies tonales (6 niveles), paleta semántica (primary/secondary/tertiary/error) y clases utilitarias glassmorphism. Compatible con Material Design 3. |
+| **Rate Limiting** | 7 presets por endpoint: auth (10/min), AI (20/min), chat (30/min), admin writes (30/min), reads (60/min), writes (40/min), cron (5/min). Soporta Redis distribuido (Upstash) con fallback in-memory |
+| **Sincronización Regulatoria** | Cron semanal (lunes 6:00 UTC) con investigación web, borradores de reglas N+1, notificaciones y reintentos con backoff exponencial. Bootstrap automático para países nuevos |
+| **Panel Financiero de IA** | KPIs financieros, desglose por proveedor/cliente, gráficos de tendencia y exportación CSV |
+| **Optimización de Tokens** | Selección inteligente de modelos por complejidad (score 0.0–1.0), score compuesto (costo × calidad), estrategias: cost-first, quality-first, balanced |
+| **i18n** | Español (default), Inglés y Portugués con rutas localizadas via next-intl |
+| **Email Transaccional** | Resend: invitaciones, alertas regulatorias, resúmenes semanales. Plantillas localizadas con retry y backoff exponencial |
+| **Notificaciones In-App** | Severidad (info/warning/critical), tipos: cambio regulatorio, sync completado, regla pendiente. Broadcast a admins |
+| **Auditoría de Cambios** | Registro de cambios en reglas con retención 5 años. Trazabilidad de origen (manual/automático) y fuentes |
+| **Integraciones** | Framework extensible de conectores para ERPs (Siigo, Generic API). Interfaz `IntegrationConnector` para agregar nuevos sistemas |
+| **Design System** | Obsidian Ledger: tokens de diseño oscuro con jerarquía de superficies tonales (6 niveles), paleta semántica, glassmorphism. Compatible con Material Design 3 |
 
 ---
 
-## Diagramas
+## 📊 Diagramas de Arquitectura
 
 ### Arquitectura General del Sistema
 
@@ -128,12 +150,13 @@ graph TB
 
     subgraph Server["🖧 Next.js Server (Vercel)"]
         API[API Routes<br/>Guards + Rate Limiting]
-        AGENTS[Sistema Multi-Agente IA]
+        AGENTS[Sistema Multi-Agente IA<br/>7 agentes + AgentBus]
         SYNC[Sync Service<br/>Cron Semanal]
         EMAIL[Email Service<br/>Resend]
+        NOTIF[Notification Service<br/>In-App + Broadcast]
     end
 
-    subgraph AI["🤖 Proveedores IA"]
+    subgraph AI["🤖 Proveedores IA (Fallback Chain)"]
         OAI[OpenAI]
         ANT[Anthropic]
         GRQ[Groq]
@@ -142,31 +165,36 @@ graph TB
     end
 
     subgraph DB["🗄️ Supabase"]
-        PG[(PostgreSQL<br/>+ RLS)]
-        AUTH[Auth Service]
+        PG[(PostgreSQL<br/>+ RLS + 20 tablas)]
+        AUTH[Auth Service<br/>OAuth + Magic Link]
+    end
+
+    subgraph EXT["🔌 Integraciones"]
+        ERP[ERPs<br/>Siigo, Generic API]
+        FIRE[Firecrawl<br/>Web Search]
     end
 
     UI --> MW
-    MW -->|Sesión válida| API
+    MW -->|Sesión válida + RBAC| API
     MW -->|Sin sesión| UI
     API --> AGENTS
     API --> PG
-    AGENTS -->|Fallback chain| OAI
-    AGENTS -->|Fallback chain| ANT
-    AGENTS -->|Fallback chain| GRQ
-    AGENTS -->|Fallback chain| GOO
-    AGENTS -->|Fallback chain| ORT
+    AGENTS -->|Fallback chain| OAI & ANT & GRQ & GOO & ORT
     SYNC -->|Cron lunes 6:00 UTC| AGENTS
     SYNC --> PG
     EMAIL -->|Resend API| UI
+    NOTIF --> PG
     MW --> AUTH
     AUTH --> PG
+    API --> ERP
+    AGENTS --> FIRE
 
     style Cliente fill:#1e293b,stroke:#3b82f6,color:#fff
     style Edge fill:#1e293b,stroke:#f59e0b,color:#fff
     style Server fill:#1e293b,stroke:#10b981,color:#fff
     style AI fill:#1e293b,stroke:#8b5cf6,color:#fff
     style DB fill:#1e293b,stroke:#3ecf8e,color:#fff
+    style EXT fill:#1e293b,stroke:#06b6d4,color:#fff
 ```
 
 ### Flujo de Orquestación Multi-Agente
@@ -185,68 +213,80 @@ sequenceDiagram
     U->>API: POST /api/ai/orchestrate
     API->>API: requireAuth() + applyRateLimit()
     API->>M: Orquestar análisis
-    M->>Bus: Registrar agentes
+    M->>M: Clasificar intención (AI o determinístico)
+    M->>M: Construir plan de ejecución
+    M->>Bus: Registrar 5 agentes
     
     rect rgb(16, 185, 129, 0.1)
         Note over M,A: Fase 1: Auditoría
         M->>Bus: send(auditor, payrollData)
-        Bus->>A: 14 verificaciones matemáticas
-        A->>A: IBC, Ley 1393, salud, pensión...
+        Bus->>A: Ejecutar 14 verificaciones matemáticas
+        A->>A: Convertir datos a MatrixInput
+        A->>A: validatePayrollCalculations()
         A->>A: Inyectar contexto normativo del país
+        A->>A: Generar interpretación IA
         A-->>Bus: Hallazgos + riesgo por empleado
-        A->>Bus: send(corrector, auto-correct-suggestions)
+        A->>Bus: send(corrector, auto-correct-request)
         Bus->>C: Auto-correcciones proactivas
         C-->>Bus: Sugerencias de corrección
         Bus-->>M: AgentResult (auditoría + auto-correcciones)
     end
 
     rect rgb(245, 158, 11, 0.1)
-        Note over M,C: Fase 2: Correcciones
+        Note over M,C: Fase 2: Correcciones Determinísticas
         M->>Bus: send(corrector, hallazgos)
         Bus->>C: Calcular correcciones
-        C->>C: Fórmulas determinísticas
-        C-->>Bus: Correcciones con fórmulas
+        C->>C: buildCorrectionFormulas(countryRules)
+        C->>C: Fórmulas determinísticas + guía experta
+        C-->>Bus: Correcciones con fórmulas + expertGuidance
         Bus-->>M: AgentResult
     end
 
     rect rgb(139, 92, 246, 0.1)
-        Note over M,W: Fase 3: Reporte
+        Note over M,W: Fase 3: Reporte Ejecutivo
         M->>Bus: send(writer, resultados)
         Bus->>W: Generar reporte ejecutivo
-        W-->>Bus: Reporte narrativo
+        W->>W: groupAndSortFindings()
+        W->>W: determineRiskLevel()
+        W->>W: generateObject() con Vercel AI SDK
+        W-->>Bus: Reporte narrativo + recomendaciones
         Bus-->>M: AgentResult
     end
 
+    M->>M: consolidateResults()
     M->>DB: Guardar resultados + usage logs
-    M-->>API: Resultado consolidado
+    M-->>API: OrchestrateResponse consolidado
     API-->>U: JSON con análisis completo
 ```
 
-### Flujo de Autenticación y Middleware
+### Flujo de Autenticación y Middleware RBAC
 
 ```mermaid
 flowchart TD
-    REQ[Request entrante] --> MW{Middleware Edge}
-    MW --> STRIP[Extraer locale del path]
-    STRIP --> PUB{¿Ruta pública?<br/>/, /pricing, /login...}
+    REQ[📨 Request entrante] --> MW{Middleware Edge}
+    MW --> STRIP[Extraer locale del path<br/>stripLocale]
+    STRIP --> PUB{¿Ruta pública?<br/>/, /pricing, /login,<br/>/contact, /about}
     
-    PUB -->|Sí| INTL[Aplicar i18n<br/>next-intl]
-    INTL --> RES_OK[✅ Response]
+    PUB -->|Sí| INTL[Aplicar i18n<br/>next-intl middleware]
+    INTL --> RES_OK[✅ Response OK]
     
-    PUB -->|No| SUPA[Crear cliente Supabase<br/>en Edge]
-    SUPA --> SESSION{¿Sesión válida?<br/>getUser()}
+    PUB -->|No| SUPA[Crear cliente Supabase<br/>en Edge Runtime]
+    SUPA --> SESSION{¿Sesión válida?<br/>supabase.auth.getUser}
     
     SESSION -->|No| REDIR[🔒 Redirect a<br/>/{locale}/login?redirectTo=...]
     
-    SESSION -->|Sí| ROLE[Obtener rol<br/>REST → user_profiles]
-    ROLE --> PERM{¿Tiene permisos?}
+    SESSION -->|Sí| ROLE[Obtener rol via REST<br/>user_profiles → role]
+    ROLE --> PERM{checkPermission<br/>role + path}
     
-    PERM -->|Admin: acceso total| INTL_AUTH[Aplicar i18n<br/>+ cookies auth]
-    PERM -->|Analyst: sin /admin| INTL_AUTH
-    PERM -->|Client: solo dashboard/reports| CHECK_ROUTE{¿Ruta permitida?}
+    PERM -->|admin: acceso total| INTL_AUTH[Aplicar i18n<br/>+ cookies auth refresh]
+    PERM -->|analyst: sin /admin/*| CHECK_A{¿Ruta admin?}
+    PERM -->|client: solo dashboard/reports| CHECK_C{¿Ruta permitida?}
     
-    CHECK_ROUTE -->|Sí| INTL_AUTH
-    CHECK_ROUTE -->|No| REDIR_DASH[↩️ Redirect a<br/>/{locale}/dashboard]
+    CHECK_A -->|No| INTL_AUTH
+    CHECK_A -->|Sí| REDIR_DASH[↩️ Redirect a<br/>/{locale}/dashboard]
+    
+    CHECK_C -->|Sí| INTL_AUTH
+    CHECK_C -->|No| REDIR_DASH
     
     INTL_AUTH --> RES_OK
 
@@ -256,34 +296,73 @@ flowchart TD
     style REDIR_DASH fill:#f59e0b,color:#fff
 ```
 
+### Permisos por Rol
+
+```mermaid
+graph LR
+    subgraph Roles["Roles del Sistema"]
+        ADMIN["🔑 Admin<br/>Acceso total"]
+        ANALYST["📊 Analyst<br/>Sin /admin/*"]
+        CLIENT["👤 Client<br/>Solo dashboard + reports"]
+    end
+
+    subgraph Routes["Rutas Protegidas"]
+        DASH["/dashboard"]
+        UPLOAD["/upload"]
+        RECONCILE["/reconcile"]
+        RULES["/rules"]
+        REPORTS["/reports"]
+        SETTINGS["/settings"]
+        ADMIN_FIN["/admin/finance"]
+        ADMIN_COUNTRIES["/admin/countries"]
+        ADMIN_USAGE["/admin/usage"]
+        SETTINGS_PROVIDERS["/settings/providers"]
+        SETTINGS_USERS["/settings/users"]
+    end
+
+    ADMIN --> DASH & UPLOAD & RECONCILE & RULES & REPORTS & SETTINGS & ADMIN_FIN & ADMIN_COUNTRIES & ADMIN_USAGE & SETTINGS_PROVIDERS & SETTINGS_USERS
+    ANALYST --> DASH & UPLOAD & RECONCILE & RULES & REPORTS & SETTINGS
+    CLIENT --> DASH & REPORTS
+
+    style ADMIN fill:#10b981,color:#fff
+    style ANALYST fill:#f59e0b,color:#fff
+    style CLIENT fill:#3b82f6,color:#fff
+```
+
 ### Pipeline de Sincronización Regulatoria
 
 ```mermaid
 flowchart LR
     CRON["⏰ Vercel Cron<br/>Lunes 6:00 UTC"] --> API["/api/sync/run<br/>CRON_SECRET"]
-    API --> LOAD["Cargar países activos"]
-    LOAD --> BOOTSTRAP{"¿Tiene reglas?"}
+    API --> LOAD["Cargar países activos<br/>supported_countries"]
+    LOAD --> BOOTSTRAP{"¿Tiene reglas<br/>en country_year_rules?"}
     
-    BOOTSTRAP -->|No| BOOT["🚀 Bootstrap:<br/>Researcher crea reglas iniciales"]
-    BOOTSTRAP -->|Sí| FREQ
-    BOOT --> FREQ{"¿Frecuencia cumplida?"}
+    BOOTSTRAP -->|No| BOOT["🚀 Bootstrap:<br/>Soul investiga y crea<br/>reglas iniciales"]
+    BOOTSTRAP -->|Sí| DRAFT["Crear borrador<br/>reglas año N+1"]
+    BOOT --> FREQ
+    DRAFT --> FREQ{"¿Frecuencia<br/>cumplida? (weekly)"}
     
     FREQ -->|No| SKIP["⏭️ Omitir"]
-    FREQ -->|Sí| DRAFT["Crear borrador reglas año N+1"]
+    FREQ -->|Sí| RESEARCH["🐕 Soul (Researcher)<br/>Investigar normativa"]
     
-    DRAFT --> RESEARCH["🐕 Soul (Researcher)<br/>Investigar normativa"]
-    RESEARCH --> FALLBACK["Ejecutar con fallback chain"]
-    FALLBACK --> RETRY{"¿Éxito?"}
+    RESEARCH --> WEB{"¿Firecrawl<br/>disponible?"}
+    WEB -->|Sí| WEBSEARCH["🌐 Búsqueda web<br/>fuentes gubernamentales"]
+    WEB -->|No| FALLBACK["📚 REGULATION_DB<br/>fallback (confianza baja)"]
     
-    RETRY -->|No, intento < 3| BACKOFF["⏳ Backoff exponencial"]
-    BACKOFF --> FALLBACK
-    RETRY -->|No, 3 intentos| FAIL["❌ Marcar failed"]
+    WEBSEARCH --> CONFLICT["Resolver conflictos<br/>entre fuentes"]
+    FALLBACK --> CONFLICT
+    CONFLICT --> RETRY{"¿Éxito?"}
     
-    RETRY -->|Sí| CHANGES{"¿Cambios detectados?"}
-    CHANGES -->|No| NOTIFY_OK["📬 Sin cambios"]
-    CHANGES -->|Sí| UPDATE["Actualizar regla → pending_review"]
-    UPDATE --> AUDIT["📋 Log auditoría"]
-    AUDIT --> NOTIFY_CHANGE["🔔 Notificación: Cambio regulatorio"]
+    RETRY -->|No, intento < 3| BACKOFF["⏳ Backoff exponencial<br/>1s → 2s → 4s"]
+    BACKOFF --> RESEARCH
+    RETRY -->|No, 3 intentos| FAIL["❌ Marcar failed<br/>en sync_history"]
+    
+    RETRY -->|Sí| CHANGES{"¿Cambios<br/>detectados?"}
+    CHANGES -->|No| NOTIFY_OK["📬 Notificación:<br/>Sin cambios"]
+    CHANGES -->|Sí| UPDATE["Actualizar regla<br/>→ pending_review"]
+    UPDATE --> AUDIT["📋 Log auditoría<br/>rule_audit_log"]
+    AUDIT --> NOTIFY_CHANGE["🔔 Notificación:<br/>Cambio regulatorio"]
+    NOTIFY_CHANGE --> EMAIL_ALERT["📧 Email alerta<br/>a usuarios suscritos"]
 
     style CRON fill:#3b82f6,color:#fff
     style BOOT fill:#8b5cf6,color:#fff
@@ -297,24 +376,27 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    TASK["Tarea IA entrante"] --> ASSESS["Evaluar complejidad<br/>score 0.0 — 1.0"]
-    ASSESS --> FACTORS["Factores: tipo tarea, volumen datos,<br/>agente, país"]
+    TASK["🤖 Tarea IA entrante"] --> ASSESS["assessComplexity()<br/>score 0.0 — 1.0"]
+    ASSESS --> FACTORS["Factores:<br/>tipo tarea + volumen datos +<br/>agente + país"]
     
     FACTORS --> LEVEL{"Clasificar nivel"}
-    LEVEL -->|< 0.35| SIMPLE["🟢 Simple"]
-    LEVEL -->|0.35 — 0.65| MODERATE["🟡 Moderado"]
-    LEVEL -->|> 0.65| COMPLEX["🔴 Complejo"]
+    LEVEL -->|"< 0.35"| SIMPLE["🟢 Simple<br/>chat, mapper"]
+    LEVEL -->|"0.35 — 0.65"| MODERATE["🟡 Moderado<br/>validate, correct"]
+    LEVEL -->|"> 0.65"| COMPLEX["🔴 Complejo<br/>full-analysis"]
     
-    SIMPLE --> RULES{"¿Regla explícita?"}
-    MODERATE --> RULES
-    COMPLEX --> RULES
+    SIMPLE --> CONFIG["Cargar optimization_config<br/>strategy + weights"]
+    MODERATE --> CONFIG
+    COMPLEX --> CONFIG
     
+    CONFIG --> RULES{"¿Regla explícita<br/>en model_routing_rules?"}
     RULES -->|Sí| USE_RULE["Usar modelo de la regla"]
-    RULES -->|No| CANDIDATES["Obtener candidatos"]
-    CANDIDATES --> SCORE["Score compuesto:<br/>costScore × cost_weight +<br/>quality × quality_weight"]
+    RULES -->|No| CANDIDATES["getCandidates()<br/>providers + token_rates +<br/>quality_metrics"]
+    
+    CANDIDATES --> FILTER["Filtrar por<br/>min_quality_threshold"]
+    FILTER --> SCORE["Score compuesto:<br/>costScore × cost_weight +<br/>quality × quality_weight"]
     SCORE --> BEST["🏆 Mejor candidato"]
     
-    USE_RULE --> EXEC["Ejecutar con fallback chain"]
+    USE_RULE --> EXEC["Ejecutar con<br/>fallback chain"]
     BEST --> EXEC
 
     style TASK fill:#3b82f6,color:#fff
@@ -324,7 +406,7 @@ flowchart TD
     style BEST fill:#8b5cf6,color:#fff
 ```
 
-### Diagrama Entidad-Relación (Tablas Principales)
+### Diagrama Entidad-Relación (Base de Datos)
 
 ```mermaid
 erDiagram
@@ -350,37 +432,50 @@ erDiagram
         varchar nit UK
         varchar name
         varchar industry
+        timestamp created_at
     }
     employees {
         uuid id PK
         uuid company_id FK
+        varchar document_type
         varchar document_number
         decimal current_salary
+        varchar status
     }
     payroll_uploads {
         uuid id PK
         uuid company_id FK
         varchar country_code
         int period_year
+        int period_month
         jsonb risk_report
+        jsonb ai_validation_report
+        jsonb employee_risk_summary
     }
     user_profiles {
         uuid id PK_FK
         varchar role
         uuid company_id FK
         varchar preferred_locale
+        varchar email
+        jsonb alert_countries
     }
     ai_providers {
         uuid id PK
         uuid user_id FK
         varchar provider_type
         text api_key_encrypted
+        varchar model_id
         int priority
+        boolean is_active
     }
     country_year_rules {
         uuid id PK
         varchar country_code
         int rule_year
+        varchar label
+        jsonb required_fields
+        jsonb required_calculations
         jsonb checks
         varchar status
     }
@@ -389,6 +484,26 @@ erDiagram
         varchar strategy
         decimal cost_weight
         decimal quality_weight
+        decimal max_cost_per_task_usd
+        boolean enable_auto_routing
+    }
+    notifications {
+        uuid id PK
+        uuid user_id FK
+        varchar type
+        varchar severity
+        varchar title
+        text body
+        boolean is_read
+    }
+    sync_history {
+        uuid id PK
+        varchar country_code
+        int rule_year
+        varchar status
+        varchar trigger_type
+        int retry_count
+        varchar confidence
     }
 ```
 
@@ -396,15 +511,15 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    REQ["📨 Request"] --> RL{"Rate Limit"}
-    RL -->|Excedido| R429["429 + Retry-After"]
-    RL -->|OK| AUTH{"Auth"}
+    REQ["📨 Request"] --> RL{"Rate Limit<br/>checkRateLimit()"}
+    RL -->|Excedido| R429["429 Too Many Requests<br/>+ Retry-After header"]
+    RL -->|OK| AUTH{"Auth Guard<br/>requireAuth()"}
     AUTH -->|Sin sesión| R401["401 Unauthorized"]
-    AUTH -->|OK| ROLE{"RBAC"}
+    AUTH -->|OK| ROLE{"RBAC Guard<br/>requireAdmin()?"}
     ROLE -->|Sin permisos| R403["403 Forbidden"]
-    ROLE -->|OK| SANITIZE["Sanitizar inputs"]
+    ROLE -->|OK| SANITIZE["Sanitizar inputs<br/>UUID validation"]
     SANITIZE --> LOGIC["Lógica de negocio"]
-    LOGIC --> DB["Supabase"]
+    LOGIC --> DB["Supabase<br/>PostgreSQL + RLS"]
     DB --> R200["✅ 200 OK"]
 
     style REQ fill:#3b82f6,color:#fff
@@ -414,95 +529,148 @@ flowchart LR
     style R200 fill:#10b981,color:#fff
 ```
 
+### Flujo de Carga y Procesamiento de Nómina
+
+```mermaid
+flowchart TD
+    UPLOAD["📤 Upload Excel/CSV"] --> PARSE["Parsear con XLSX<br/>Detectar hojas y columnas"]
+    PARSE --> MAP["🐈‍⬛ Gyoru (Mapper)<br/>Diccionario sinónimos + IA"]
+    MAP --> CLASSIFY["Clasificar conceptos<br/>salary_base / non_salary /<br/>ibc / contribution"]
+    CLASSIFY --> VALIDATE["🔍 Juli (Auditor)<br/>14 verificaciones matemáticas"]
+    VALIDATE --> RISK["Calcular riesgo<br/>por empleado"]
+    RISK --> CORRECT["⚙️ Wil (Corrector)<br/>Correcciones determinísticas"]
+    CORRECT --> REPORT["📝 Ana (Writer)<br/>Reporte ejecutivo"]
+    REPORT --> SAVE["💾 Guardar en<br/>payroll_uploads + action_items"]
+    SAVE --> DASH["📊 Dashboard<br/>Métricas + gráficos"]
+
+    style UPLOAD fill:#3b82f6,color:#fff
+    style MAP fill:#06b6d4,color:#fff
+    style VALIDATE fill:#10b981,color:#fff
+    style CORRECT fill:#f59e0b,color:#fff
+    style REPORT fill:#8b5cf6,color:#fff
+    style SAVE fill:#3ecf8e,color:#fff
+```
+
 ---
 
-## Tecnologías (Tech Stack)
+## 🛠️ Tech Stack
 
 ### Frontend
-| Tecnología | Propósito |
-|------------|-----------|
-| **React 19** & **Next.js 16** | Framework principal con App Router y Turbopack |
-| **Tailwind CSS 4** | Sistema de diseño utilitario responsivo |
-| **Obsidian Ledger** | Sistema de tokens de diseño oscuro con superficies tonales (Material Design 3) |
-| **Lucide React** | Iconografía moderna y accesible |
-| **Recharts** | Visualización de datos y gráficos ejecutivos |
 
-### Backend & Base de Datos
-| Tecnología | Propósito |
-|------------|-----------|
-| **Supabase (PostgreSQL)** | BD transaccional con Row Level Security |
-| **API Routes (Next.js)** | Endpoints serverless |
-| **Vercel AI SDK v4** | Orquestación multi-agente (OpenAI, Anthropic, Groq, Google, OpenRouter) |
-| **Resend** | Correos transaccionales |
-| **Vercel Cron Jobs** | Sincronización regulatoria automática |
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| **Next.js** | 16.1.6 | Framework principal con App Router + Turbopack |
+| **React** | 19.2.3 | UI library con Server Components |
+| **Tailwind CSS** | 4.x | Sistema de diseño utilitario responsivo |
+| **Obsidian Ledger** | Custom | Design system oscuro con superficies tonales (Material Design 3) |
+| **Lucide React** | 0.575+ | Iconografía moderna y accesible |
+| **Recharts** | 3.7+ | Visualización de datos y gráficos ejecutivos |
+| **next-intl** | 4.8+ | Internacionalización con rutas localizadas |
+
+### Backend & IA
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| **Supabase** | 2.98+ | PostgreSQL con Row Level Security + Auth |
+| **Vercel AI SDK** | 4.x | Orquestación multi-agente y streaming |
+| **@ai-sdk/openai** | 3.x | Proveedor OpenAI |
+| **@ai-sdk/anthropic** | 3.x | Proveedor Anthropic |
+| **@ai-sdk/groq** | 1.x | Proveedor Groq |
+| **@ai-sdk/google** | 3.x | Proveedor Google |
+| **@openrouter/ai-sdk-provider** | 0.7+ | Proveedor OpenRouter |
+| **Resend** | API | Correos transaccionales |
+| **Firecrawl** | API | Web search + scraping para investigación regulatoria |
 
 ### Herramientas
+
 | Tecnología | Propósito |
 |------------|-----------|
-| **TypeScript** | Tipado estático |
-| **next-intl** | Internacionalización y rutas localizadas |
-| **XLSX** | Procesamiento de hojas de cálculo |
-| **Vitest** | Testing unitario |
+| **TypeScript** | Tipado estático estricto |
 | **Zod** | Validación de esquemas en runtime |
+| **XLSX** | Procesamiento de hojas de cálculo |
+| **Vitest** | Testing unitario con fast-check (property-based) |
+| **ESLint** | Linting con eslint-config-next |
 
 ---
 
-## Arquitectura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 nomina-smart/
-├── messages/                     # Diccionarios i18n (es.json, en.json, pt.json)
-├── scripts/                      # Migraciones SQL (001–005)
+├── messages/                     # Diccionarios i18n
+│   ├── en.json                   #   Inglés
+│   ├── es.json                   #   Español (default)
+│   └── pt.json                   #   Portugués
+├── scripts/                      # Migraciones SQL (001–006)
+│   ├── 001_setup_schema.sql      #   Tablas base (companies, employees, audits, payroll_uploads)
+│   ├── 002_refactor_tables.sql   #   user_profiles, ai_providers, ai_usage_logs + trigger
+│   ├── 003_multi_country_tables.sql  # supported_countries, token_rates, corrections, sources
+│   ├── 004_regulatory_sync_tables.sql # sync_history, rule_audit_log, notifications, email_log
+│   ├── 005_finance_token_optimization.sql # routing_rules, quality_metrics, optimization_config
+│   └── 006_proper_rls_policies.sql    # Políticas RLS completas
 ├── src/
 │   ├── app/
-│   │   ├── [locale]/             # Rutas multilenguaje
-│   │   │   ├── (public)/         # Landing, about, contact, pricing (sin auth)
-│   │   │   ├── login/            # Autenticación
-│   │   │   ├── admin/            # Paneles admin (finanzas, países, uso, optimización)
-│   │   │   ├── dashboard/        # Dashboard ejecutivo
-│   │   │   ├── reconcile/        # Conciliación y validación
-│   │   │   ├── reports/          # Reportes
-│   │   │   ├── rules/            # Reglas de negocio
-│   │   │   ├── settings/         # Configuración (proveedores, usuarios)
-│   │   │   └── upload/           # Carga de archivos
-│   │   ├── api/                  # Endpoints REST
-│   │   │   ├── ai/               # IA: chat, corrections, mapping, orchestrate, validation
-│   │   │   ├── admin/            # Admin: countries, finance, optimization, rules, users
-│   │   │   ├── sync/             # Sincronización regulatoria (cron)
-│   │   │   └── settings/         # Proveedores IA y uso
+│   │   ├── [locale]/             # Rutas multilenguaje (es/en/pt)
+│   │   │   ├── (public)/         #   Landing, about, contact, pricing (sin auth)
+│   │   │   ├── login/            #   Autenticación
+│   │   │   ├── admin/            #   Paneles admin (finanzas, países, uso, optimización)
+│   │   │   ├── dashboard/        #   Dashboard ejecutivo con métricas
+│   │   │   ├── reconcile/        #   Conciliación y validación
+│   │   │   ├── reports/          #   Reportes ejecutivos
+│   │   │   ├── rules/            #   Reglas normativas por país
+│   │   │   ├── settings/         #   Configuración (proveedores IA, usuarios)
+│   │   │   └── upload/           #   Carga de archivos Excel/CSV
+│   │   ├── api/                  # Endpoints REST (11 categorías)
+│   │   │   ├── ai/               #   chat, corrections, mapping, orchestrate, validation
+│   │   │   ├── admin/            #   countries, finance, optimization, rules, users
+│   │   │   ├── sync/             #   bootstrap, history, run (cron)
+│   │   │   ├── settings/         #   providers (CRUD + reorder + test), usage
+│   │   │   ├── actions/          #   Action items CRUD
+│   │   │   ├── audit/            #   Audit trail por regla
+│   │   │   ├── companies/        #   Empresas
+│   │   │   ├── integrations/     #   Conectores externos + test
+│   │   │   ├── notifications/    #   Listado + marcar leída
+│   │   │   ├── payrolls/         #   Cargas de nómina
+│   │   │   └── rules/            #   Reglas normativas
 │   │   └── auth/callback/        # OAuth callback Supabase
-│   ├── components/               # UI y layout
-│   ├── i18n/                     # Configuración i18n
+│   ├── components/
+│   │   ├── layout/               # Sidebar, Header, AppShell
+│   │   └── ui/                   # 25+ componentes UI (Cards, Charts, Tables, AI Sidebar...)
+│   ├── i18n/                     # Configuración next-intl (routing + request)
 │   ├── lib/
-│   │   ├── ai/                   # Capa IA multi-agente
-│   │   │   ├── agents/           # 7 agentes + AgentBus
-│   │   │   ├── providers.ts      # Registry multi-proveedor
-│   │   │   ├── fallback.ts       # Cadena de fallback
-│   │   │   ├── model-selector.ts # Selector inteligente
-│   │   │   ├── cost-calculator.ts# Calculadora de costos
-│   │   │   ├── encryption.ts     # AES-256-GCM
-│   │   │   └── rule-engine.ts    # Motor de reglas multi-país
-│   │   ├── api/                  # Guard + Rate limiter
-│   │   ├── audit/                # Auditoría de reglas
-│   │   ├── email/                # Email (Resend) + plantillas
-│   │   ├── integrations/         # Conectores con sistemas externos (ERPs)
-│   │   │   ├── connectors/       # Implementaciones: generic-api, siigo
-│   │   │   ├── registry.ts       # Registro central de conectores
-│   │   │   └── types.ts          # Tipos base (IntegrationConnector, SyncResult)
-│   │   ├── notifications/        # Notificaciones in-app
-│   │   ├── payroll/              # Lógica de nómina
-│   │   ├── sync/                 # Sincronización regulatoria
-│   │   └── supabase/             # Clientes Supabase
+│   │   ├── ai/                   # Capa IA completa
+│   │   │   ├── agents/           #   7 agentes + AgentBus
+│   │   │   ├── providers.ts      #   Registry multi-proveedor (5 proveedores)
+│   │   │   ├── fallback.ts       #   Cadena de fallback con retry
+│   │   │   ├── model-selector.ts #   Selector inteligente por complejidad
+│   │   │   ├── cost-calculator.ts#   Calculadora de costos por tarea
+│   │   │   ├── encryption.ts     #   AES-256-GCM para API keys
+│   │   │   ├── rule-engine.ts    #   Motor de reglas multi-país
+│   │   │   ├── usage-logger.ts   #   Logger de uso IA (tokens, latencia, costo)
+│   │   │   ├── schemas.ts        #   Esquemas Zod compartidos
+│   │   │   └── types.ts          #   Tipos TypeScript del sistema IA
+│   │   ├── api/                  # Guard (auth + RBAC) + Rate limiter (Redis/memory)
+│   │   ├── audit/                # Servicio de auditoría de reglas (retención 5 años)
+│   │   ├── auth/                 # User profile y permisos
+│   │   ├── email/                # Email service (Resend) + plantillas localizadas
+│   │   ├── integrations/         # Framework de conectores (Siigo, Generic API)
+│   │   ├── notifications/        # Notificaciones in-app + broadcast a admins
+│   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation)
+│   │   ├── sync/                 # Sincronización regulatoria (cron + bootstrap)
+│   │   ├── supabase/             # Clientes Supabase (client, server, admin)
+│   │   └── types/                # Tipos compartidos
 │   └── middleware.ts             # Edge: i18n + Auth + RBAC
-├── vercel.json                   # Cron jobs
-└── tsconfig.json
+├── vercel.json                   # Cron jobs configuration
+├── vitest.config.ts              # Testing configuration
+└── tsconfig.json                 # TypeScript strict mode
 ```
 
 ---
 
-## Guía de Inicio Rápido
+## ⚡ Guía de Inicio Rápido
 
 ### Requisitos Previos
+
 - **Node.js** v20+ ([descargar](https://nodejs.org))
 - **npm** (incluido con Node.js)
 - **Cuenta Supabase** ([crear gratis](https://supabase.com/))
@@ -510,12 +678,60 @@ nomina-smart/
 ### Instalación
 
 ```bash
+# 1. Clonar el repositorio
+git clone https://github.com/tu-usuario/nomina-smart.git
+cd nomina-smart
+
+# 2. Instalar dependencias
 npm install
-cp .env.local.example .env.local   # Edita con tus credenciales
+
+# 3. Configurar variables de entorno
+cp .env.local.example .env.local
+# Editar .env.local con tus credenciales
+
+# 4. Iniciar servidor de desarrollo
 npm run dev
 ```
 
-Accede en: http://localhost:3000/es (o `/en`, `/pt`)
+Accede en: `http://localhost:3000/es` (o `/en`, `/pt`)
+
+### Scripts Disponibles
+
+| Script | Descripción |
+|--------|-------------|
+| `npm run dev` | Servidor de desarrollo con Turbopack |
+| `npm run dev:managed` | Servidor con gestión de procesos |
+| `npm run build` | Build de producción |
+| `npm run start` | Servidor de producción |
+| `npm run lint` | Ejecutar ESLint |
+| `npm run test` | Ejecutar tests con Vitest (single run) |
+| `npm run test:watch` | Tests en modo watch |
+| `npm run stop` | Detener servidor managed |
+
+---
+
+## ⚙️ Configuración Detallada
+
+### Variables de Entorno
+
+| Variable | Requerida | Descripción |
+|----------|-----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Clave pública anónima |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Clave de servicio (admin, server-side only) |
+| `RESEND_API_KEY` | ✅ | API key de Resend para emails transaccionales |
+| `RESEND_FROM_EMAIL` | ✅ | Dirección de remitente (ej: `noreply@nominasmart.com`) |
+| `ENCRYPTION_KEY` | ✅ | Clave AES-256 (64 chars hex) para cifrar API keys de proveedores IA |
+| `CRON_SECRET` | ✅ | Secret para autenticar cron jobs de Vercel |
+| `FIRECRAWL_API_KEY` | ⬜ | API key de [Firecrawl](https://www.firecrawl.dev/) para investigación regulatoria web. Sin ella, el agente investigador usa REGULATION_DB como fallback |
+| `UPSTASH_REDIS_REST_URL` | ⬜ | URL REST de [Upstash Redis](https://console.upstash.com/) para rate limiting distribuido. Sin ella, usa store in-memory |
+| `UPSTASH_REDIS_REST_TOKEN` | ⬜ | Token de autenticación de Upstash Redis |
+
+#### Generar ENCRYPTION_KEY
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
 ### Credenciales Supabase
 
@@ -529,77 +745,56 @@ En [supabase.com](https://supabase.com) → Settings → API:
 Ejecuta los scripts SQL en orden desde el SQL Editor de Supabase:
 
 ```
-001_setup_schema.sql        → Tablas base
-002_refactor_tables.sql     → user_profiles, ai_providers, ai_usage_logs
-003_multi_country_tables.sql → Multi-país, token rates, correcciones
-004_regulatory_sync_tables.sql → sync_history, notifications, email_log
-005_finance_token_optimization.sql → routing_rules, quality_metrics, optimization_config
-```
-
----
-
-## Configuración Detallada
-
-### Variables de Entorno
-
-| Variable | Requerida | Descripción |
-|----------|-----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | URL del proyecto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Clave pública anónima |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Clave de servicio (admin) |
-| `RESEND_API_KEY` | ✅ | API key de Resend para emails |
-| `RESEND_FROM_EMAIL` | ✅ | Dirección de remitente |
-| `ENCRYPTION_KEY` | ✅ | Clave AES-256 (64 chars hex) |
-| `CRON_SECRET` | ✅ | Secret para cron jobs de Vercel |
-| `FIRECRAWL_API_KEY` | ⬜ | API key de Firecrawl para investigación regulatoria (búsqueda web + scraping). [Obtener key](https://www.firecrawl.dev/). Si no se configura, el agente investigador usa datos de respaldo (REGULATION_DB) con confianza baja. |
-| `UPSTASH_REDIS_REST_URL` | ⬜ | URL REST de Upstash Redis para rate limiting distribuido. Si no se configura, usa store in-memory. |
-| `UPSTASH_REDIS_REST_TOKEN` | ⬜ | Token de autenticación de Upstash Redis. Requerido junto con `UPSTASH_REDIS_REST_URL`. |
-
-Generar `ENCRYPTION_KEY`:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+001_setup_schema.sql              → Tablas base (companies, employees, audits, payroll_uploads, action_items)
+002_refactor_tables.sql           → user_profiles, ai_providers, ai_usage_logs + trigger on_auth_user_created
+003_multi_country_tables.sql      → supported_countries, token_rates, applied_corrections, agent_communications, research_sources
+004_regulatory_sync_tables.sql    → sync_history, rule_audit_log, notifications, email_log
+005_finance_token_optimization.sql → model_routing_rules, quality_metrics, optimization_config
+006_proper_rls_policies.sql       → Políticas RLS completas para todas las tablas
 ```
 
 ### Proveedores IA
 
-Se configuran desde `/settings/providers` (rol admin). Tipos soportados: `openai`, `anthropic`, `groq`, `google`, `openrouter`.
+Se configuran desde `/settings/providers` (requiere rol admin). Tipos soportados:
+
+| Proveedor | Tipo | Modelos Ejemplo |
+|-----------|------|-----------------|
+| OpenAI | `openai` | gpt-4o, gpt-4o-mini, gpt-3.5-turbo |
+| Anthropic | `anthropic` | claude-sonnet-4-20250514, claude-3-haiku |
+| Groq | `groq` | llama-3.1-70b, mixtral-8x7b |
+| Google | `google` | gemini-2.0-flash, gemini-1.5-pro |
+| OpenRouter | `openrouter` | Cualquier modelo disponible en OpenRouter |
 
 Cada proveedor tiene: `api_key` (cifrada con AES-256-GCM), `model_id`, `priority` (orden de fallback), `is_active`.
 
 ### Optimización de Tokens
 
-Desde `/admin/settings/optimization`:
+Configurable desde `/admin/settings/optimization`:
 
 | Parámetro | Default | Descripción |
 |-----------|---------|-------------|
 | `strategy` | `balanced` | `cost-first`, `quality-first`, `balanced` |
-| `cost_weight` | `0.5` | Peso del costo (0.0–1.0) |
-| `quality_weight` | `0.5` | Peso de la calidad (0.0–1.0) |
+| `cost_weight` | `0.5` | Peso del costo en score compuesto (0.0–1.0) |
+| `quality_weight` | `0.5` | Peso de la calidad en score compuesto (0.0–1.0) |
 | `max_cost_per_task_usd` | `0.50` | Límite de costo por tarea |
-| `min_quality_threshold` | `0.7` | Umbral mínimo de calidad |
-| `enable_auto_routing` | `true` | Enrutamiento automático |
+| `min_quality_threshold` | `0.7` | Umbral mínimo de calidad para candidatos |
+| `enable_auto_routing` | `true` | Habilitar enrutamiento automático por reglas |
 
 > `cost_weight + quality_weight` debe sumar 1.0.
 
 ### Cron Jobs (Vercel)
 
 ```json
-{ "crons": [{ "path": "/api/sync/run", "schedule": "0 6 * * 1" }] }
+{
+  "crons": [
+    { "path": "/api/sync/run", "schedule": "0 6 * * 1" }
+  ]
+}
 ```
 
 Lunes 6:00 UTC. Autenticado con `CRON_SECRET` como Bearer token. Rate limit: 5 req/min.
 
-#### Bootstrap Automático de Reglas
-
-En el primer despliegue (o al activar un nuevo país), la tabla `country_year_rules` estará vacía. El sistema resuelve esto automáticamente:
-
-1. El cron (o un sync manual) detecta que un país no tiene reglas.
-2. Invoca al agente investigador (Soul) que busca en la web regulaciones vigentes.
-3. Si la búsqueda web falla, usa `REGULATION_DB` como fallback (confianza baja).
-4. Crea las reglas en `country_year_rules` con status `pending_review`.
-5. Notifica al admin para revisión.
-
-También existe un endpoint manual para forzar el bootstrap:
+#### Bootstrap Manual de Reglas
 
 ```bash
 # Bootstrap de todos los países
@@ -613,316 +808,305 @@ curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
   -d '{"countryCode": "CO", "year": 2026}'
 ```
 
-### Internacionalización
-
-Locales: `es` (default), `en`, `pt`. Prefijo siempre visible en URL. Diccionarios en `messages/`.
-
-### Rate Limiting
-
-| Preset | Límite | Uso |
-|--------|--------|-----|
-| `auth` | 10/min | Login |
-| `ai` | 20/min | Endpoints IA |
-| `aiChat` | 30/min | Chat AI |
-| `adminWrite` | 30/min | Escrituras admin |
-| `read` | 60/min | Lecturas |
-| `write` | 40/min | Escrituras |
-| `cron` | 5/min | Sync/cron |
-
-> Soporta Redis distribuido (Upstash) si `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` están configurados. Sin Redis, usa store in-memory (funcional para single-instance).
-
 ---
 
-## Esquema de Base de Datos
+## 🗄️ Esquema de Base de Datos
 
 ### Migraciones SQL
 
-| Script | Tablas |
-|--------|--------|
+| Script | Tablas Creadas |
+|--------|---------------|
 | `001_setup_schema.sql` | `companies`, `employees`, `audits`, `reconciliation_records`, `country_year_rules`, `payroll_uploads`, `payroll_action_items` |
 | `002_refactor_tables.sql` | `user_profiles`, `ai_providers`, `ai_usage_logs` + trigger `handle_new_user` |
 | `003_multi_country_tables.sql` | `supported_countries`, `task_pricing`, `infrastructure_costs`, `provider_token_rates`, `applied_corrections`, `agent_communications`, `research_sources` |
 | `004_regulatory_sync_tables.sql` | `sync_history`, `rule_audit_log`, `notifications`, `email_log` |
 | `005_finance_token_optimization.sql` | `model_routing_rules`, `quality_metrics`, `optimization_config` |
+| `006_proper_rls_policies.sql` | Políticas RLS para todas las tablas |
 
-### Tablas Principales
+### Tablas Principales (20+)
 
-| Tabla | Descripción | FK |
-|-------|-------------|-----|
+| Tabla | Descripción | Relaciones |
+|-------|-------------|------------|
 | `companies` | Empresas (NIT, nombre, industria) | → employees, audits, payroll_uploads |
-| `employees` | Empleados con datos salariales | → company_id |
-| `audits` | Auditorías por empresa/período | → reconciliation_records |
-| `payroll_uploads` | Cargas de nómina con mapeos y validaciones (JSONB) | → action_items, corrections |
-| `payroll_action_items` | Hallazgos/tickets con prioridad y resolución | → payroll_id |
+| `employees` | Empleados con datos salariales y estado | → company_id |
+| `audits` | Auditorías por empresa/período con risk score | → reconciliation_records |
+| `reconciliation_records` | Registros de conciliación triple-match | → audit_id, employee_id |
+| `payroll_uploads` | Cargas de nómina con mapeos, validaciones y reportes (JSONB) | → action_items, corrections |
+| `payroll_action_items` | Hallazgos/tickets con prioridad, severidad y resolución | → payroll_id |
 | `country_year_rules` | Reglas normativas por país/año (status: draft/pending_review/approved/rejected) | → audit_log, sources |
-| `user_profiles` | Perfiles con rol (admin/analyst/client) | → auth.users (PK=FK) |
-| `ai_providers` | Proveedores IA con API key cifrada | → user_id |
-| `ai_usage_logs` | Uso IA: tokens, latencia, costo, complejidad | → provider_id, company_id |
-| `supported_countries` | 7 países con moneda y formato | → sync_history |
-| `sync_history` | Historial de sincronizaciones (status, reintentos) | → country_code |
+| `user_profiles` | Perfiles con rol (admin/analyst/client), locale, alert_countries | → auth.users (PK=FK) |
+| `ai_providers` | Proveedores IA con API key cifrada AES-256-GCM | → user_id |
+| `ai_usage_logs` | Uso IA: tokens in/out, latencia, costo, complejidad, modelo | → provider_id, company_id |
+| `supported_countries` | 7 países con moneda, formato y frecuencia de sync | → sync_history |
+| `sync_history` | Historial de sincronizaciones (status, reintentos, confianza) | → country_code |
 | `rule_audit_log` | Auditoría de cambios en reglas (retención 5 años) | → rule_id, user_id |
-| `notifications` | Notificaciones in-app (tipo, severidad) | → user_id |
-| `email_log` | Registro de emails vía Resend | — |
+| `notifications` | Notificaciones in-app (tipo, severidad, metadata JSONB) | → user_id |
+| `email_log` | Registro de emails vía Resend (status, retry_count) | — |
 | `model_routing_rules` | Enrutamiento de modelos por tarea/agente/complejidad | — |
-| `quality_metrics` | Métricas de calidad por proveedor/modelo | — |
-| `optimization_config` | Estrategia de optimización global | — |
-| `applied_corrections` | Correcciones aplicadas con fórmula | → payroll_upload_id |
-| `agent_communications` | Comunicaciones inter-agente (AgentBus) | — |
-| `research_sources` | Fuentes del agente investigador | → country_year_rule_id |
+| `quality_metrics` | Métricas de calidad por proveedor/modelo/agente | — |
+| `optimization_config` | Estrategia de optimización global (singleton) | — |
+| `applied_corrections` | Correcciones aplicadas con fórmula y revalidación | → payroll_upload_id |
+| `agent_communications` | Comunicaciones inter-agente (AgentBus history) | — |
+| `research_sources` | Fuentes del agente investigador (URL, título, fecha) | → country_year_rule_id |
 | `provider_token_rates` | Tarifas por 1K tokens por proveedor/modelo | — |
 
 ### RLS y Triggers
 
-- **RLS habilitado** en todas las tablas. `user_profiles` y `ai_providers` restringidos por `auth.uid()`. Demás tablas: permisivas (pendiente restringir).
+- **RLS habilitado** en todas las tablas. `user_profiles` y `ai_providers` restringidos por `auth.uid()`.
 - **Trigger `on_auth_user_created`**: Auto-crea `user_profiles` con rol `client` al registrar usuario.
+- **Políticas completas** definidas en `006_proper_rls_policies.sql`.
 
 ---
 
-## Referencia de API
+## 📡 Referencia de API
 
 ### Endpoints de IA
 
-| Método | Ruta | Auth | Rate Limit |
-|--------|------|------|------------|
-| POST | `/api/ai/orchestrate` | requireAuth | ai (20/min) |
-| POST | `/api/ai/chat` | requireAuth | aiChat (30/min) |
-| POST | `/api/ai/mapping` | requireAuth | ai (20/min) |
-| POST | `/api/ai/validation` | requireAuth | ai (20/min) |
-| POST | `/api/ai/corrections` | requireAuth | ai (20/min) |
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| POST | `/api/ai/orchestrate` | requireAuth | ai (20/min) | Orquestación multi-agente (full-analysis, validate, map, correct, chat) |
+| POST | `/api/ai/chat` | requireAuth | aiChat (30/min) | Chat conversacional con Payroll Expert |
+| POST | `/api/ai/mapping` | requireAuth | ai (20/min) | Mapeo de columnas Excel → campos estándar |
+| POST | `/api/ai/validation` | requireAuth | ai (20/min) | Validación de nómina con 14 verificaciones |
+| POST | `/api/ai/corrections` | requireAuth | ai (20/min) | Correcciones determinísticas |
 
 ### Endpoints de Nómina
 
-| Método | Ruta | Auth | Rate Limit |
-|--------|------|------|------------|
-| GET/POST | `/api/payrolls` | requireAuth | read/write |
-| GET | `/api/companies` | requireAuth | read |
-| GET/POST/PATCH | `/api/actions` | requireAuth | read/write |
-| GET/PATCH | `/api/actions/[id]` | requireAuth | read/write |
-| GET | `/api/rules` | requireAuth | read |
-| POST/DELETE | `/api/rules` | requireAdmin | adminWrite |
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| GET/POST | `/api/payrolls` | requireAuth | read/write | Listar y crear cargas de nómina |
+| GET | `/api/companies` | requireAuth | read | Listar empresas |
+| GET/POST/PATCH | `/api/actions` | requireAuth | read/write | Action items (hallazgos) |
+| GET/PATCH | `/api/actions/[id]` | requireAuth | read/write | Action item individual |
+| GET/POST/DELETE | `/api/rules` | requireAuth/Admin | read/adminWrite | Reglas normativas |
 
 ### Endpoints de Administración
 
-| Método | Ruta | Auth | Rate Limit |
-|--------|------|------|------------|
-| GET | `/api/admin/finance` | requireAdmin | read |
-| GET | `/api/admin/finance/export` | requireAdmin | read |
-| GET | `/api/admin/countries` | requireAdmin | read |
-| GET/POST | `/api/admin/users` | requireAdmin | read/adminWrite |
-| POST | `/api/admin/users/invite` | requireAdmin | adminWrite |
-| PATCH/DELETE | `/api/admin/users/[id]` | requireAdmin | adminWrite |
-| POST | `/api/admin/rules/[id]/approve` | requireAdmin | adminWrite |
-| POST | `/api/admin/rules/[id]/reject` | requireAdmin | adminWrite |
-| GET/PUT | `/api/admin/optimization-config` | requireAdmin | read/adminWrite |
-| GET/POST | `/api/admin/optimization-config/rules` | requireAdmin | read/adminWrite |
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| GET | `/api/admin/finance` | requireAdmin | read | Dashboard financiero IA |
+| GET | `/api/admin/finance/export` | requireAdmin | read | Exportar datos financieros CSV |
+| GET | `/api/admin/countries` | requireAdmin | read | Países soportados |
+| GET/POST | `/api/admin/users` | requireAdmin | read/adminWrite | Gestión de usuarios |
+| POST | `/api/admin/users/invite` | requireAdmin | adminWrite | Invitar usuario (envía email) |
+| PATCH/DELETE | `/api/admin/users/[id]` | requireAdmin | adminWrite | Editar/eliminar usuario |
+| POST | `/api/admin/users/[id]/resend-invite` | requireAdmin | adminWrite | Reenviar invitación |
+| POST | `/api/admin/rules/[id]/approve` | requireAdmin | adminWrite | Aprobar regla |
+| POST | `/api/admin/rules/[id]/reject` | requireAdmin | adminWrite | Rechazar regla |
+| GET/PUT | `/api/admin/optimization-config` | requireAdmin | read/adminWrite | Configuración de optimización |
+| GET/POST | `/api/admin/optimization-config/rules` | requireAdmin | read/adminWrite | Reglas de enrutamiento de modelos |
+| PUT/DELETE | `/api/admin/optimization-config/rules/[id]` | requireAdmin | adminWrite | Regla individual |
 
-### Endpoints de Configuración y Sync
+### Endpoints de Sincronización
 
-| Método | Ruta | Auth | Rate Limit |
-|--------|------|------|------------|
-| GET/POST | `/api/settings/providers` | requireAdmin | read/adminWrite |
-| PUT/DELETE | `/api/settings/providers/[id]` | requireAdmin | adminWrite |
-| POST | `/api/settings/providers/[id]/test` | requireAdmin | ai |
-| POST | `/api/settings/providers/reorder` | requireAdmin | adminWrite |
-| GET | `/api/settings/usage` | requireAdmin | read |
-| POST | `/api/sync/run` | CRON_SECRET | cron (5/min) |
-| POST | `/api/sync/bootstrap` | requireAdmin / CRON_SECRET | cron (5/min) |
-| GET | `/api/sync/history` | requireAuth | read |
-| GET | `/api/notifications` | requireAuth | read |
-| POST | `/api/notifications/[id]/read` | requireAuth | write |
-| GET | `/api/audit/[ruleId]` | requireAuth | read |
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| POST | `/api/sync/run` | CRON_SECRET | cron (5/min) | Ejecutar sincronización regulatoria |
+| POST | `/api/sync/bootstrap` | CRON_SECRET | cron (5/min) | Bootstrap de reglas para países nuevos |
+| GET | `/api/sync/history` | requireAdmin | read | Historial de sincronizaciones |
+
+### Endpoints de Configuración
+
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| GET/POST | `/api/settings/providers` | requireAuth | read/write | Proveedores IA (CRUD) |
+| PUT/DELETE | `/api/settings/providers/[id]` | requireAuth | write | Proveedor individual |
+| POST | `/api/settings/providers/[id]/test` | requireAuth | ai | Test de conexión |
+| POST | `/api/settings/providers/reorder` | requireAuth | write | Reordenar prioridad |
+| GET | `/api/settings/usage` | requireAuth | read | Uso de IA |
+
+### Otros Endpoints
+
+| Método | Ruta | Auth | Rate Limit | Descripción |
+|--------|------|------|------------|-------------|
+| GET | `/api/audit/[ruleId]` | requireAuth | read | Trail de auditoría por regla |
+| GET/POST | `/api/integrations` | requireAuth | read/write | Integraciones externas |
+| POST | `/api/integrations/test` | requireAuth | write | Test de integración |
+| GET | `/api/notifications` | requireAuth | read | Notificaciones del usuario |
+| POST | `/api/notifications/[id]/read` | requireAuth | write | Marcar notificación como leída |
 
 ---
 
-## Seguridad
+## 🎨 Design System: Obsidian Ledger
 
-### Arquitectura de Seguridad
+Nomina Smart utiliza un design system oscuro premium llamado **Obsidian Ledger**, inspirado en Material Design 3 con superficies tonales y glassmorphism.
 
-```mermaid
-flowchart TD
-    subgraph Edge["Edge Runtime (Middleware)"]
-        I18N["next-intl"]
-        SUPA_AUTH["Supabase Auth"]
-        RBAC_MW["RBAC: admin / analyst / client"]
-    end
+### Jerarquía de Superficies (Nesting Principle)
 
-    subgraph API["API Routes (Guard)"]
-        RL["Rate Limiting por IP"]
-        AUTH_API["requireAuth()"]
-        RBAC_API["requireAdmin()"]
-        SANITIZE["Sanitización de inputs"]
-    end
+Cada nivel sube ~4-6 puntos de luminosidad para crear profundidad visual:
 
-    subgraph Data["Protección de Datos"]
-        ENC["AES-256-GCM"]
-        RLS["Row Level Security"]
-        AUDIT_LOG["Audit Log (5 años)"]
-    end
-
-    Edge --> API --> Data
-
-    style Edge fill:#1e293b,stroke:#f59e0b,color:#fff
-    style API fill:#1e293b,stroke:#ef4444,color:#fff
-    style Data fill:#1e293b,stroke:#10b981,color:#fff
+```
+surface (#0b1326) → container-low (#131b2e) → container (#171f33) → 
+container-high (#222a3d) → container-highest (#2d3449) → bright (#31394d)
 ```
 
-### Capas de Protección
+### Paleta Semántica
 
-| Capa | Descripción |
-|------|-------------|
-| **Edge Middleware** | i18n, sesión Supabase, RBAC, propagación de cookies, redirect con `redirectTo` |
-| **Rate Limiting** | Sliding window in-memory por IP. 7 presets. Header `Retry-After` en 429. |
-| **Autenticación** | `requireAuth()` verifica sesión Supabase. Cron usa `CRON_SECRET` como Bearer. |
-| **Autorización** | `requireAdmin()`, `requireAnalystOrAdmin()`. Tres roles. |
-| **Sanitización** | `sanitizeString()`, `sanitizeEmail()`, `isValidUuid()`, `isValidCountryCode()`, `sanitizeNumber()`, `sanitizeStringArray()` |
-| **Encriptación** | AES-256-GCM: IV 12 bytes + AuthTag 16 bytes. Formato: `base64(IV + authTag + ciphertext)` |
-| **RLS** | Políticas por tabla. user_profiles y ai_providers por `auth.uid()`. |
-| **Auditoría** | Cambios en reglas con retención 5 años. Origen, valores anteriores/nuevos, fuentes. |
+| Token | Color | Uso |
+|-------|-------|-----|
+| `--ol-primary` | `#d0bcff` (violeta claro) | Acciones principales, acentos |
+| `--ol-secondary` | `#4edea3` (esmeralda) | Éxito, cumplimiento |
+| `--ol-tertiary` | `#ffb2b7` (rosa) | Advertencias, riesgo medio |
+| `--ol-error` | `#ffb4ab` (salmón) | Errores, riesgo alto |
+| `--ol-on-surface` | `#dae2fd` | Texto principal |
+| `--ol-on-surface-variant` | `#cbc3d7` | Texto secundario |
 
-### Roles y Permisos
+### Clases Utilitarias
 
-| Rol | Dashboard | Upload | Reconcile | Rules | Reports | Settings | Admin |
-|-----|-----------|--------|-----------|-------|---------|----------|-------|
-| **admin** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **analyst** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **client** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+```css
+.glass-panel          /* Glassmorphism: blur(20px) + border sutil + shadow */
+.ol-surface           /* Superficie base */
+.ol-surface-low       /* Superficie baja */
+.ol-surface-container /* Superficie contenedor */
+.ol-surface-high      /* Superficie alta */
+.ol-surface-highest   /* Superficie más alta */
+.ol-surface-bright    /* Superficie brillante */
+.ol-ghost-border      /* Borde fantasma (glint de luz en borde de vidrio) */
+.ol-pulse-indicator   /* Indicador de pulso para procesamiento IA en tiempo real */
+```
+
+### Animaciones
+
+| Clase | Efecto |
+|-------|--------|
+| `.animate-float` | Flotación suave (4s) |
+| `.animate-pulse-glow` | Pulso con glow esmeralda (2s) |
+| `.animate-fade-in` | Fade in con slide up (0.3s) |
+| `.animate-shimmer` | Shimmer de carga (2s) |
+| `.animate-avatar-float` | Flotación de avatares de agentes (3s) |
+
+### Background
+
+El fondo global usa gradientes radiales con violeta y esmeralda sobre base `#060913`:
+
+```css
+background-image: 
+  radial-gradient(ellipse at 85% 5%, rgba(124, 58, 237, 0.15), transparent 45%),
+  radial-gradient(ellipse at 15% 95%, rgba(16, 185, 129, 0.15), transparent 45%);
+```
 
 ---
 
-## Troubleshooting
+## 🔒 Seguridad
 
-### Instalación y Dependencias
+### Capas de Seguridad
 
-**"Cannot find module '@supabase/ssr'"**
+| Capa | Implementación |
+|------|---------------|
+| **Encriptación** | AES-256-GCM para API keys de proveedores IA (`src/lib/ai/encryption.ts`) |
+| **Autenticación** | Supabase Auth (OAuth + Magic Link) validado en Edge middleware |
+| **Autorización** | RBAC con 3 roles (admin/analyst/client) en middleware + API guards |
+| **Rate Limiting** | 7 presets por IP con soporte Redis distribuido (Upstash) + fallback in-memory |
+| **RLS** | Row Level Security en PostgreSQL para todas las tablas |
+| **Input Validation** | Sanitización de UUIDs, validación con Zod en API routes |
+| **CRON Auth** | Bearer token (`CRON_SECRET`) para endpoints de sincronización |
+| **Cookie Security** | Cookies httpOnly con refresh automático en middleware |
+
+### Rate Limiting Detallado
+
+```
+┌─────────────┬──────────┬──────────┐
+│   Preset    │  Límite  │ Ventana  │
+├─────────────┼──────────┼──────────┤
+│ auth        │ 10/min   │ 60s      │
+│ ai          │ 20/min   │ 60s      │
+│ aiChat      │ 30/min   │ 60s      │
+│ adminWrite  │ 30/min   │ 60s      │
+│ read        │ 60/min   │ 60s      │
+│ write       │ 40/min   │ 60s      │
+│ cron        │  5/min   │ 60s      │
+└─────────────┴──────────┴──────────┘
+```
+
+Cuando se excede el límite, retorna `429 Too Many Requests` con header `Retry-After`.
+
+---
+
+## 🧪 Testing
+
+El proyecto usa **Vitest** con **fast-check** para property-based testing.
+
 ```bash
-npm install
-# Si persiste:
-rm -rf node_modules package-lock.json && npm install
+# Ejecutar todos los tests
+npm run test
+
+# Tests en modo watch
+npm run test:watch
 ```
 
-**"Module not found: Can't resolve '@ai-sdk/openai'"**
-```bash
-npm install @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/groq @ai-sdk/google @openrouter/ai-sdk-provider ai
-```
+### Tests Existentes
 
-### Variables de Entorno
-
-**"NEXT_PUBLIC_SUPABASE_URL is not defined"**
-1. Copia `.env.local.example` a `.env.local`
-2. Rellena credenciales Supabase
-3. Reinicia: `npm run dev` (variables `NEXT_PUBLIC_*` se inyectan en build time)
-
-**"ENCRYPTION_KEY environment variable is not set"**
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-# Copia el resultado (64 chars hex) como ENCRYPTION_KEY en .env.local
-```
-
-**Sync falla con 401 (CRON_SECRET)**
-El endpoint `/api/sync/run` requiere `Authorization: Bearer <CRON_SECRET>`. Configúralo en `.env.local` y en Vercel.
-
-### Base de Datos
-
-**"relation 'user_profiles' does not exist"**
-Ejecuta las migraciones SQL en orden (001 → 005) desde el SQL Editor de Supabase.
-
-**"duplicate key value violates unique constraint"**
-Los scripts usan `ON CONFLICT DO NOTHING`. Si modificaste datos manualmente, elimina registros conflictivos o usa `TRUNCATE`.
-
-**"permission denied for table user_profiles"**
-Usa `SUPABASE_SERVICE_ROLE_KEY` (no anon key) para operaciones admin. El service role bypasea RLS.
-
-### Autenticación
-
-**Redirect infinito a /login**
-1. Verifica cookies de Supabase
-2. Comprueba `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. Limpia cookies del navegador
-
-**403 al acceder a rutas admin**
-```sql
-UPDATE user_profiles SET role = 'admin' WHERE id = 'tu-user-uuid';
-```
-
-**Usuario nuevo no aparece en user_profiles**
-Verifica el trigger: `SELECT * FROM pg_trigger WHERE tgname = 'on_auth_user_created';`
-Si no existe, re-ejecuta `002_refactor_tables.sql`.
-
-### IA
-
-**"No active AI providers configured"**
-Configura al menos un proveedor desde `/settings/providers` (rol admin).
-
-**"All AI providers failed"**
-- API keys inválidas o expiradas
-- Cuota excedida
-- Modelo no disponible
-- Prueba cada proveedor desde `/settings/providers` → "Test"
-
-**Respuestas lentas o timeout**
-- Revisa latencia en `/admin/usage`
-- Cambia a modelo más rápido (ej: Groq)
-- Estrategia `cost-first` para modelos económicos
-
-### Sincronización Regulatoria
-
-**"Failed to load active countries"**
-Ejecuta `003_multi_country_tables.sql` (incluye datos iniciales para 7 países).
-
-**Sync no se ejecuta automáticamente**
-Los cron jobs solo funcionan en producción (Vercel). Para probar localmente:
-```bash
-curl -X POST http://localhost:3000/api/sync/run -H "Authorization: Bearer tu-CRON_SECRET" -H "Content-Type: application/json" -d '{"force": true}'
-```
-
-**"Max retries exhausted"**
-Revisa `/api/sync/history` para ver `error_message`. Verifica proveedores IA y conectividad.
-
-**Bootstrap de reglas falla para un país nuevo**
-Si un país recién activado no genera reglas iniciales, verifica que haya al menos un proveedor IA activo en `/settings/providers`. El bootstrap invoca al agente investigador (Soul) con fallback chain. Revisa notificaciones in-app para detalles del error.
-
-### Email
-
-**"Resend API key is not configured"**
-Agrega `RESEND_API_KEY` y `RESEND_FROM_EMAIL` a `.env.local`.
-
-**Emails no llegan**
-1. Revisa tabla `email_log` (status: sent/failed/bounced)
-2. Verifica dominio verificado en Resend
-3. El sistema reintenta con backoff exponencial
-
-### Desarrollo
-
-**Puerto 3000 en uso**: `npm run dev -- -p 3001`
-
-**Build error TypeScript**: Verifica Node v20+ con `node --version`
-
-**Rate limit en desarrollo (429)**: Reinicia el servidor para limpiar el store in-memory.
+| Archivo | Cobertura |
+|---------|-----------|
+| `src/lib/ai/agents/auditor.test.ts` | Verificaciones matemáticas del auditor |
+| `src/lib/ai/agents/researcher.test.ts` | Investigación regulatoria y resolución de conflictos |
+| `src/lib/ai/encryption.test.ts` | Encriptación/desencriptación AES-256-GCM |
+| `src/lib/ai/model-selector.test.ts` | Selección inteligente de modelos |
+| `src/lib/ai/providers.test.ts` | Registry de proveedores y fallback |
+| `src/lib/ai/rule-engine.test.ts` | Motor de reglas multi-país |
+| `src/lib/audit/audit-service.test.ts` | Servicio de auditoría |
+| `src/lib/email/email-service.test.ts` | Servicio de email |
+| `src/lib/email/templates/index.test.ts` | Plantillas de email |
+| `src/lib/notifications/notification-service.test.ts` | Servicio de notificaciones |
+| `src/lib/sync/sync-service.test.ts` | Servicio de sincronización regulatoria |
 
 ---
 
-## Roadmap
+## 🚀 Despliegue
 
-- [ ] Módulo completo de liquidación de nómina
-- [ ] Generación automática de archivos PILA
-- [ ] Portal de autoservicio para empleados
-- [ ] Integración con sistemas contables
-- [ ] App móvil para consultas
-- [ ] Firma electrónica de documentos
-- [ ] Rate limiting distribuido con Redis (Upstash)
-- [ ] RLS restrictivo por empresa en todas las tablas
+### Vercel (Recomendado)
+
+1. Conecta tu repositorio GitHub a [Vercel](https://vercel.com)
+2. Configura las variables de entorno en el dashboard de Vercel
+3. El cron job se activa automáticamente desde `vercel.json`
+4. Deploy automático en cada push a `main`
+
+### Variables de Entorno en Vercel
+
+Asegúrate de configurar todas las variables marcadas como ✅ en la sección de [Configuración](#-configuración-detallada), más las opcionales que necesites.
+
+### Verificar Cron Job
+
+Después del deploy, verifica que el cron job esté activo en Vercel Dashboard → Settings → Cron Jobs. Debería mostrar:
+
+```
+/api/sync/run — Every Monday at 6:00 AM UTC
+```
 
 ---
 
-## Contribuir
+## 🔧 Troubleshooting
 
-1. Fork del repositorio
-2. Rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commits descriptivos
-4. Pull Request
+### Problemas Comunes
+
+| Problema | Solución |
+|----------|----------|
+| `No active AI providers configured` | Configura al menos un proveedor IA en `/settings/providers` con una API key válida |
+| `ENCRYPTION_KEY is not configured` | Genera una clave de 64 caracteres hex y agrégala a `.env.local` |
+| `Rate limit exceeded (429)` | Espera el tiempo indicado en `Retry-After` header. Ajusta presets si es necesario |
+| `Researcher agent falls back to REGULATION_DB` | Configura `FIRECRAWL_API_KEY` para habilitar búsqueda web real |
+| `No rules found for country` | Ejecuta el bootstrap manual: `POST /api/sync/bootstrap` con el `CRON_SECRET` |
+| `User has no permissions` | Verifica el rol en `user_profiles`. El trigger auto-asigna `client` por defecto |
+| `Email not sending` | Verifica `RESEND_API_KEY` y `RESEND_FROM_EMAIL`. Revisa `email_log` en Supabase |
+| `Sync not running` | Verifica `CRON_SECRET` en Vercel y que el cron esté activo en el dashboard |
+| `Redis rate limiting not working` | Verifica `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`. El sistema usa in-memory como fallback |
+
+### Logs Útiles
+
+- **Sync History**: Tabla `sync_history` en Supabase (status, error_message, retry_count)
+- **Email Log**: Tabla `email_log` (status, resend_message_id, error_message)
+- **AI Usage**: Tabla `ai_usage_logs` (tokens, latency, cost, model, agent)
+- **Audit Trail**: Tabla `rule_audit_log` (action, origin, previous/new values)
+- **Notifications**: Tabla `notifications` (type, severity, metadata)
 
 ---
 
-## Licencia
+## 📄 Licencia
 
 Proyecto privado. Todos los derechos reservados.
+
+---
+
+<div align="center">
+  <sub>Construido con ❤️ usando Next.js 16, React 19, Supabase, Vercel AI SDK y mucho café ☕</sub>
+</div>
