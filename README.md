@@ -134,7 +134,9 @@ El panel de chat lateral (`AiSidebar`) muestra en tiempo real qué agente está 
 | **Sincronización Regulatoria Automática** | Detección periódica de cambios normativos por país vía cron, con investigación web real, generación de borradores de reglas y notificaciones. |
 | **Actualizaciones en Tiempo Real** | Cambios reflejados instantáneamente en todos los módulos. Notificaciones push para eventos críticos. |
 | **Automatización de Procesos** | Programación de liquidaciones, generación automática de archivos y alertas de vencimientos. |
-| **Panel Financiero de IA** | Dashboard administrativo con métricas de consumo de tokens, costos estimados por proveedor, ingresos por tareas, margen de ganancia y costo promedio por nómina procesada. Filtrable por rango de fechas. |
+| **Panel Financiero de IA** | Dashboard administrativo con KPIs financieros (costo total IA, ingresos, margen bruto/neto, costo por nómina), desglose por proveedor y por cliente, gráficos de tendencia temporal y exportación CSV. Filtrable por rango de fechas y empresa. |
+| **Análisis de Consumo de Tokens** | Panel multidimensional de uso de IA con métricas agregadas (llamadas, tokens, tasa de error, latencia), filtros por proveedor/agente/fechas, y desgloses interactivos por proveedor, agente, tipo de tarea y cliente con gráficos comparativos. |
+| **Optimización de Tokens** | Sistema inteligente de selección de modelos IA basado en complejidad de tarea, reglas de enrutamiento configurables, score compuesto (costo × calidad) y fallback automático. Panel de configuración de estrategia (cost-first, quality-first, balanced). |
 | **Internacionalización (i18n)** | Soporte completo para Inglés, Español y Portugués. Rutas localizadas (`/es/reconcile`, `/en/reconcile`). |
 | **Responsive Design** | Experiencia optimizada para desktop, tablet y móvil sin perder funcionalidad. |
 | **Seguridad Empresarial** | Autenticación robusta, roles y permisos granulares, encriptación de datos sensibles. |
@@ -189,7 +191,7 @@ nomina-smart/
 │   │   ├── [locale]/         # Rutas con soporte multilenguaje
 │   │   │   ├── (public)/     # Páginas públicas sin autenticación (about, contact, pricing)
 │   │   │   ├── login/        # Autenticación de usuarios
-│   │   │   ├── admin/        # Paneles de administración (finanzas, países, uso, precios)
+│   │   │   ├── admin/        # Paneles de administración (finanzas, países, uso, optimización, precios)
 │   │   │   ├── reconcile/    # Módulo de conciliación y validación
 │   │   │   ├── reports/      # Reportes y analíticas
 │   │   │   ├── rules/        # Configuración de reglas de negocio
@@ -203,11 +205,13 @@ nomina-smart/
 │   ├── lib/
 │   │   ├── ai/               # Capa de IA multi-agente
 │   │   │   ├── agents/       # Agentes especializados (master, auditor, writer, corrector, mapper, payroll-expert, researcher, agent-bus)
+│   │   │   ├── model-selector.ts  # Selector inteligente de modelos (complejidad + score compuesto)
+│   │   │   ├── cost-calculator.ts # Calculadora de costos por tokens (input/output)
 │   │   │   ├── rule-engine.ts # Motor de reglas dinámico multi-país (carga desde BD)
 │   │   │   ├── providers.ts  # Registry dinámico multi-proveedor (Vercel AI SDK)
 │   │   │   ├── fallback.ts   # Cadena de fallback entre proveedores
 │   │   │   ├── encryption.ts # Cifrado/descifrado de API keys (AES-256-GCM)
-│   │   │   └── usage-logger.ts # Registro de uso de IA en ai_usage_logs
+│   │   │   └── usage-logger.ts # Registro de uso de IA (extendido con costo, complejidad, empresa)
 │   │   ├── audit/            # Servicio de auditoría de cambios en reglas normativas
 │   │   ├── auth/             # Autenticación y perfiles de usuario por rol
 │   │   ├── db/               # Esquemas y queries de base de datos

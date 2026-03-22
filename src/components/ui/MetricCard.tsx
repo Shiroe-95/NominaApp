@@ -12,20 +12,20 @@ export function MetricCard({ label, value, trend, icon, className = '' }: Metric
   return (
     <div
       className={`
-        glass-panel rounded-[var(--radius-md)] p-5
-        transition-all duration-200 hover:border-white/15 hover:shadow-lg
+        bg-[#1c1f2a]/60 backdrop-blur-md rounded-2xl p-5 border border-[#4a4455]/[0.1]
+        transition-all duration-200 hover:border-[#4a4455]/[0.25]
         animate-fade-in ${className}
       `}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#958da1] mb-1">
             {label}
           </p>
-          <p className="text-2xl font-bold text-white truncate">{value}</p>
+          <p className="text-2xl font-bold text-[#e0e2f1] truncate">{value}</p>
         </div>
         {icon && (
-          <div className="shrink-0 w-10 h-10 rounded-[var(--radius-sm)] bg-violet/10 flex items-center justify-center text-violet-light">
+          <div className="shrink-0 w-10 h-10 rounded-xl bg-[#7C3AED]/10 flex items-center justify-center text-[#d2bbff]">
             {icon}
           </div>
         )}
@@ -36,7 +36,7 @@ export function MetricCard({ label, value, trend, icon, className = '' }: Metric
           <span
             className={`
               inline-flex items-center gap-0.5 text-xs font-semibold
-              ${trend.direction === 'up' ? 'text-emerald' : 'text-rose'}
+              ${trend.direction === 'up' ? 'text-[#4edea3]' : 'text-[#ffb3b6]'}
             `}
           >
             <svg
@@ -50,7 +50,7 @@ export function MetricCard({ label, value, trend, icon, className = '' }: Metric
             </svg>
             {trend.value}
           </span>
-          <span className="text-[10px] text-slate-500">vs período anterior</span>
+          <span className="text-[10px] text-[#4a4455]">vs período anterior</span>
         </div>
       )}
     </div>

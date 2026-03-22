@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
@@ -24,7 +25,31 @@ export async function GET(request: NextRequest) {
                 },
             }
         )
-        await supabase.auth.exchangeCodeForSession(code)
+        const { data } = await supabase.auth.exchangeCodeForSession(code)
+
+        // Ensure user_profiles row exists with role='client' default
+        if (data?.user) {
+            const admin = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                { auth: { persistSession: false } }
+            )
+            const { data: profile } = await admin
+                .from('user_profiles')
+                .select('id')
+                .eq('id', data.user.id)
+                .single()
+
+            if (!profile) {
+                await admin.from('user_profiles').insert({
+                    id: data.user.id,
+                    role: 'client',
+                    display_name: data.user.user_metadata?.display_name
+                        ?? data.user.email?.split('@')[0]
+                        ?? '',
+                })
+            }
+        }
     }
 
     return NextResponse.redirect(new URL(next, requestUrl.origin))

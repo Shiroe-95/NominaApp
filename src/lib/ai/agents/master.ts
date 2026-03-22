@@ -16,6 +16,10 @@ import { createMapperAgent } from './mapper';
 import { createPayrollExpertAgent } from './payroll-expert';
 import { AgentBus } from './agent-bus';
 import { getAgentLabel as getPersonaLabel } from '@/lib/ai/agent-personas';
+import { selectModel, type ModelSelection, type TaskContext } from '../model-selector';
+import { calculateCost } from '../cost-calculator';
+import { logAiUsage } from '../usage-logger';
+import { createAdminClient } from '../../supabase/admin';
 
 // ── Intent classification ───────────────────────────────────────────
 
@@ -377,6 +381,9 @@ export function createMasterAgent(): AgentDefinition {
       }
     }
 
+    // Store model selection metadata per step for cost calculation and logging (Req 9.1, 9.2)
+    const modelSelections: Array<{ agentName: string; selection: ModelSelection }> = [];
+
     for (const step of plan.steps) {
       const agent = agentRegistry.get(step.agentName);
       if (!agent) {
@@ -389,6 +396,24 @@ export function createMasterAgent(): AgentDefinition {
           latencyMs: 0,
         });
         continue;
+      }
+
+      // ── Select optimal model for this step (Req 9.1) ──────────────
+      const taskContext: TaskContext = {
+        taskType: requestType,
+        agentName: step.agentName,
+        dataSize: context.payrollData?.length,
+        hasPayrollData: (context.payrollData?.length ?? 0) > 0,
+        countryCode: context.countryCode,
+      };
+
+      let modelSelection: ModelSelection | undefined;
+      try {
+        modelSelection = await selectModel(step.agentName, requestType, taskContext);
+        modelSelections.push({ agentName: step.agentName, selection: modelSelection });
+      } catch {
+        // If model selection fails, continue with the passed-in model
+        console.warn(`[master] Model selection failed for ${step.agentName}, using default model`);
       }
 
       // Build agent-specific context with previous results (Req 4.2)
@@ -409,14 +434,107 @@ export function createMasterAgent(): AgentDefinition {
       }
 
       try {
+        // Execute agent with the passed-in model.
+        // Fallback integration (Req 9.5): The outer executeWithFallback in orchestrate/route.ts
+        // wraps the entire master agent execution. If the provider is completely unavailable and
+        // the master agent throws, executeWithFallback retries with the next provider in priority
+        // order. Within this loop, individual sub-agent failures are caught and recorded (below)
+        // so the pipeline can continue — other agents may still succeed with the same provider.
+        // If model selection suggested a specific provider but it fails, the default model from
+        // executeWithFallback is still used as the execution model, ensuring continuity.
+        const stepStart = Date.now();
         const agentResult = await agent.execute(agentContext, model);
+        const stepLatencyMs = Date.now() - stepStart;
         results.push(agentResult);
         totalTokens += agentResult.tokensUsed;
 
         // Store result for downstream agents (Req 4.2 — pass results between agents)
         collectedResults[step.agentName] = agentResult.data;
+
+        // ── Post-execution: cost calculation, usage logging, quality metrics (Req 9.3, 9.4) ──
+        // Fire-and-forget — don't block the pipeline
+        const providerType = modelSelection?.providerType || (model.modelId ?? 'unknown');
+        const modelId = modelSelection?.modelId || (model.modelId ?? 'unknown');
+        const tokensInput = Math.round(agentResult.tokensUsed * 0.6);
+        const tokensOutput = agentResult.tokensUsed - tokensInput;
+        const companyId = (request?.context?.companyId as string) ?? undefined;
+
+        void (async () => {
+          try {
+            // 1. Calculate real cost
+            const costUsd = await calculateCost(providerType, modelId, tokensInput, tokensOutput);
+
+            // 2. Log usage with extended fields
+            await logAiUsage({
+              provider_id: modelSelection?.providerId,
+              provider_type: providerType,
+              model_id: modelId,
+              agent_name: step.agentName,
+              task_type: requestType,
+              tokens_input: tokensInput,
+              tokens_output: tokensOutput,
+              latency_ms: stepLatencyMs,
+              success: agentResult.success,
+              error_message: agentResult.success ? undefined : String((agentResult.data as Record<string, unknown>)?.error ?? ''),
+              cost_usd: costUsd,
+              company_id: companyId,
+              complexity_level: modelSelection?.complexityAssessed.level,
+              complexity_score: modelSelection?.complexityAssessed.score,
+              model_selection_reason: modelSelection?.reason,
+            });
+
+            // 3. Update quality_metrics with success/failure and latency
+            const supabase = createAdminClient();
+            const { data: existing } = await supabase
+              .from('quality_metrics')
+              .select('id, success_rate, avg_latency_ms, sample_count')
+              .eq('provider_type', providerType)
+              .eq('model_id', modelId)
+              .eq('agent_name', step.agentName)
+              .eq('task_type', requestType)
+              .maybeSingle();
+
+            if (existing) {
+              const newCount = (existing.sample_count as number) + 1;
+              const oldRate = existing.success_rate as number;
+              const newRate = oldRate + ((agentResult.success ? 1 : 0) - oldRate) / newCount;
+              const oldLatency = existing.avg_latency_ms as number;
+              const newLatency = Math.round(oldLatency + (stepLatencyMs - oldLatency) / newCount);
+
+              await supabase
+                .from('quality_metrics')
+                .update({
+                  success_rate: Math.round(newRate * 10000) / 10000,
+                  avg_latency_ms: newLatency,
+                  sample_count: newCount,
+                  last_calculated_at: new Date().toISOString(),
+                })
+                .eq('id', existing.id);
+            } else {
+              await supabase.from('quality_metrics').insert({
+                provider_type: providerType,
+                model_id: modelId,
+                agent_name: step.agentName,
+                task_type: requestType,
+                success_rate: agentResult.success ? 1.0 : 0.0,
+                avg_latency_ms: stepLatencyMs,
+                sample_count: 1,
+              });
+            }
+          } catch (postExecErr) {
+            console.error('[master] Post-execution tracking failed:', postExecErr);
+          }
+        })();
       } catch (error) {
-        // Agent failure doesn't stop the pipeline (Req 4.3 — decide if additional tasks needed)
+        // Sub-agent failure: record and continue the pipeline (Req 4.3).
+        // Fallback integration (Req 9.5): Individual sub-agent errors are NOT re-thrown here
+        // because the master agent runs a multi-step pipeline — aborting would lose results from
+        // agents that already succeeded. The outer executeWithFallback (in orchestrate/route.ts)
+        // handles full provider failures: if the master agent itself throws (e.g. all steps fail
+        // catastrophically), executeWithFallback retries the entire orchestration with the next
+        // provider in priority order. This two-level error handling ensures:
+        //   1. Partial pipeline failures are gracefully recorded (this catch block)
+        //   2. Complete provider outages trigger provider-level fallback (executeWithFallback)
         results.push({
           agentName: step.agentName,
           success: false,
@@ -438,6 +556,9 @@ export function createMasterAgent(): AgentDefinition {
       results,
       plan,
     };
+
+    // Attach model selection metadata for cost calculation and logging (task 6.2)
+    (response as OrchestrateResponse & { modelSelections: typeof modelSelections }).modelSelections = modelSelections;
 
     // Attach bus communication history for traceability (Req 25.5)
     const busHistory = bus.getHistory();

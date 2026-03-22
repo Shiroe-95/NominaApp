@@ -14,11 +14,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         const Comp = asChild ? Slot : "button"
 
         const variantClasses = {
-            default: "bg-gradient-to-r from-violet to-violet-dark text-white shadow-[0_0_15px_rgba(124,58,237,0.4)] hover:shadow-[0_0_25px_rgba(124,58,237,0.6)] hover:-translate-y-0.5 border border-white/10 active:scale-[0.98]",
-            outline: "glass-panel text-slate-200 hover:bg-white/10 hover:border-violet/50 active:scale-[0.98]",
-            ghost: "hover:bg-white/10 text-slate-400 hover:text-white active:scale-[0.98]",
-            secondary: "bg-navy-light text-slate-200 hover:bg-navy border border-white/5 shadow-sm active:scale-[0.98]",
-            danger: "bg-gradient-to-r from-rose to-rose-dark text-white shadow-[0_0_15px_rgba(225,29,72,0.4)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] hover:-translate-y-0.5 border border-white/10 active:scale-[0.98]",
+            default: "bg-[#7C3AED] text-white shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.5)] hover:-translate-y-0.5 active:scale-[0.98]",
+            outline: "bg-[#1c1f2a] text-[#ccc3d8] hover:bg-[#262a35] hover:text-white active:scale-[0.98]",
+            ghost: "hover:bg-white/[0.06] text-[#958da1] hover:text-white active:scale-[0.98]",
+            secondary: "bg-[#181b26] text-[#ccc3d8] hover:bg-[#1c1f2a] active:scale-[0.98]",
+            danger: "bg-[#E11D48] text-white shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_30px_rgba(225,29,72,0.5)] hover:-translate-y-0.5 active:scale-[0.98]",
         }
 
         const sizeClasses = {
@@ -31,7 +31,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         return (
             <Comp
                 className={cn(
-                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40",
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40",
                     variantClasses[variant],
                     sizeClasses[size],
                     className

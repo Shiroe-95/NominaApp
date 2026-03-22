@@ -90,7 +90,13 @@ export async function POST(req: Request) {
       year: (request.context?.['year'] as number) ?? new Date().getFullYear(),
     };
 
-    // 6. Execute master agent with fallback
+    // 6. Execute master agent with fallback (Req 9.5)
+    // The executeWithFallback wrapper tries each provider in priority order. If the master
+    // agent throws (e.g. a critical/unrecoverable error), the next provider is tried
+    // automatically. Inside the master agent, individual sub-agent failures are caught and
+    // recorded without re-throwing, so partial pipeline failures don't trigger a full
+    // provider switch — only complete failures do. This preserves results from agents that
+    // already succeeded while still providing provider-level resilience.
     const masterAgent = createMasterAgent();
 
     const fallbackResult = await executeWithFallback(

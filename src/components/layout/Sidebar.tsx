@@ -3,14 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/routing';
 import {
-    LayoutDashboard,
-    UploadCloud,
-    GitMerge,
-    FileCheck2,
-    Settings,
-    Zap,
-    BookOpen,
-    CheckCircle2,
+    LayoutDashboard, UploadCloud, GitMerge, FileCheck2,
+    Settings, Zap, BookOpen, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,24 +37,26 @@ export default function Sidebar() {
     const flowIndex = getFlowIndex(pathname);
 
     return (
-        <aside className="relative flex h-full flex-col overflow-hidden border-r border-white/10 bg-gradient-to-b from-[#060913] via-[#0A0F24] to-[#060913] glass-panel z-10">
-            <div className="pointer-events-none absolute -top-20 -right-14 h-52 w-52 rounded-full bg-violet-600/20 blur-[80px]" />
-            <div className="pointer-events-none absolute -bottom-20 -left-14 h-52 w-52 rounded-full bg-emerald-500/20 blur-[80px]" />
+        <aside className="relative flex h-full flex-col overflow-hidden bg-[#0a0e18] border-r border-[#4a4455]/[0.1] z-10">
+            {/* Ambient glows */}
+            <div className="pointer-events-none absolute -top-20 -right-14 h-52 w-52 rounded-full bg-[#7C3AED]/[0.12] blur-[80px]" />
+            <div className="pointer-events-none absolute -bottom-20 -left-14 h-52 w-52 rounded-full bg-[#10B981]/[0.08] blur-[80px]" />
 
+            {/* Logo */}
             <div className="relative flex items-center gap-3 px-5 py-6">
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-[0_0_15px_rgba(139,92,246,0.6)] animate-pulse-glow">
-                    <Zap className="h-5 w-5 text-white drop-shadow-md" strokeWidth={2.5} />
-                    <div className="absolute inset-0 rounded-xl ring-1 ring-white/20"></div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+                    <Zap className="h-5 w-5 text-white" strokeWidth={2.5} />
                 </div>
                 <div>
-                    <p className="text-base font-bold tracking-tight text-white drop-shadow-sm">NominaSmart</p>
-                    <p className="text-[11px] font-medium text-violet-200/70 tracking-wide uppercase">Auditoría UGPP</p>
+                    <p className="text-base font-bold tracking-tight text-[#e0e2f1]">NominaSmart</p>
+                    <p className="text-[11px] font-medium text-[#958da1] tracking-wide uppercase">Auditoría UGPP</p>
                 </div>
             </div>
 
+            {/* Flow */}
             <div className="relative px-4 pb-6">
-                <div className="rounded-xl border border-white/10 glass-panel bg-black/20 p-3 shadow-inner">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Flujo recomendado</p>
+                <div className="rounded-xl bg-[#181b26] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#958da1] mb-1">Flujo recomendado</p>
                     <div className="mt-2 space-y-1.5">
                         {flowSteps.map((step, index) => {
                             const done = flowIndex > index + 1;
@@ -70,19 +66,19 @@ export default function Sidebar() {
                                     key={step.href}
                                     href={step.href}
                                     className={cn(
-                                        'flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs font-medium transition-all duration-300',
-                                        active ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
+                                        'flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs font-medium transition-all duration-200',
+                                        active ? 'bg-[#262a35] text-white' : 'text-[#958da1] hover:bg-[#1c1f2a] hover:text-[#ccc3d8]',
                                     )}
                                 >
                                     <span className={cn(
-                                        'flex h-5 w-5 items-center justify-center rounded-full border text-[10px] transition-all duration-300',
-                                        done ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
-                                            : active ? 'border-violet-400/50 bg-violet-600/30 text-violet-200 shadow-[0_0_8px_rgba(139,92,246,0.5)] ring-1 ring-violet-500/50'
-                                                : 'border-white/10 bg-black/40 text-slate-500',
+                                        'flex h-5 w-5 items-center justify-center rounded-full text-[10px] transition-all',
+                                        done ? 'bg-[#10B981]/20 text-[#4edea3]'
+                                            : active ? 'bg-[#7C3AED]/20 text-[#d2bbff] shadow-[0_0_8px_rgba(124,58,237,0.3)]'
+                                                : 'bg-[#0a0e18] text-[#4a4455]',
                                     )}>
                                         {done ? <CheckCircle2 className="h-3 w-3" /> : index + 1}
                                     </span>
-                                    <span className={cn(active && 'drop-shadow-md')}>{step.label}</span>
+                                    <span>{step.label}</span>
                                 </Link>
                             );
                         })}
@@ -90,10 +86,12 @@ export default function Sidebar() {
                 </div>
             </div>
 
+            {/* Nav label */}
             <div className="relative px-4 pb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Navegacion</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#4a4455]">Navegación</p>
             </div>
 
+            {/* Nav items */}
             <nav className="relative flex-1 space-y-1 px-3">
                 {navigation.map((item) => {
                     const isActive = pathname === item.href;
@@ -102,44 +100,43 @@ export default function Sidebar() {
                             key={item.name}
                             href={item.href}
                             className={cn(
-                                'group flex flex-col rounded-xl border px-3 py-2.5 transition-all duration-300',
+                                'group flex flex-col rounded-xl px-3 py-2.5 transition-all duration-200',
                                 isActive
-                                    ? 'border-violet-500/40 bg-violet-950/30 text-white shadow-[0_0_15px_rgba(139,92,246,0.15)] glass-panel overflow-hidden relative'
-                                    : 'border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white',
+                                    ? 'bg-[#7C3AED]/[0.08] text-white'
+                                    : 'text-[#958da1] hover:bg-[#1c1f2a] hover:text-[#ccc3d8]',
                             )}
                         >
-                            {isActive && <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 to-transparent pointer-events-none" />}
-                            <div className="flex items-center gap-3 relative z-10">
-                                <div className={cn('p-1.5 rounded-lg transition-colors', isActive ? 'bg-violet-600/20 text-violet-300' : 'text-slate-500 group-hover:text-slate-300 group-hover:bg-white/5')}>
+                            <div className="flex items-center gap-3">
+                                <div className={cn('p-1.5 rounded-lg transition-colors', isActive ? 'bg-[#7C3AED]/20 text-[#d2bbff]' : 'text-[#4a4455] group-hover:text-[#958da1]')}>
                                     <item.icon className="h-4 w-4 shrink-0" />
                                 </div>
-                                <span className="text-sm font-semibold tracking-wide">{t(item.name)}</span>
+                                <span className="text-sm font-semibold">{t(item.name)}</span>
                             </div>
                             <p className={cn(
-                                'mt-1 pl-10 text-[11px] transition-colors relative z-10',
-                                isActive ? 'text-violet-200/70' : 'text-slate-500 group-hover:text-slate-400'
+                                'mt-1 pl-10 text-[11px] transition-colors',
+                                isActive ? 'text-[#958da1]' : 'text-[#4a4455] group-hover:text-[#958da1]'
                             )}>{item.hint}</p>
                         </Link>
                     );
                 })}
             </nav>
 
-            <div className="relative mt-4 border-t border-white/10 p-4 bg-black/20 backdrop-blur-md">
+            {/* Bottom */}
+            <div className="relative mt-4 border-t border-[#4a4455]/[0.1] p-4 bg-[#0a0e18]">
                 <Link
                     href="/settings"
                     className={cn(
-                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-300',
-                        pathname === '/settings' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-400 hover:bg-white/5 hover:text-white',
+                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
+                        pathname === '/settings' ? 'bg-[#1c1f2a] text-white' : 'text-[#958da1] hover:bg-[#1c1f2a] hover:text-white',
                     )}
                 >
-                    <Settings className={cn('h-4 w-4', pathname === '/settings' && 'animate-spin-slow')} />
+                    <Settings className="h-4 w-4" />
                     {t('settings')}
                 </Link>
-                <div className="mt-4 rounded-xl border border-white/5 bg-white/5 p-3 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-600/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <p className="text-[10px] leading-relaxed text-slate-400 relative z-10 font-medium">
-                        Objetivo detectado: <span className="text-emerald-400 font-bold">Riesgo Cero</span><br />
-                        Corección y trazabilidad en tiempo real.
+                <div className="mt-4 rounded-xl bg-[#181b26] p-3">
+                    <p className="text-[10px] leading-relaxed text-[#958da1] font-medium">
+                        Objetivo: <span className="text-[#4edea3] font-bold">Riesgo Cero</span><br />
+                        Corrección y trazabilidad en tiempo real.
                     </p>
                 </div>
             </div>
