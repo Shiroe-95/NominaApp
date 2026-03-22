@@ -45,7 +45,7 @@
 - **Seguridad First**: Encriptación AES-256-GCM, RBAC en middleware y API routes, rate limiting por IP, sanitización de inputs, validación de UUIDs, logs de auditoría.
 - **Mantenibilidad**: Código limpio, modular y bien documentado.
 - **Responsividad**: Experiencia fluida en cualquier dispositivo.
-- **Integración Continua**: APIs robustas para conectar con ERPs, sistemas contables y plataformas bancarias.
+- **Integración Continua**: APIs robustas para conectar con ERPs, sistemas contables y plataformas bancarias (roadmap).
 
 ---
 
@@ -68,11 +68,11 @@ El sistema utiliza IA para inferir mapeos automáticos, detectar inconsistencias
 | Agente | Persona | Rol | Descripción |
 |--------|---------|-----|-------------|
 | 👑 **Dianis** (Master) | Mujer | Directora de Orquestación | Coordina a todo el equipo, decide qué agentes invocar y en qué orden |
-| 🔍 **Juli** (Auditor) | Mujer | Auditora de Nómina | Ejecuta 14 verificaciones matemáticas y normativas (IBC, Ley 1393, UGPP) |
+| 🔍 **Juli** (Auditor) | Mujer | Auditora de Nómina | Ejecuta 14 verificaciones matemáticas y normativas (IBC, Ley 1393, UGPP). Inyecta contexto normativo del país en el prompt de IA y solicita auto-correcciones al Corrector vía AgentBus |
 | 📝 **Ana** (Writer) | Mujer | Redactora de Reportes | Genera reportes ejecutivos narrativos con hallazgos priorizados |
-| ⚙️ **Wil** (Corrector) | Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas |
+| ⚙️ **Wil** (Corrector) | Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas. Incluye guía experta para hallazgos no determinísticos |
 | 🐈‍⬛ **Gyoru** (Mapper) | Gato | Mapeadora de Campos | Mapea columnas de archivos Excel a campos estándar con fuzzy matching |
-| 💼 **Dianis** (Payroll Expert) | Mujer | Experta en Nómina | Asistente conversacional de normativa laboral con herramientas de cálculo |
+| 💼 **Dianis** (Payroll Expert) | Mujer | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países (CO, MX, PE, CL, BR, AR, US) con cálculos paso a paso, comparación entre países y gestión CRUD de reglas |
 | 🐕 **Soul** (Researcher) | Perro | Investigadora Regulatoria | Investiga normativa laboral vigente por país/año, compara cambios y registra fuentes |
 
 ### 14 Verificaciones Matemáticas del Auditor
@@ -99,14 +99,15 @@ El sistema utiliza IA para inferir mapeos automáticos, detectar inconsistencias
 | Característica | Descripción |
 |----------------|-------------|
 | **Rate Limiting** | Presets por endpoint: auth (10/min), AI (20/min), chat (30/min), admin writes (30/min), reads (60/min), writes (40/min), cron (5/min). |
-| **Sincronización Regulatoria** | Cron semanal (lunes 6:00 UTC) con investigación web, borradores de reglas, notificaciones y reintentos con backoff exponencial. |
+| **Sincronización Regulatoria** | Cron semanal (lunes 6:00 UTC) con investigación web, borradores de reglas, notificaciones y reintentos con backoff exponencial. Bootstrap automático de reglas iniciales para países nuevos o despliegues frescos. |
 | **Panel Financiero de IA** | KPIs financieros, desglose por proveedor/cliente, gráficos de tendencia y exportación CSV. |
 | **Optimización de Tokens** | Selección inteligente de modelos por complejidad, score compuesto (costo × calidad), estrategias: cost-first, quality-first, balanced. |
 | **i18n** | Español, Inglés y Portugués con rutas localizadas. |
-| **Multi-País** | 7 países: CO, MX, PE, CL, BR, AR, US. Cada uno con moneda, formato y reglas propias. |
+| **Multi-País** | 7 países: CO, MX, PE, CL, BR, AR, US. Cada uno con moneda, formato y reglas propias. El auditor inyecta dinámicamente las reglas normativas del país en el prompt de IA para interpretaciones contextualizadas. |
 | **Email Transaccional** | Resend: invitaciones, alertas regulatorias, resúmenes semanales. Plantillas localizadas con retry. |
 | **Notificaciones In-App** | Severidad (info/warning/critical), tipos: cambio regulatorio, sync completado, regla pendiente. |
 | **Auditoría de Cambios** | Registro de cambios en reglas con retención 5 años. Trazabilidad de origen y fuentes. |
+| **Obsidian Ledger (Design System)** | Tokens de diseño oscuro con jerarquía de superficies tonales (6 niveles), paleta semántica (primary/secondary/tertiary/error) y clases utilitarias glassmorphism. Compatible con Material Design 3. |
 
 ---
 
@@ -191,8 +192,12 @@ sequenceDiagram
         M->>Bus: send(auditor, payrollData)
         Bus->>A: 14 verificaciones matemáticas
         A->>A: IBC, Ley 1393, salud, pensión...
+        A->>A: Inyectar contexto normativo del país
         A-->>Bus: Hallazgos + riesgo por empleado
-        Bus-->>M: AgentResult
+        A->>Bus: send(corrector, auto-correct-suggestions)
+        Bus->>C: Auto-correcciones proactivas
+        C-->>Bus: Sugerencias de corrección
+        Bus-->>M: AgentResult (auditoría + auto-correcciones)
     end
 
     rect rgb(245, 158, 11, 0.1)
@@ -257,7 +262,11 @@ flowchart TD
 flowchart LR
     CRON["⏰ Vercel Cron<br/>Lunes 6:00 UTC"] --> API["/api/sync/run<br/>CRON_SECRET"]
     API --> LOAD["Cargar países activos"]
-    LOAD --> FREQ{"¿Frecuencia cumplida?"}
+    LOAD --> BOOTSTRAP{"¿Tiene reglas?"}
+    
+    BOOTSTRAP -->|No| BOOT["🚀 Bootstrap:<br/>Researcher crea reglas iniciales"]
+    BOOTSTRAP -->|Sí| FREQ
+    BOOT --> FREQ{"¿Frecuencia cumplida?"}
     
     FREQ -->|No| SKIP["⏭️ Omitir"]
     FREQ -->|Sí| DRAFT["Crear borrador reglas año N+1"]
@@ -277,6 +286,7 @@ flowchart LR
     AUDIT --> NOTIFY_CHANGE["🔔 Notificación: Cambio regulatorio"]
 
     style CRON fill:#3b82f6,color:#fff
+    style BOOT fill:#8b5cf6,color:#fff
     style RESEARCH fill:#06b6d4,color:#fff
     style FAIL fill:#ef4444,color:#fff
     style NOTIFY_OK fill:#10b981,color:#fff
@@ -413,6 +423,7 @@ flowchart LR
 |------------|-----------|
 | **React 19** & **Next.js 16** | Framework principal con App Router y Turbopack |
 | **Tailwind CSS 4** | Sistema de diseño utilitario responsivo |
+| **Obsidian Ledger** | Sistema de tokens de diseño oscuro con superficies tonales (Material Design 3) |
 | **Lucide React** | Iconografía moderna y accesible |
 | **Recharts** | Visualización de datos y gráficos ejecutivos |
 
@@ -536,6 +547,7 @@ Ejecuta los scripts SQL en orden desde el SQL Editor de Supabase:
 | `RESEND_FROM_EMAIL` | ✅ | Dirección de remitente |
 | `ENCRYPTION_KEY` | ✅ | Clave AES-256 (64 chars hex) |
 | `CRON_SECRET` | ✅ | Secret para cron jobs de Vercel |
+| `FIRECRAWL_API_KEY` | ⬜ | API key de Firecrawl para investigación regulatoria (búsqueda web + scraping). [Obtener key](https://www.firecrawl.dev/). Si no se configura, el agente investigador usa datos de respaldo (REGULATION_DB) con confianza baja. |
 
 Generar `ENCRYPTION_KEY`:
 ```bash
@@ -570,6 +582,30 @@ Desde `/admin/settings/optimization`:
 ```
 
 Lunes 6:00 UTC. Autenticado con `CRON_SECRET` como Bearer token. Rate limit: 5 req/min.
+
+#### Bootstrap Automático de Reglas
+
+En el primer despliegue (o al activar un nuevo país), la tabla `country_year_rules` estará vacía. El sistema resuelve esto automáticamente:
+
+1. El cron (o un sync manual) detecta que un país no tiene reglas.
+2. Invoca al agente investigador (Soul) que busca en la web regulaciones vigentes.
+3. Si la búsqueda web falla, usa `REGULATION_DB` como fallback (confianza baja).
+4. Crea las reglas en `country_year_rules` con status `pending_review`.
+5. Notifica al admin para revisión.
+
+También existe un endpoint manual para forzar el bootstrap:
+
+```bash
+# Bootstrap de todos los países
+curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
+  -H "Authorization: Bearer tu-CRON_SECRET"
+
+# Bootstrap de un país específico
+curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
+  -H "Authorization: Bearer tu-CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"countryCode": "CO", "year": 2026}'
+```
 
 ### Internacionalización
 
@@ -684,6 +720,7 @@ Locales: `es` (default), `en`, `pt`. Prefijo siempre visible en URL. Diccionario
 | POST | `/api/settings/providers/reorder` | requireAdmin | adminWrite |
 | GET | `/api/settings/usage` | requireAdmin | read |
 | POST | `/api/sync/run` | CRON_SECRET | cron (5/min) |
+| POST | `/api/sync/bootstrap` | requireAdmin / CRON_SECRET | cron (5/min) |
 | GET | `/api/sync/history` | requireAuth | read |
 | GET | `/api/notifications` | requireAuth | read |
 | POST | `/api/notifications/[id]/read` | requireAuth | write |
@@ -834,6 +871,9 @@ curl -X POST http://localhost:3000/api/sync/run -H "Authorization: Bearer tu-CRO
 
 **"Max retries exhausted"**
 Revisa `/api/sync/history` para ver `error_message`. Verifica proveedores IA y conectividad.
+
+**Bootstrap de reglas falla para un país nuevo**
+Si un país recién activado no genera reglas iniciales, verifica que haya al menos un proveedor IA activo en `/settings/providers`. El bootstrap invoca al agente investigador (Soul) con fallback chain. Revisa notificaciones in-app para detalles del error.
 
 ### Email
 

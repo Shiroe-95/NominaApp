@@ -1,3 +1,26 @@
+/**
+ * Tests unitarios para el Agente Investigador Regulatorio (researcher.ts).
+ *
+ * Cubre las funciones exportadas del módulo de investigación regulatoria:
+ *
+ * - `retryWithBackoff` — Reintentos con backoff exponencial (delays, agotamiento de intentos).
+ * - `webSearchFallback` — Fallback a REGULATION_DB cuando la búsqueda web no está disponible.
+ * - `executeWebSearch` — Búsqueda web vía Firecrawl con clasificación de confianza por dominio
+ *   gubernamental y fallback automático ante fallos de red o respuestas HTTP no exitosas.
+ * - `confidenceRank` — Ranking numérico de niveles de confianza (high > medium > low).
+ * - `resolveConflicts` — Resolución de contradicciones entre fuentes múltiples priorizando
+ *   la fuente de mayor confianza, con detección de conflictos por campo.
+ * - `storeSources` — Persistencia de fuentes en `research_sources` con validación de campos
+ *   requeridos (url, title) y normalización de código de país.
+ *
+ * Estrategia de mocking:
+ * - `zod` y `ai` se mockean para evitar problemas de resolución ESM con zod v4.
+ * - `@/lib/supabase/admin` se mockea con un cliente stub que simula operaciones de BD.
+ * - `_setDelay` se usa para eliminar esperas reales en los tests de backoff.
+ *
+ * @module researcher.test
+ * @see {@link ./researcher.ts} — Módulo fuente bajo prueba.
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock zod to avoid ESM resolution issues with zod v4
@@ -144,16 +167,25 @@ describe('webSearchFallback', () => {
 // ── executeWebSearch ────────────────────────────────────────────────
 
 describe('executeWebSearch', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv, FIRECRAWL_API_KEY: 'fc-test-key' };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it('returns web results when fetch succeeds', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        web: {
-          results: [
-            { url: 'https://www.mintrabajo.gov.co/test', title: 'MinTrabajo' },
-            { url: 'https://www.ugpp.gov.co/test', title: 'UGPP' },
-          ],
-        },
+        success: true,
+        data: [
+          { url: 'https://www.mintrabajo.gov.co/test', title: 'MinTrabajo', markdown: '# MinTrabajo content' },
+          { url: 'https://www.ugpp.gov.co/test', title: 'UGPP', markdown: '# UGPP content' },
+        ],
       }),
     });
 
@@ -173,12 +205,11 @@ describe('executeWebSearch', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        web: {
-          results: [
-            { url: 'https://www.gob.pe/normas', title: 'Normas Peru' },
-            { url: 'https://www.sunat.gob.pe/test', title: 'SUNAT' },
-          ],
-        },
+        success: true,
+        data: [
+          { url: 'https://www.gob.pe/normas', title: 'Normas Peru', markdown: '# Normas' },
+          { url: 'https://www.sunat.gob.pe/test', title: 'SUNAT', markdown: '# SUNAT' },
+        ],
       }),
     });
 
@@ -195,12 +226,11 @@ describe('executeWebSearch', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        web: {
-          results: [
-            { url: 'https://www.gob.pe/normas', title: 'Normas Peru' },
-            { url: 'https://www.example.com/blog', title: 'Blog' },
-          ],
-        },
+        success: true,
+        data: [
+          { url: 'https://www.gob.pe/normas', title: 'Normas Peru', markdown: '# Normas' },
+          { url: 'https://www.example.com/blog', title: 'Blog', markdown: '# Blog' },
+        ],
       }),
     });
 
@@ -217,12 +247,11 @@ describe('executeWebSearch', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        web: {
-          results: [
-            { url: 'https://www.example.com/a', title: 'Blog A' },
-            { url: 'https://www.example.com/b', title: 'Blog B' },
-          ],
-        },
+        success: true,
+        data: [
+          { url: 'https://www.example.com/a', title: 'Blog A', markdown: '# A' },
+          { url: 'https://www.example.com/b', title: 'Blog B', markdown: '# B' },
+        ],
       }),
     });
 

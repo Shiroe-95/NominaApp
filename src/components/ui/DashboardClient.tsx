@@ -61,7 +61,7 @@ function getSeverityFromScore(score: number): 'high' | 'medium' | 'low' {
 export function DashboardClient({ role, initialCompanies, initialPayrolls }: DashboardClientProps) {
     const t = useTranslations('Dashboard');
     const [companyId, setCompanyId] = useState('all');
-    const [countryCode, setCountryCode] = useState<'all' | 'CO' | 'MX'>('all');
+    const [countryCode, setCountryCode] = useState<string>('all');
     const [year, setYear] = useState<'all' | number>('all');
     const [month, setMonth] = useState<'all' | number>('all');
 
@@ -209,10 +209,15 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                             {initialCompanies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     )}
-                    <select value={countryCode} onChange={(e) => setCountryCode(e.target.value as 'all' | 'CO' | 'MX')} className="h-10 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white focus:border-violet-light focus:ring-1 focus:ring-violet-light outline-none transition-shadow shadow-inner">
+                    <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="h-10 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white focus:border-violet-light focus:ring-1 focus:ring-violet-light outline-none transition-shadow shadow-inner">
                         <option value="all">{t('allCountries')}</option>
-                        <option value="CO">{t('colombia')}</option>
-                        <option value="MX">{t('mexico')}</option>
+                        <option value="CO">🇨🇴 Colombia</option>
+                        <option value="MX">🇲🇽 México</option>
+                        <option value="PE">🇵🇪 Perú</option>
+                        <option value="CL">🇨🇱 Chile</option>
+                        <option value="BR">🇧🇷 Brasil</option>
+                        <option value="AR">🇦🇷 Argentina</option>
+                        <option value="US">🇺🇸 Estados Unidos</option>
                     </select>
                     <select value={year === 'all' ? 'all' : year} onChange={(e) => setYear(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="h-10 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white focus:border-violet-light focus:ring-1 focus:ring-violet-light outline-none transition-shadow shadow-inner">
                         <option value="all">{t('allYears')}</option>

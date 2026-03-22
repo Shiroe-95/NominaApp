@@ -113,8 +113,8 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
   'payroll-expert': {
     name: 'Dianis',
     id: 'payroll-expert',
-    role: 'Experta en Nómina',
-    description: 'Respondo tus dudas sobre normativa laboral',
+    role: 'Experta en Nómina Multi-País',
+    description: 'Respondo tus dudas sobre normativa laboral de cualquier país',
     emoji: '💼',
     avatarType: 'woman',
     color: 'violet',
@@ -122,7 +122,7 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
     textColor: 'text-violet-300',
     glowColor: 'shadow-[0_0_12px_rgba(139,92,246,0.4)]',
     hexColor: '#8b5cf6',
-    greeting: 'Soy Dianis en modo experta. Pregúntame lo que necesites sobre nómina 📚',
+    greeting: 'Soy Dianis en modo experta. Pregúntame lo que necesites sobre nómina de cualquier país 📚',
     hairColor: '#1a1a2e',
   },
   researcher: {

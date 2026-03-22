@@ -183,7 +183,13 @@ describe('getHardcodedConstants', () => {
   });
 
   it('returns null for unsupported country', () => {
-    expect(getHardcodedConstants('MX', 2025)).toBeNull();
+    expect(getHardcodedConstants('ZZ', 2025)).toBeNull();
+  });
+
+  it('returns constants for MX 2025', () => {
+    const result = getHardcodedConstants('MX', 2025);
+    expect(result).not.toBeNull();
+    expect(result!.smmlv).toBeGreaterThan(0);
   });
 
   it('returns null for unsupported year', () => {

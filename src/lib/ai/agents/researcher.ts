@@ -175,8 +175,17 @@ export function resolveConflicts(
 // ── Simulated regulation data by country ────────────────────────────
 
 /**
- * Simulated regulation database. In production this would be replaced
- * by actual web search / scraping of government sources.
+ * Base de datos simulada de regulaciones laborales por país y año.
+ *
+ * Contiene los 7 países soportados: CO (Colombia), MX (México), PE (Perú),
+ * CL (Chile), BR (Brasil), AR (Argentina) y US (Estados Unidos).
+ * Cada entrada se indexa por clave `{countryCode}-{year}` e incluye:
+ * campos requeridos del archivo de nómina, cálculos obligatorios,
+ * verificaciones normativas, fuentes oficiales y nivel de confianza.
+ *
+ * Se usa como fallback cuando la búsqueda web no está disponible
+ * (ver {@link webSearchFallback}). En producción se complementa
+ * con búsqueda web real de fuentes gubernamentales.
  */
 const REGULATION_DB: Record<string, {
   label: string;
@@ -268,6 +277,117 @@ const REGULATION_DB: Record<string, {
     ],
     confidence: 'medium',
   },
+  'CL-2025': {
+    label: 'Dirección del Trabajo Chile 2025',
+    requiredFields: [
+      'rut', 'nombre', 'sueldo_base', 'dias_trabajados',
+      'haberes', 'descuentos', 'liquido',
+    ],
+    requiredCalculations: [
+      'afp', 'salud_isapre_fonasa', 'seguro_cesantia', 'impuesto_unico',
+      'gratificacion_legal', 'vacaciones',
+    ],
+    checks: [
+      'Ingreso mínimo mensual: $500.000 CLP (2025)',
+      'AFP obligatoria: 10% de la remuneración imponible (cotización obligatoria)',
+      'Salud: 7% de la remuneración imponible (Fonasa o Isapre)',
+      'Seguro de cesantía empleado: 0.6% (contrato indefinido)',
+      'Seguro de cesantía empleador: 2.4% (contrato indefinido) o 3% (plazo fijo)',
+      'Tope imponible AFP: 81.6 UF mensuales',
+      'Tope imponible seguro cesantía: 122.6 UF mensuales',
+      'Gratificación legal: 25% de la remuneración con tope 4.75 ingresos mínimos mensuales',
+      'Vacaciones: 15 días hábiles por año de servicio',
+      'Impuesto único de segunda categoría según tabla progresiva mensual',
+    ],
+    sources: [
+      { url: 'https://www.dt.gob.cl/legislacion/1624/w3-propertyvalue-22098.html', title: 'Código del Trabajo - DT Chile', accessDate: new Date().toISOString().split('T')[0] },
+      { url: 'https://www.spensiones.cl/portal/institucional/594/w3-propertyvalue-10221.html', title: 'Superintendencia de Pensiones Chile', accessDate: new Date().toISOString().split('T')[0] },
+    ],
+    confidence: 'medium',
+  },
+  'BR-2025': {
+    label: 'CLT Brasil 2025',
+    requiredFields: [
+      'cpf', 'nome', 'salario_base', 'dias_trabalhados',
+      'proventos', 'descontos', 'liquido',
+    ],
+    requiredCalculations: [
+      'inss', 'irrf', 'fgts', 'decimo_terceiro', 'ferias',
+      'vale_transporte',
+    ],
+    checks: [
+      'Salário mínimo 2025: R$ 1.518,00',
+      'INSS empregado: alíquotas progressivas 7.5%, 9%, 12%, 14% (teto R$ 908,85)',
+      'INSS patronal: 20% sobre folha de pagamento',
+      'FGTS: 8% do salário bruto (depósito mensal pelo empregador)',
+      'IRRF: tabela progressiva mensal (isento até R$ 2.259,20)',
+      'Décimo terceiro: 1/12 da remuneração por mês trabalhado',
+      'Férias: 30 dias corridos + 1/3 constitucional',
+      'Vale-transporte: desconto máximo 6% do salário base',
+      'RAT (Risco Ambiental do Trabalho): 1%, 2% ou 3% conforme grau de risco',
+      'Salário-família: R$ 62,04 por filho até 14 anos (salário até R$ 1.819,26)',
+    ],
+    sources: [
+      { url: 'https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/legislacao/leis/consolidacao-das-leis-do-trabalho-clt', title: 'CLT - Governo Federal Brasil', accessDate: new Date().toISOString().split('T')[0] },
+      { url: 'https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/irpf-imposto-de-renda-pessoa-fisica', title: 'IRRF - Receita Federal', accessDate: new Date().toISOString().split('T')[0] },
+    ],
+    confidence: 'medium',
+  },
+  'AR-2025': {
+    label: 'AFIP Argentina 2025',
+    requiredFields: [
+      'cuil', 'nombre', 'sueldo_basico', 'dias_trabajados',
+      'remuneraciones', 'deducciones', 'neto',
+    ],
+    requiredCalculations: [
+      'jubilacion', 'obra_social', 'ley_19032', 'sindicato',
+      'ganancias_cuarta', 'sac', 'vacaciones',
+    ],
+    checks: [
+      'Salario mínimo vital y móvil (SMVM): actualización trimestral por Consejo del Salario',
+      'Jubilación empleado: 11% de la remuneración bruta',
+      'Obra social empleado: 3% de la remuneración bruta',
+      'PAMI (Ley 19.032) empleado: 3% de la remuneración bruta',
+      'Contribución patronal jubilación: 16% (comercio) o 17.5% (servicios)',
+      'Contribución patronal obra social: 6%',
+      'Contribución patronal PAMI: 1.5%',
+      'SAC (Sueldo Anual Complementario): 50% de la mayor remuneración mensual del semestre',
+      'Vacaciones: 14 a 35 días corridos según antigüedad',
+      'Impuesto a las ganancias 4ta categoría: según escala progresiva con deducciones personales',
+    ],
+    sources: [
+      { url: 'https://www.afip.gob.ar/contribuciones-patronales/', title: 'Contribuciones Patronales - AFIP', accessDate: new Date().toISOString().split('T')[0] },
+      { url: 'https://www.argentina.gob.ar/trabajo/remuneracion', title: 'Remuneración - Ministerio de Trabajo Argentina', accessDate: new Date().toISOString().split('T')[0] },
+    ],
+    confidence: 'medium',
+  },
+  'US-2025': {
+    label: 'IRS/DOL United States 2025',
+    requiredFields: [
+      'ssn', 'employee_name', 'gross_pay', 'hours_worked',
+      'earnings', 'deductions', 'net_pay',
+    ],
+    requiredCalculations: [
+      'federal_income_tax', 'social_security', 'medicare',
+      'state_income_tax', 'futa', 'suta',
+    ],
+    checks: [
+      'Federal minimum wage: $7.25/hour (states may have higher)',
+      'Social Security employee: 6.2% of wages up to $176,100 (2025 wage base)',
+      'Social Security employer: 6.2% of wages up to $176,100',
+      'Medicare employee: 1.45% of all wages (no cap)',
+      'Medicare additional: 0.9% on wages over $200,000 (employee only)',
+      'FUTA employer: 6.0% on first $7,000 per employee (credit up to 5.4%)',
+      'Federal income tax: withholding per IRS Publication 15-T tables',
+      'Overtime: 1.5x regular rate for hours over 40/week (FLSA)',
+      'W-2 filing deadline: January 31 of following year',
+    ],
+    sources: [
+      { url: 'https://www.irs.gov/publications/p15', title: 'Publication 15 - Employer Tax Guide - IRS', accessDate: new Date().toISOString().split('T')[0] },
+      { url: 'https://www.dol.gov/agencies/whd/minimum-wage', title: 'Minimum Wage - DOL', accessDate: new Date().toISOString().split('T')[0] },
+    ],
+    confidence: 'medium',
+  },
 };
 
 // ── Retry with exponential backoff ──────────────────────────────────
@@ -322,11 +442,14 @@ export async function retryWithBackoff<T>(
 // ── Web search implementation ───────────────────────────────────────
 
 /**
- * Performs a web search for labor regulations using fetch.
+ * Performs a web search for labor regulations using Firecrawl's /search endpoint.
  *
- * Constructs a search query from the country code, year, and query string,
- * then calls a web search endpoint. In production this would hit a real
- * search API (e.g., Tavily, Serper, or similar).
+ * Firecrawl searches the web AND scrapes the results in a single API call,
+ * returning clean markdown content from each page. This gives the AI agent
+ * much richer context than snippet-only search APIs.
+ *
+ * Falls back to REGULATION_DB when FIRECRAWL_API_KEY is not set or all
+ * retries are exhausted.
  *
  * @param args.query - Search query string.
  * @param args.countryCode - ISO country code.
@@ -340,40 +463,80 @@ export async function executeWebSearch(
 ): Promise<WebSearchResult> {
   const cc = args.countryCode.toUpperCase();
   const fetchImpl = config.fetchFn ?? fetch;
+  const apiKey = process.env.FIRECRAWL_API_KEY ?? '';
+
+  if (!apiKey) {
+    // No API key configured — go straight to fallback
+    return webSearchFallback(cc, args.year);
+  }
 
   try {
     const result = await retryWithBackoff(async () => {
-      const searchQuery = `${args.query} ${cc} ${args.year} labor regulations`;
+      const searchQuery = `${args.query} ${cc} ${args.year} regulaciones laborales normativa`;
       const response = await fetchImpl(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}`,
+        'https://api.firecrawl.dev/v1/search',
         {
+          method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'X-Subscription-Token': process.env.WEB_SEARCH_API_KEY ?? '',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
           },
-          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({
+            query: searchQuery,
+            limit: 5,
+            lang: cc === 'BR' ? 'pt' : cc === 'US' ? 'en' : 'es',
+            scrapeOptions: {
+              formats: ['markdown'],
+              onlyMainContent: true,
+            },
+          }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        throw new Error(`Web search failed with status ${response.status}`);
+        throw new Error(`Firecrawl search failed with status ${response.status}`);
       }
 
       const data = await response.json();
       return data;
     }, { maxRetries: config.maxRetries, baseDelayMs: config.baseDelayMs });
 
-    // Parse web results into sources
-    const webResults = (result as { web?: { results?: Array<{ url: string; title: string }> } })
-      ?.web?.results ?? [];
+    // Firecrawl returns { success, data: [...] } with scraped content
+    const firecrawlData = result as {
+      success?: boolean;
+      data?: Array<{
+        url?: string;
+        title?: string;
+        description?: string;
+        markdown?: string;
+        metadata?: { sourceURL?: string; title?: string };
+      }>;
+    };
 
-    const sources: ResearchSource[] = webResults.slice(0, 5).map(
-      (r: { url: string; title: string }) => ({
-        url: r.url,
-        title: r.title,
-        accessDate: new Date().toISOString().split('T')[0],
-      }),
-    );
+    const searchResults = firecrawlData.data ?? [];
+
+    if (searchResults.length === 0) {
+      return webSearchFallback(cc, args.year);
+    }
+
+    const sources: ResearchSource[] = searchResults.map((r) => ({
+      url: r.url ?? r.metadata?.sourceURL ?? '',
+      title: r.title ?? r.metadata?.title ?? 'Sin título',
+      accessDate: new Date().toISOString().split('T')[0],
+    })).filter((s) => s.url);
+
+    // Build rich data from scraped markdown content
+    const scrapedContent = searchResults
+      .map((r, i) => {
+        const title = r.title ?? 'Resultado';
+        const url = r.url ?? '';
+        const markdown = r.markdown
+          ? r.markdown.slice(0, 3000) // Limit per result to avoid token explosion
+          : r.description ?? '';
+        return `--- Fuente ${i + 1}: ${title} (${url}) ---\n${markdown}`;
+      })
+      .join('\n\n');
 
     // Determine confidence based on source domains
     const govDomains = sources.filter(
@@ -384,7 +547,7 @@ export async function executeWebSearch(
 
     return {
       success: true,
-      data: JSON.stringify(webResults.slice(0, 5)),
+      data: scrapedContent,
       sources,
       confidence,
       usedFallback: false,
@@ -727,7 +890,7 @@ TU ROL:
 Investigar las tasas, porcentajes, reglas de cálculo y normativa laboral vigente para el país y año solicitados. Crear o actualizar las reglas en el sistema y registrar las fuentes consultadas.
 
 PROCESO DE INVESTIGACIÓN:
-1. Usar web_search para buscar regulaciones vigentes en fuentes web reales
+1. Usar web_search para buscar regulaciones vigentes en fuentes web reales (Firecrawl: busca y scrapea páginas completas)
 2. Si web_search falla, usar search_regulations como respaldo (datos locales)
 3. Comparar con las reglas existentes en el sistema para detectar cambios
 4. Si hay cambios o no existen reglas, crear/actualizar las reglas
@@ -769,7 +932,7 @@ function buildAITools() {
   return {
     web_search: tool({
       description:
-        'Busca regulaciones laborales en fuentes web reales. Usa reintentos con backoff exponencial. Si las fuentes web no están disponibles, usa datos de respaldo con confianza baja.',
+        'Busca regulaciones laborales en la web usando Firecrawl (busca y scrapea páginas completas en una sola llamada). Retorna contenido markdown de las páginas encontradas. Si Firecrawl no está disponible, usa datos de respaldo con confianza baja.',
       parameters: z.object({
         query: z.string().describe('Consulta de búsqueda sobre regulaciones laborales'),
         countryCode: z.string().describe('Código de país ISO (CO, MX, PE, CL, BR, AR, US)'),
@@ -857,7 +1020,7 @@ function buildAITools() {
 const agentToolDefinitions: ToolDefinition[] = [
   {
     name: 'web_search',
-    description: 'Busca regulaciones laborales en fuentes web reales con fallback a datos de respaldo.',
+    description: 'Busca regulaciones laborales en la web usando Firecrawl (búsqueda + scraping) con fallback a datos de respaldo.',
     parameters: {
       type: 'object',
       properties: {

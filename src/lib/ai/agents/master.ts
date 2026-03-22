@@ -195,7 +195,7 @@ Agentes disponibles:
 - **Redactor**: Genera reportes ejecutivos narrativos a partir de hallazgos de auditoría
 - **Corrector**: Propone correcciones numéricas determinísticas basadas en fórmulas normativas
 - **Mapeador**: Mapea columnas de archivos Excel a campos estándar del sistema
-- **Nómina**: Asistente conversacional de normativa laboral colombiana y cálculos de nómina
+- **Nómina**: Asistente conversacional de normativa laboral multi-país y cálculos de nómina
 
 Tipos de intención:
 - audit: El usuario quiere validar registros de nómina
@@ -242,6 +242,22 @@ function getAgentLabel(agentName: string): string {
   return getPersonaLabel(agentName);
 }
 
+/**
+ * Formatea el resultado de un agente especializado en texto legible para el usuario.
+ *
+ * Cada agente produce datos con estructura distinta; esta función extrae los
+ * campos relevantes y genera un bloque Markdown con:
+ * - Auditor: total de hallazgos, severidad e interpretación IA.
+ * - Writer: resumen ejecutivo y recomendaciones.
+ * - Corrector: correcciones propuestas, omitidas, resumen IA y guía experta
+ *   para hallazgos no determinísticos (`expertGuidance`).
+ * - Mapper: columnas mapeadas por diccionario, IA y creadas.
+ * - Payroll Expert: respuesta conversacional.
+ *
+ * @param result - Resultado devuelto por el agente tras su ejecución.
+ * @param description - Descripción opcional del paso del plan de orquestación.
+ * @returns Bloque de texto Markdown con el resumen del resultado del agente.
+ */
 function formatAgentResult(result: AgentResult, description?: string): string {
   const label = getAgentLabel(result.agentName);
   const data = result.data as Record<string, unknown> | undefined;
@@ -254,6 +270,7 @@ function formatAgentResult(result: AgentResult, description?: string): string {
     case 'auditor': {
       const summary = data?.['summary'] as Record<string, unknown> | undefined;
       const interpretation = data?.['aiInterpretation'] as string | undefined;
+      const autoCorrections = data?.['autoCorrections'] as Record<string, unknown> | undefined;
       const totalFindings = summary?.['totalFindings'] ?? 0;
       const bySeverity = summary?.['bySeverity'] as Record<string, number> | undefined;
 
@@ -263,6 +280,12 @@ function formatAgentResult(result: AgentResult, description?: string): string {
       }
       if (interpretation) {
         body += `\n\n${interpretation}`;
+      }
+      if (autoCorrections) {
+        const corrCount = (autoCorrections['corrections'] as unknown[] | undefined)?.length ?? 0;
+        if (corrCount > 0) {
+          body += `\n\n⚙️ **Auto-correcciones sugeridas:** ${corrCount} corrección(es) preparada(s) por el equipo auditor→corrector`;
+        }
       }
       return `${header}\n${body}`;
     }
@@ -282,10 +305,12 @@ function formatAgentResult(result: AgentResult, description?: string): string {
       const corrections = data?.['corrections'] as unknown[] | undefined;
       const skipped = data?.['skipped'] as number | undefined;
       const aiSummary = data?.['aiSummary'] as string | undefined;
+      const expertGuidance = data?.['expertGuidance'] as string | undefined;
 
       let body = `${corrections?.length ?? 0} corrección(es) propuesta(s)`;
       if (skipped) body += `, ${skipped} omitida(s) (no determinísticas)`;
       if (aiSummary) body += `\n\n${aiSummary}`;
+      if (expertGuidance) body += `\n\n💼 **Guía del experto para hallazgos no determinísticos:**\n${expertGuidance}`;
       return `${header}\n${body}`;
     }
 
@@ -368,9 +393,39 @@ export function createMasterAgent(): AgentDefinition {
           previousResults: { ...(payload as Record<string, unknown> ?? {}) },
           countryCode: context.countryCode,
           year: context.year,
+          bus, // pass bus so nested agents can also communicate
+          countryRules: context.countryRules,
         };
         return agent.execute(busContext, model);
       });
+    }
+
+    // ── Load country-specific rules from DB ─────────────────────────
+    // This enriches the context so all agents have access to the
+    // country's normative rules (checks, required fields, etc.)
+    if (!context.countryRules) {
+      try {
+        const supabase = createAdminClient();
+        const { data: ruleRow } = await supabase
+          .from('country_year_rules')
+          .select('label, checks, required_fields, required_calculations')
+          .eq('country_code', context.countryCode)
+          .eq('rule_year', context.year)
+          .eq('status', 'approved')
+          .limit(1)
+          .maybeSingle();
+
+        if (ruleRow) {
+          context.countryRules = {
+            label: ruleRow.label as string,
+            checks: ruleRow.checks as string[],
+            requiredFields: ruleRow.required_fields as string[],
+            requiredCalculations: ruleRow.required_calculations as string[],
+          };
+        }
+      } catch (err) {
+        console.warn('[master] Failed to load country rules:', err);
+      }
     }
 
     // Pass user message for consultation-type agents
@@ -423,6 +478,8 @@ export function createMasterAgent(): AgentDefinition {
         previousResults: { ...collectedResults },
         countryCode: context.countryCode,
         year: context.year,
+        bus,
+        countryRules: context.countryRules,
       };
 
       // If this step depends on another agent's output, ensure it's available

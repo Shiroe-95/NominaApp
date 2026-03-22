@@ -117,27 +117,119 @@ select {
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
-/* ── Glassmorphism Panel Utility ─────────────────── */
+/* ── Glassmorphism Panel Utility (Obsidian Ledger) ── */
 .glass-panel {
-  background-color: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  background-color: rgba(208, 188, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(73, 68, 84, 0.15);
+  border-top: 1px solid rgba(208, 188, 255, 0.1);
+  box-shadow: 0px 24px 48px -12px rgba(6, 14, 32, 0.5);
 }
 
-/* ── Premium Design Tokens ────────────────────────── */
+/*
+ * Clases utilitarias Obsidian Ledger — superficies tonales.
+ * Usar en orden ascendente para crear jerarquía visual de contenedores.
+ */
+.ol-surface              { background-color: var(--ol-surface); }
+.ol-surface-low          { background-color: var(--ol-surface-container-low); }
+.ol-surface-container    { background-color: var(--ol-surface-container); }
+.ol-surface-high         { background-color: var(--ol-surface-container-high); }
+.ol-surface-highest      { background-color: var(--ol-surface-container-highest); }
+.ol-surface-bright       { background-color: var(--ol-surface-bright); }
+
+/* Ghost border (glint of light on glass edge) */
+.ol-ghost-border {
+  border: 1px solid rgba(73, 68, 84, 0.15);
+}
+
+/* Pulse indicator for real-time AI processing */
+.ol-pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--ol-primary);
+  position: relative;
+}
+.ol-pulse-indicator::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--ol-primary);
+  animation: ol-ripple 1.5s ease-out infinite;
+}
+@keyframes ol-ripple {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/*
+ * ── Obsidian Ledger Design Tokens ────────────────────
+ *
+ * Sistema de diseño "Obsidian Ledger": paleta oscura premium
+ * inspirada en Material Design 3 con superficies tonales.
+ *
+ * Jerarquía de superficies (Nesting Principle):
+ *   surface → container-low → container → container-high → container-highest → bright
+ *   Cada nivel sube ~4-6 puntos de luminosidad para crear profundidad visual.
+ *
+ * Semántica de color:
+ *   --ol-primary       → Acciones principales, acentos (violeta claro)
+ *   --ol-secondary     → Éxito, cumplimiento (esmeralda)
+ *   --ol-tertiary      → Advertencias, riesgo medio (rosa)
+ *   --ol-error         → Errores, riesgo alto (salmón)
+ *
+ * Tokens legacy (--color-*) se mantienen para compatibilidad con
+ * componentes existentes que aún no migran a --ol-*.
+ *
+ * Clases utilitarias asociadas:
+ *   .ol-surface, .ol-surface-low, .ol-surface-container,
+ *   .ol-surface-high, .ol-surface-highest, .ol-surface-bright
+ *   .ol-ghost-border, .ol-pulse-indicator, .glass-panel
+ */
 :root {
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-success: #10b981;
+  /* Surface hierarchy (Nesting Principle) */
+  --ol-surface:                #0b1326;
+  --ol-surface-container-low:  #131b2e;
+  --ol-surface-container:      #171f33;
+  --ol-surface-container-high: #222a3d;
+  --ol-surface-container-highest: #2d3449;
+  --ol-surface-bright:         #31394d;
+
+  /* Semantic */
+  --ol-on-surface:         #dae2fd;
+  --ol-on-surface-variant:  #cbc3d7;
+  --ol-outline:            #958ea0;
+  --ol-outline-variant:    #494454;
+
+  /* Primary (violet) */
+  --ol-primary:            #d0bcff;
+  --ol-primary-container:  #a078ff;
+
+  /* Secondary (emerald/success) */
+  --ol-secondary:          #4edea3;
+
+  /* Tertiary (rose/warning) */
+  --ol-tertiary:           #ffb2b7;
+
+  /* Error */
+  --ol-error:              #ffb4ab;
+
+  /* Ambient shadow */
+  --ol-shadow-ambient: 0px 24px 48px -12px rgba(6, 14, 32, 0.5);
+
+  /* Legacy compat */
+  --color-primary: #8b5cf6;
+  --color-primary-dark: #6d3bd7;
+  --color-surface: #0b1326;
+  --color-surface-elevated: #171f33;
+  --color-border: rgba(73, 68, 84, 0.15);
+  --color-text-primary: #dae2fd;
+  --color-text-secondary: #cbc3d7;
+  --color-success: #4edea3;
   --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-danger: #ffb4ab;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;

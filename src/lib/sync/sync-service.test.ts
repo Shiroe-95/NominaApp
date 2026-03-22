@@ -98,7 +98,7 @@ vi.mock('@/lib/audit/audit-service', () => ({
   logAudit: (...args: unknown[]) => mockLogAudit(...args),
 }));
 
-import { shouldSync, runSync, ensureNextYearRules, applyChangesToRule, _setDelay } from './sync-service';
+import { shouldSync, runSync, ensureNextYearRules, applyChangesToRule, bootstrapCountryRules, _setDelay } from './sync-service';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -173,6 +173,8 @@ describe('SyncService', () => {
 
   describe('runSync', () => {
     it('syncs specified country successfully (no changes)', async () => {
+      // bootstrapCountryRules: check if ANY rules exist → yes (skip bootstrap)
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       // frequency check → last sync long ago
       enqueue('sync_history', { data: { completed_at: '2020-01-01T00:00:00Z' }, error: null });
       // ensureNextYearRules: check if next year rules exist → yes (skip creation)
@@ -199,6 +201,8 @@ describe('SyncService', () => {
     it('syncs all active countries when no countryCode specified', async () => {
       // supported_countries
       enqueue('supported_countries', { data: [{ country_code: 'CO' }], error: null });
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       // frequency check for CO
       enqueue('sync_history', { data: { completed_at: '2020-01-01T00:00:00Z' }, error: null });
       // ensureNextYearRules: check if next year rules exist → yes
@@ -221,6 +225,8 @@ describe('SyncService', () => {
 
     it('skips country when frequency not due', async () => {
       enqueue('supported_countries', { data: [{ country_code: 'CO' }], error: null });
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       // frequency check → recent sync
       enqueue('sync_history', {
         data: { completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
@@ -234,6 +240,8 @@ describe('SyncService', () => {
 
     it('forces sync even when frequency not due', async () => {
       // No frequency check when force=true
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       // ensureNextYearRules: check if next year rules exist → yes
       enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       enqueue('ai_providers', { data: PROVIDERS_DATA, error: null });
@@ -248,6 +256,8 @@ describe('SyncService', () => {
     });
 
     it('fires regulatory_change notification when changes detected', async () => {
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       enqueue('sync_history', { data: { completed_at: '2020-01-01T00:00:00Z' }, error: null });
       // ensureNextYearRules: check if next year rules exist → yes
       enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
@@ -274,6 +284,8 @@ describe('SyncService', () => {
     });
 
     it('returns failed when sync_history insert fails', async () => {
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       enqueue('sync_history', { data: { completed_at: '2020-01-01T00:00:00Z' }, error: null });
       enqueue('ai_providers', { data: PROVIDERS_DATA, error: null });
       // insert sync_history fails — ensureNextYearRules won't be reached
@@ -286,6 +298,8 @@ describe('SyncService', () => {
     });
 
     it('retries and marks as failed after 3 attempts', async () => {
+      // bootstrapCountryRules: check if ANY rules exist → yes
+      enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });
       enqueue('sync_history', { data: { completed_at: '2020-01-01T00:00:00Z' }, error: null });
       // ensureNextYearRules: check if next year rules exist → yes
       enqueue('country_year_rules', { data: [{ id: 'existing-rule' }], error: null });

@@ -1,12 +1,50 @@
+/**
+ * API Route: /api/rules
+ *
+ * Gestiona las reglas normativas por país y año (country_year_rules).
+ * Incluye reglas predeterminadas para Colombia (2025 y 2026) con valores
+ * de SMMLV, seguridad social, parafiscales, prestaciones y topes UGPP.
+ *
+ * Métodos:
+ *  - GET    → Lista reglas. Auto-siembra las de CO si la tabla está vacía.
+ *             Query params: countryCode (opcional).
+ *             Auth: requireAuth. Rate limit: read (60/min).
+ *             Respuesta: { rules: Array<RuleResponse> }
+ *
+ *  - POST   → Crea o actualiza una regla (upsert por country_code + year).
+ *             Body: { countryCode, ruleYear, label, requiredFields?, requiredCalculations?, checks? }
+ *             Auth: requireAdmin. Rate limit: write (40/min).
+ *             Respuesta: { rule: RuleResponse | null }
+ *
+ *  - DELETE  → Elimina una regla por país y año.
+ *             Query params: countryCode, ruleYear (ambos requeridos).
+ *             Auth: requireAdmin. Rate limit: write (40/min).
+ *             Respuesta: { ok: true }
+ */
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAuth, requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
+/**
+ * Extrae un mensaje legible de un error desconocido.
+ * @param error - Error capturado (tipo desconocido).
+ * @param fallback - Mensaje por defecto si no se puede extraer uno del error.
+ * @returns Mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string) {
     if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
     return error instanceof Error ? error.message : fallback;
 }
 
+/**
+ * Reglas normativas predeterminadas para Colombia (2025 y 2026).
+ * Se usan como fallback cuando la tabla country_year_rules está vacía
+ * o no existe, y como semilla inicial (auto-seed) en el GET.
+ *
+ * Cada regla contiene: campos requeridos del archivo de nómina,
+ * cálculos obligatorios y verificaciones normativas (checks) con
+ * valores oficiales, artículos del CST y decretos vigentes.
+ */
 const DEFAULT_RULES = [
     {
         country_code: 'CO',
@@ -98,6 +136,17 @@ const DEFAULT_RULES = [
     },
 ];
 
+/**
+ * GET /api/rules
+ *
+ * Lista las reglas normativas almacenadas en country_year_rules.
+ * Si no existen reglas para Colombia, las siembra automáticamente
+ * desde DEFAULT_RULES. En caso de error de BD, retorna las reglas
+ * predeterminadas como fallback.
+ *
+ * @param req - Request con query param opcional `countryCode`.
+ * @returns JSON con `{ rules: Array }`.
+ */
 export async function GET(req: Request) {
     const rl = applyRateLimit(req, 'rules', RATE_LIMITS.read);
     if (rl) return rl;
@@ -163,6 +212,15 @@ export async function GET(req: Request) {
     }
 }
 
+/**
+ * DELETE /api/rules
+ *
+ * Elimina una regla normativa por país y año.
+ * Requiere rol admin.
+ *
+ * @param req - Request con query params `countryCode` y `ruleYear` (ambos obligatorios).
+ * @returns JSON `{ ok: true }` o error 400/500.
+ */
 export async function DELETE(req: Request) {
     const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;
@@ -192,6 +250,22 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true });
 }
 
+/**
+ * POST /api/rules
+ *
+ * Crea o actualiza (upsert) una regla normativa.
+ * El conflicto se resuelve por la combinación única (country_code, year).
+ * Requiere rol admin.
+ *
+ * @param req - Request con body JSON:
+ *   - countryCode: string (código ISO del país, ej. "CO").
+ *   - ruleYear: number (año de vigencia).
+ *   - label: string (nombre descriptivo de la regla).
+ *   - requiredFields?: string[] (campos requeridos del archivo fuente).
+ *   - requiredCalculations?: string[] (cálculos obligatorios).
+ *   - checks?: string[] (verificaciones normativas).
+ * @returns JSON `{ rule: RuleResponse | null }` o error 400/500.
+ */
 export async function POST(req: Request) {
     const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;

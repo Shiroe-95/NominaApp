@@ -18,6 +18,13 @@ interface ToolResult {
 
 // ── Rule CRUD operations ────────────────────────────────────────────
 
+/**
+ * Lista reglas normativas desde `country_year_rules`, con filtros opcionales.
+ *
+ * @param args.countryCode - Código ISO del país (ej. 'CO', 'MX'). Omitir para listar todas.
+ * @param args.ruleYear - Año fiscal. Omitir para listar todos los años.
+ * @returns ToolResult con el detalle formateado de las reglas encontradas.
+ */
 async function listRules(args: {
   countryCode?: string;
   ruleYear?: number;
@@ -53,6 +60,17 @@ async function listRules(args: {
   return { success: true, summary: `${data.length} regla(s) encontrada(s)`, detail: text };
 }
 
+/**
+ * Crea o actualiza (upsert) una regla normativa en `country_year_rules`.
+ *
+ * @param args.countryCode - Código ISO del país (ej. 'CO', 'MX').
+ * @param args.ruleYear - Año fiscal de la regla.
+ * @param args.label - Nombre descriptivo (ej. "UGPP Colombia 2027").
+ * @param args.requiredFields - Campos obligatorios del archivo de nómina.
+ * @param args.requiredCalculations - Cálculos obligatorios.
+ * @param args.checks - Verificaciones normativas.
+ * @returns ToolResult con confirmación o mensaje de error.
+ */
 async function createRule(args: {
   countryCode: string;
   ruleYear: number;
@@ -85,6 +103,23 @@ async function createRule(args: {
   };
 }
 
+/**
+ * Actualiza una regla normativa existente de forma incremental.
+ *
+ * Permite agregar/quitar campos, cálculos y verificaciones sin reemplazar
+ * la regla completa. Útil para ajustes parciales tras cambios regulatorios.
+ *
+ * @param args.countryCode - Código ISO del país.
+ * @param args.ruleYear - Año fiscal de la regla a modificar.
+ * @param args.newLabel - Nueva etiqueta (opcional).
+ * @param args.addFields - Campos a agregar.
+ * @param args.removeFields - Campos a eliminar.
+ * @param args.addCalculations - Cálculos a agregar.
+ * @param args.removeCalculations - Cálculos a eliminar.
+ * @param args.addChecks - Verificaciones a agregar.
+ * @param args.removeChecks - Texto parcial de verificaciones a eliminar (búsqueda case-insensitive).
+ * @returns ToolResult con resumen de cambios aplicados.
+ */
 async function updateRule(args: {
   countryCode: string;
   ruleYear: number;
@@ -167,6 +202,13 @@ async function updateRule(args: {
   return { success: true, summary, detail: summary };
 }
 
+/**
+ * Elimina permanentemente una regla normativa de `country_year_rules`.
+ *
+ * @param args.countryCode - Código ISO del país.
+ * @param args.ruleYear - Año fiscal de la regla a eliminar.
+ * @returns ToolResult con confirmación o mensaje de error.
+ */
 async function deleteRule(args: {
   countryCode: string;
   ruleYear: number;
@@ -190,53 +232,45 @@ async function deleteRule(args: {
 
 // ── System prompt ───────────────────────────────────────────────────
 
-const PAYROLL_EXPERT_SYSTEM_PROMPT = `Eres el Agente de Nómina de NóminaSmart, un experto en normativa laboral colombiana y cálculos de nómina.
+const PAYROLL_EXPERT_SYSTEM_PROMPT = `Eres el Agente de Nómina de NóminaSmart, un experto en normativa laboral y cálculos de nómina para múltiples países de Latinoamérica y Estados Unidos.
 
-ÁREAS DE EXPERTISE:
-- Ley 1393 de 2010: Ingreso Base de Cotización (IBC), tope 40% pagos no salariales
-- UGPP (Unidad de Gestión Pensional y Parafiscales): fiscalización, sanciones, requerimientos
-- Código Sustantivo del Trabajo (CST): prestaciones sociales, jornada laboral, liquidaciones
-- PILA (Planilla Integrada de Liquidación de Aportes): aportes a seguridad social y parafiscales
-- Ley 100 de 1993: Sistema de seguridad social integral
-- Decreto 1295 de 1994: ARL y riesgos laborales
+PAÍSES SOPORTADOS:
+- 🇨🇴 Colombia (CO): UGPP, Ley 100, CST, PILA, Ley 1393
+- 🇲🇽 México (MX): IMSS, ISR, Ley Federal del Trabajo, INFONAVIT, SAR
+- 🇵🇪 Perú (PE): AFP, ONP, EsSalud, CTS, Gratificaciones
+- 🇨🇱 Chile (CL): AFP, FONASA/Isapre, Seguro de Cesantía, Código del Trabajo
+- 🇧🇷 Brasil (BR): CLT, INSS, FGTS, IRRF, 13º Salário, Férias
+- 🇦🇷 Argentina (AR): SIPA, Obra Social, ART, Convenios Colectivos, Aguinaldo
+- 🇺🇸 Estados Unidos (US): FICA, FUTA, SUTA, Federal/State Withholding, 401(k)
 
 CAPACIDADES:
-1. Responder consultas sobre normativa laboral con explicaciones claras, referencias legales y ejemplos numéricos
-2. Realizar cálculos paso a paso de nómina: IBC, prestaciones, aportes, liquidaciones
+1. Responder consultas sobre normativa laboral del país seleccionado con explicaciones claras, referencias legales y ejemplos numéricos
+2. Realizar cálculos paso a paso de nómina adaptados al país: base de cotización, prestaciones, aportes, liquidaciones
 3. Gestionar reglas normativas en la base de datos (listar, crear, actualizar, eliminar)
-
-TASAS Y PORCENTAJES VIGENTES (Colombia):
-- Salud empleado: 4% del IBC
-- Salud empleador: 8.5% del IBC
-- Pensión empleado: 4% del IBC
-- Pensión empleador: 12% del IBC
-- Fondo de solidaridad pensional: 1% si IBC > 4 SMMLV (escala hasta 2%)
-- ARL: 0.522% a 8.7% según nivel de riesgo
-- Parafiscales: SENA 2% + ICBF 3% + Caja 4% = 9% del IBC
-- Cesantías: 8.33% del salario mensual (incluye auxilio de transporte)
-- Intereses sobre cesantías: 12% anual sobre cesantías
-- Prima de servicios: 8.33% del salario mensual (incluye auxilio de transporte)
-- Vacaciones: 4.17% del salario básico (NO incluye auxilio de transporte)
-- Auxilio de transporte: aplica si salario ≤ 2 SMMLV
-
-FÓRMULAS CLAVE:
-- IBC = Salario + Pagos no salariales que excedan 40% del total de remuneración
-- Cesantías = (Salario mensual + Auxilio transporte) × Días trabajados / 360
-- Prima = (Salario mensual + Auxilio transporte) × Días trabajados en semestre / 360
-- Vacaciones = Salario básico mensual × Días trabajados / 720
-- Intereses cesantías = Cesantías × Días trabajados × 0.12 / 360
+4. Comparar normativas entre países cuando el usuario lo solicite
 
 INSTRUCCIONES:
-- Responde SIEMPRE en español, de forma clara y profesional
+- Identifica el país del contexto (context.countryCode) y adapta tus respuestas a la normativa de ese país
+- Responde SIEMPRE en español (o portugués si el país es Brasil), de forma clara y profesional
 - Cuando hagas cálculos, muestra SIEMPRE las fórmulas y valores intermedios paso a paso
-- Incluye referencias legales específicas (artículos, leyes, decretos)
+- Incluye referencias legales específicas del país (artículos, leyes, decretos)
 - Cuando tengas datos de nómina en contexto, usa los valores reales del archivo
 - Para gestión de reglas, usa las herramientas disponibles directamente
 - Para acciones destructivas (eliminar regla), pide confirmación antes de ejecutar
-- Usa ejemplos numéricos concretos para ilustrar conceptos`;
+- Usa ejemplos numéricos concretos para ilustrar conceptos
+- Si no conoces la normativa específica de un país, indícalo y sugiere consultar las reglas en la base de datos`;
 
 // ── Payroll context builder ─────────────────────────────────────────
 
+/**
+ * Construye un bloque de contexto dinámico para inyectar en el system prompt.
+ *
+ * Incluye datos de nómina cargados (muestra de hasta 5 registros), reglas
+ * normativas activas y el país/año del contexto actual.
+ *
+ * @param context - Contexto del agente con datos de nómina, reglas, país y año.
+ * @returns Bloque de texto formateado para concatenar al system prompt, o cadena vacía si no hay contexto relevante.
+ */
 function buildPayrollContextBlock(context: AgentContext): string {
   const parts: string[] = [];
 
@@ -275,6 +309,15 @@ function buildPayrollContextBlock(context: AgentContext): string {
 
 // ── Vercel AI SDK tool definitions ──────────────────────────────────
 
+/**
+ * Construye las definiciones de herramientas para el Vercel AI SDK.
+ *
+ * Expone cuatro herramientas CRUD (listar, crear, actualizar, eliminar)
+ * sobre `country_year_rules` que el modelo de IA puede invocar durante
+ * la conversación con el usuario.
+ *
+ * @returns Objeto con herramientas tipadas compatibles con `generateText()`.
+ */
 function buildAITools() {
   return {
     listar_reglas: tool({
@@ -407,6 +450,19 @@ const agentToolDefinitions: ToolDefinition[] = [
 
 // ── Agent factory ───────────────────────────────────────────────────
 
+/**
+ * Crea la definición del agente Experto en Nómina (Payroll Expert).
+ *
+ * Este agente es un asistente conversacional multi-país especializado en
+ * normativa laboral para 7 países (CO, MX, PE, CL, BR, AR, US). Responde
+ * consultas, realiza cálculos paso a paso y gestiona reglas normativas
+ * en la base de datos mediante herramientas CRUD.
+ *
+ * Utiliza `context.countryCode` para adaptar respuestas a la normativa
+ * del país seleccionado, y responde en español (o portugués para Brasil).
+ *
+ * @returns AgentDefinition con nombre, system prompt, herramientas y función execute.
+ */
 export function createPayrollExpertAgent(): AgentDefinition {
   async function execute(
     context: AgentContext,
@@ -416,12 +472,18 @@ export function createPayrollExpertAgent(): AgentDefinition {
 
     // Build dynamic system prompt with payroll context
     const contextBlock = buildPayrollContextBlock(context);
-    const systemPrompt = PAYROLL_EXPERT_SYSTEM_PROMPT + contextBlock;
+
+    // Inject country-specific rules if available
+    const countryRulesBlock = context.countryRules
+      ? `\n\nREGLAS NORMATIVAS CARGADAS (${context.countryCode} ${context.year}):\nRegla: ${context.countryRules.label}\nCampos requeridos: ${context.countryRules.requiredFields.join(', ')}\nCálculos requeridos: ${context.countryRules.requiredCalculations.join(', ')}\nVerificaciones:\n${context.countryRules.checks.map(c => `• ${c}`).join('\n')}`
+      : '';
+
+    const systemPrompt = PAYROLL_EXPERT_SYSTEM_PROMPT + contextBlock + countryRulesBlock;
 
     // Extract user message from previousResults or use a default
     const userMessage =
       (context.previousResults?.['userMessage'] as string | undefined) ??
-      'Hola, necesito ayuda con nómina colombiana.';
+      `Hola, necesito ayuda con nómina. País: ${context.countryCode}.`;
 
     try {
       const { text, usage, toolCalls } = await generateText({

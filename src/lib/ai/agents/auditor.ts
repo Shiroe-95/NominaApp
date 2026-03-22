@@ -18,11 +18,22 @@ import {
 
 export type FindingSeverity = 'alta' | 'media' | 'baja';
 
+/**
+ * Categorías de hallazgos de auditoría de nómina.
+ *
+ * - IBC: Ingreso Base de Cotización (topes, Ley 1393, consistencia).
+ * - Prestaciones: Cesantías, prima, vacaciones (CST).
+ * - Seguridad Social: Salud, pensión, ARL (Ley 100/1993).
+ * - Parafiscales: SENA, ICBF, Caja de compensación (Ley 21/1982).
+ * - Impuestos: Retención en la fuente, impuesto de renta y cargas tributarias sobre nómina.
+ * - Datos: Validaciones de datos de entrada (auxilio de transporte, campos faltantes).
+ */
 export type FindingCategory =
   | 'IBC'
   | 'Prestaciones'
   | 'Seguridad Social'
   | 'Parafiscales'
+  | 'Impuestos'
   | 'Datos';
 
 export interface AuditFinding {
@@ -50,6 +61,11 @@ export interface AuditReport {
 
 // ── Check → category / severity / norm mapping ─────────────────────
 
+/**
+ * Default CHECK_META for Colombia. For other countries, norms are loaded
+ * dynamically from the country_year_rules table via the checks array.
+ * This serves as fallback when no country-specific metadata is available.
+ */
 const CHECK_META: Record<
   string,
   { category: FindingCategory; severity: FindingSeverity; norm: string }
@@ -57,72 +73,72 @@ const CHECK_META: Record<
   ibc_rule_1393: {
     category: 'IBC',
     severity: 'alta',
-    norm: 'Ley 1393 de 2010, Art. 30',
+    norm: 'Base de cotización: exceso no salarial sobre tope permitido',
   },
   tope_40_value: {
     category: 'IBC',
     severity: 'media',
-    norm: 'Ley 1393 de 2010, Art. 30 – Tope 40%',
+    norm: 'Tope de pagos no salariales sobre base de cotización',
   },
   ibc_min_max: {
     category: 'IBC',
     severity: 'alta',
-    norm: 'Art. 18 Ley 100/1993 – IBC mínimo/máximo',
+    norm: 'Base de cotización mínima/máxima según normativa local',
   },
   ibc_consistency_subsystems: {
     category: 'IBC',
     severity: 'media',
-    norm: 'Resolución UGPP – Consistencia subsistemas',
+    norm: 'Consistencia entre subsistemas de seguridad social',
   },
   transport_eligibility: {
     category: 'Datos',
     severity: 'baja',
-    norm: 'Ley 15/1959, Art. 2 – Auxilio de transporte',
+    norm: 'Elegibilidad de auxilio de transporte según salario',
   },
   health_deduction_4pct: {
     category: 'Seguridad Social',
     severity: 'alta',
-    norm: 'Ley 100/1993, Art. 204 – Aporte salud empleado 4%',
+    norm: 'Aporte salud empleado según porcentaje normativo',
   },
   pension_deduction_4pct: {
     category: 'Seguridad Social',
     severity: 'alta',
-    norm: 'Ley 100/1993, Art. 20 – Aporte pensión empleado 4%',
+    norm: 'Aporte pensión empleado según porcentaje normativo',
   },
   cesantias_rate: {
     category: 'Prestaciones',
     severity: 'media',
-    norm: 'Art. 249 CST – Cesantías 8.33%',
+    norm: 'Provisión de cesantías / aguinaldo según normativa local',
   },
   prima_rate: {
     category: 'Prestaciones',
     severity: 'media',
-    norm: 'Art. 306 CST – Prima de servicios 8.33%',
+    norm: 'Prima de servicios / gratificación según normativa local',
   },
   vacation_rate: {
     category: 'Prestaciones',
     severity: 'baja',
-    norm: 'Art. 186 CST – Vacaciones 4.17%',
+    norm: 'Provisión de vacaciones según normativa local',
   },
   salud_empleador_rate: {
     category: 'Seguridad Social',
     severity: 'alta',
-    norm: 'Ley 100/1993 – Aporte salud empleador 8.5%',
+    norm: 'Aporte salud empleador según porcentaje normativo',
   },
   pension_empleador_rate: {
     category: 'Seguridad Social',
     severity: 'alta',
-    norm: 'Ley 100/1993 – Aporte pensión empleador 12%',
+    norm: 'Aporte pensión empleador según porcentaje normativo',
   },
   parafiscales_rate: {
     category: 'Parafiscales',
     severity: 'media',
-    norm: 'Ley 21/1982 – Parafiscales 9% (SENA+ICBF+Caja)',
+    norm: 'Aportes parafiscales / contribuciones patronales según normativa local',
   },
   arl_bounds: {
     category: 'Seguridad Social',
     severity: 'media',
-    norm: 'Decreto 1295/1994 – ARL 0.522%–8.7%',
+    norm: 'Seguro de riesgos laborales dentro de rango normativo',
   },
 };
 
@@ -203,6 +219,7 @@ function buildSummary(findings: AuditFinding[]): AuditSummary {
     Prestaciones: 0,
     'Seguridad Social': 0,
     Parafiscales: 0,
+    Impuestos: 0,
     Datos: 0,
   };
 
@@ -220,40 +237,60 @@ function buildSummary(findings: AuditFinding[]): AuditSummary {
 
 // ── System prompt ───────────────────────────────────────────────────
 
-const AUDITOR_SYSTEM_PROMPT = `Eres el Agente Auditor de NóminaSmart, especializado en validación matemática y normativa de nómina colombiana.
+const AUDITOR_SYSTEM_PROMPT = `Eres el Agente Auditor de NóminaSmart, especializado en validación matemática y normativa de nómina multi-país.
 
-Tu rol es interpretar los resultados de las 14 verificaciones matemáticas del motor de reglas y proporcionar contexto normativo adicional.
+Tu rol es interpretar los resultados de las verificaciones matemáticas del motor de reglas y proporcionar contexto normativo según el país analizado.
 
-Reglas que validas:
-1. IBC Ley 1393 (exceso no salarial sobre 40%)
-2. Tope 40% no salarial
-3. IBC mínimo/máximo (1 SMMLV – 25 SMMLV)
-4. Consistencia IBC entre subsistemas
-5. Auxilio de transporte (≤ 2 SMMLV)
-6. Descuento salud empleado (4% IBC)
-7. Descuento pensión empleado (4% IBC)
-8. Cesantías (8.33% devengado)
-9. Prima de servicios (8.33% devengado)
-10. Vacaciones (4.17% salario básico)
-11. Salud empleador (8.5% IBC)
-12. Pensión empleador (12% IBC)
-13. Parafiscales (9% IBC)
-14. ARL (0.522%–8.7% IBC)
+Verificaciones que ejecutas (adaptadas al país):
+1. Base de cotización: exceso no salarial sobre tope permitido
+2. Tope de pagos no salariales
+3. Base de cotización mínima/máxima según normativa local
+4. Consistencia entre subsistemas de seguridad social
+5. Elegibilidad de auxilio de transporte
+6. Aporte salud empleado
+7. Aporte pensión empleado
+8. Provisión de cesantías / aguinaldo / 13º salario
+9. Prima de servicios / gratificación
+10. Provisión de vacaciones
+11. Aporte salud empleador
+12. Aporte pensión empleador
+13. Aportes parafiscales / contribuciones patronales
+14. Seguro de riesgos laborales
+
+Los porcentajes y normas específicas se cargan dinámicamente desde la tabla country_year_rules según el país y año del contexto.
 
 Cuando interpretes hallazgos:
-- Explica el impacto para la empresa (riesgo UGPP, sanciones)
-- Referencia la norma específica
+- Referencia la norma específica del país (ej: UGPP para CO, IMSS para MX, CLT para BR)
+- Explica el impacto regulatorio y financiero para la empresa
 - Prioriza hallazgos de alta severidad
 - Sé conciso y directo`;
 
 // ── Agent factory ───────────────────────────────────────────────────
 
+/**
+ * Crea la definición del agente Auditor (Juli).
+ *
+ * Ejecuta verificaciones matemáticas y normativas sobre registros de nómina
+ * adaptadas al país y año del contexto. El flujo de ejecución es:
+ *
+ * 1. Convierte los datos de nómina a formato matricial.
+ * 2. Ejecuta las verificaciones del motor de reglas ({@link validatePayrollCalculations}).
+ * 3. Convierte los resultados en hallazgos estructurados ({@link AuditFinding}).
+ * 4. Enriquece el system prompt con las reglas normativas del país (si están disponibles
+ *    en `context.countryRules`) para que la interpretación de IA referencie normas específicas.
+ * 5. Solicita al modelo de IA una interpretación ejecutiva de los hallazgos.
+ * 6. Si el AgentBus está disponible y el corrector está registrado, solicita
+ *    proactivamente sugerencias de auto-corrección para entregar auditoría + correcciones
+ *    en un solo paso del pipeline.
+ *
+ * @returns AgentDefinition con nombre, system prompt, herramientas y función execute.
+ */
 export function createAuditorAgent(): AgentDefinition {
   const tools: ToolDefinition[] = [
     {
       name: 'validatePayrollCalculations',
       description:
-        'Ejecuta las 14 verificaciones matemáticas de nómina colombiana contra los registros proporcionados.',
+        'Ejecuta las verificaciones matemáticas de nómina contra los registros proporcionados, adaptadas al país y año del contexto.',
       parameters: {
         type: 'object',
         properties: {
@@ -281,7 +318,7 @@ export function createAuditorAgent(): AgentDefinition {
       (context.previousResults?.['relations'] as MappingRelationInput[] | undefined) ??
       buildDefaultRelations(matrix.headers);
 
-    // Run the 14 mathematical checks
+    // Run the mathematical checks
     const validationReport = validatePayrollCalculations({
       countryCode: context.countryCode,
       year: context.year,
@@ -293,8 +330,17 @@ export function createAuditorAgent(): AgentDefinition {
     const findings: AuditFinding[] = validationReport.checks.flatMap(checkResultToFindings);
     const summary = buildSummary(findings);
 
+    // Construye un system prompt dinámico inyectando las reglas normativas
+    // del país (hasta 15 verificaciones) para que la interpretación de IA
+    // referencie normas específicas (ej: UGPP para CO, IMSS para MX, CLT para BR).
+    const countryContext = context.countryRules
+      ? `\n\nCONTEXTO NORMATIVO (${context.countryCode} ${context.year}):\nRegla: ${context.countryRules.label}\nVerificaciones del país:\n${context.countryRules.checks.slice(0, 15).map(c => `• ${c}`).join('\n')}`
+      : '';
+    const dynamicSystemPrompt = AUDITOR_SYSTEM_PROMPT + countryContext;
+
     // Use AI model to enhance interpretation when there are findings
     let aiInterpretation: string | undefined;
+    let totalTokens = 0;
 
     if (findings.length > 0) {
       try {
@@ -308,8 +354,10 @@ export function createAuditorAgent(): AgentDefinition {
 
         const { text, usage } = await generateText({
           model,
-          system: AUDITOR_SYSTEM_PROMPT,
-          prompt: `Analiza los siguientes ${findings.length} hallazgos de auditoría de nómina y proporciona una interpretación ejecutiva breve (máximo 3 párrafos):
+          system: dynamicSystemPrompt,
+          prompt: `País: ${context.countryCode} | Año: ${context.year}
+
+Analiza los siguientes ${findings.length} hallazgos de auditoría de nómina y proporciona una interpretación ejecutiva breve (máximo 3 párrafos). Referencia las normas específicas del país ${context.countryCode}:
 
 Resumen: ${summary.totalFindings} hallazgos (${summary.bySeverity.alta} alta, ${summary.bySeverity.media} media, ${summary.bySeverity.baja} baja)
 Registros analizados: ${validationReport.rowsAnalyzed}
@@ -320,22 +368,7 @@ ${findingsSummaryText}`,
         });
 
         aiInterpretation = text;
-
-        const report: AuditReport = {
-          findings,
-          summary,
-          validationReport,
-          aiInterpretation,
-        };
-
-        return {
-          agentName: 'auditor',
-          success: true,
-          data: report,
-          tokensUsed: (usage?.totalTokens ?? 0),
-          providerUsed: model.modelId ?? 'unknown',
-          latencyMs: Date.now() - startTime,
-        };
+        totalTokens = usage?.totalTokens ?? 0;
       } catch {
         // If AI enhancement fails, still return the mathematical results
       }
@@ -348,11 +381,37 @@ ${findingsSummaryText}`,
       aiInterpretation,
     };
 
+    // ── Comunicación inter-agente: solicitar auto-correcciones al corrector ──
+    // Cuando hay hallazgos corregibles y el AgentBus está disponible con el
+    // corrector registrado, se solicitan proactivamente sugerencias de corrección.
+    // Esto permite que el pipeline entregue auditoría + correcciones en un solo
+    // paso, sin necesidad de que el Master orqueste una fase separada de corrección.
+    // Si falla, no es crítico: las correcciones pueden solicitarse manualmente.
+    if (findings.length > 0 && context.bus?.hasAgent('corrector')) {
+      try {
+        const correctorResult = await context.bus.send({
+          fromAgent: 'auditor',
+          toAgent: 'corrector',
+          queryType: 'auto-correct-suggestions',
+          payload: {
+            auditor: report,
+            countryCode: context.countryCode,
+            year: context.year,
+          },
+        });
+        if (correctorResult.success) {
+          (report as AuditReport & { autoCorrections?: unknown }).autoCorrections = correctorResult.data;
+        }
+      } catch {
+        // Non-critical: corrections can still be requested manually
+      }
+    }
+
     return {
       agentName: 'auditor',
       success: true,
       data: report,
-      tokensUsed: 0,
+      tokensUsed: totalTokens,
       providerUsed: model.modelId ?? 'unknown',
       latencyMs: Date.now() - startTime,
     };

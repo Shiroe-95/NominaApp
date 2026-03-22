@@ -91,6 +91,8 @@ async function loadProviderRegistry() {
  *
  * Requirements: 3.1
  *
+ * @param countryCode - Código ISO del país (ej. 'CO', 'MX').
+ * @param currentYear - Año fiscal actual (N). Se crearán borradores para N+1.
  * @returns `true` if a draft was created, `false` if rules already existed
  *          or no source rules were found for the current year.
  */
@@ -421,6 +423,101 @@ async function handleChangesDetected(
   }
 }
 
+// ── Bootstrap: create initial rules for countries with zero rules ────
+
+/**
+ * Checks if a country has ANY rules in `country_year_rules`.
+ * If not, invokes the researcher agent to create initial rules
+ * from web search (or REGULATION_DB fallback).
+ *
+ * This solves the bootstrap problem: new countries or fresh deployments
+ * have no rules, so `ensureNextYearRules` can't copy from year N.
+ * The researcher agent will search the web, create rules, and store sources.
+ *
+ * @param countryCode - ISO country code.
+ * @param year - Current fiscal year.
+ * @returns true if bootstrap was needed and executed, false if rules already exist.
+ */
+export async function bootstrapCountryRules(
+  countryCode: string,
+  year: number,
+): Promise<boolean> {
+  const supabase = createAdminClient();
+
+  // Check if ANY rules exist for this country (any year)
+  const { data: existing } = await supabase
+    .from('country_year_rules')
+    .select('id')
+    .eq('country_code', countryCode)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return false; // Rules already exist — no bootstrap needed
+  }
+
+  // No rules at all → invoke researcher to create initial rules
+  try {
+    const registry = await loadProviderRegistry();
+
+    const context: AgentContext = {
+      countryCode,
+      year,
+      previousResults: {
+        userMessage: `BOOTSTRAP INICIAL: No existen reglas para ${countryCode} año ${year}. Investiga la normativa laboral vigente, crea las reglas completas (campos requeridos, cálculos obligatorios y verificaciones normativas) y registra las fuentes. Usa web_search primero para obtener datos actualizados, luego search_regulations como respaldo, y finalmente create_rule para guardar las reglas.`,
+      },
+    };
+
+    const fallbackResult = await executeWithFallback(
+      registry,
+      (model) => executeResearcher(context, model),
+      { agentName: 'researcher', taskType: 'bootstrap' },
+    );
+
+    const agentResult = fallbackResult.result;
+
+    // Log the bootstrap event
+    await logAudit({
+      ruleId: 'bootstrap',
+      action: 'created',
+      origin: 'automatic',
+      previousValues: null,
+      newValues: {
+        countryCode,
+        year,
+        bootstrapped: true,
+        success: agentResult.success,
+      },
+      sourceIds: ['bootstrap-sync'],
+    });
+
+    // Notify about bootstrap
+    await createNotification({
+      type: 'sync_completed',
+      severity: agentResult.success ? 'info' : 'warning',
+      title: `Bootstrap de reglas: ${countryCode} ${year}`,
+      body: agentResult.success
+        ? `Se crearon las reglas iniciales para ${countryCode} año ${year} mediante investigación automática.`
+        : `El bootstrap de reglas para ${countryCode} ${year} completó con advertencias. Revise las reglas manualmente.`,
+      metadata: { countryCode, year, bootstrapped: true },
+    });
+
+    return true;
+  } catch (err) {
+    // Bootstrap failed — log but don't throw (sync will still attempt)
+    console.error(`Bootstrap failed for ${countryCode}:`, err);
+
+    await createNotification({
+      type: 'sync_completed',
+      severity: 'warning',
+      title: `Bootstrap fallido: ${countryCode} ${year}`,
+      body: `No se pudieron crear reglas iniciales para ${countryCode}. El agente investigador intentará crearlas durante la sincronización.`,
+      metadata: { countryCode, year, error: err instanceof Error ? err.message : 'unknown' },
+    });
+
+    return false;
+  }
+}
+
 // ── Main entry point ────────────────────────────────────────────────
 
 /**
@@ -429,6 +526,7 @@ async function handleChangesDetected(
  * - If `options.countryCode` is provided, syncs only that country.
  * - Otherwise, syncs all active countries from `supported_countries`.
  * - Respects configured frequency unless `options.force` is true.
+ * - Bootstraps countries with zero rules before syncing.
  * - Records each execution in `sync_history`.
  *
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
@@ -458,7 +556,10 @@ export async function runSync(options: SyncOptions = {}): Promise<SyncResult[]> 
 
   // 2. Iterate over each country
   for (const { country_code } of countries) {
-    // 2a. Check frequency (skip if not due, unless forced)
+    // 2a. Bootstrap: if country has NO rules at all, create initial ones
+    await bootstrapCountryRules(country_code, year);
+
+    // 2b. Check frequency (skip if not due, unless forced)
     if (!options.force) {
       const { data: lastSync } = await supabase
         .from('sync_history')
@@ -479,7 +580,7 @@ export async function runSync(options: SyncOptions = {}): Promise<SyncResult[]> 
       }
     }
 
-    // 2b. Run sync for this country
+    // 2c. Run sync for this country
     const triggerType = options.force ? 'manual' : 'automatic';
     const result = await syncCountry(country_code, year, triggerType);
     results.push(result);

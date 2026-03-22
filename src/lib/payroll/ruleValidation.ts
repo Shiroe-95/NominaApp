@@ -26,12 +26,39 @@ export interface MatrixInput {
 import {
     getHardcodedConstants,
     loadRulesForCountry,
+    parseChecksToConstants,
     type CountryYearRuleRow,
 } from '@/lib/ai/rule-engine';
+import { COUNTRY_CURRENCY_MAP } from '@/lib/i18n/currency';
 
+/**
+ * Constantes normativas extraídas de las reglas de un país/año.
+ *
+ * Se obtienen desde la tabla `country_year_rules` (parseando los checks)
+ * o desde las constantes hardcodeadas como fallback. Los campos opcionales
+ * permiten que el motor de validación adapte las verificaciones según el
+ * país: por ejemplo, cesantías y prima solo aplican en Colombia, mientras
+ * que otros países pueden tener tasas de salud/pensión distintas.
+ *
+ * @see parseConstantsFromDbRule — extrae smmlv e ibcMaxSmmlv de los checks.
+ * @see parseChecksToConstants — extrae tasas porcentuales detalladas (rule-engine).
+ */
 interface RuleConstants {
+    /** Salario mínimo mensual legal vigente del país/año. */
     smmlv: number;
+    /** Múltiplo máximo de SMMLV para el tope del IBC (típicamente 25). */
     ibcMaxSmmlv: number;
+    /** Tasas parseadas de los checks de BD — undefined indica "usar valor por defecto". */
+    healthEmployee?: number;
+    healthEmployer?: number;
+    pensionEmployee?: number;
+    pensionEmployer?: number;
+    /** Conceptos específicos del país que pueden no existir en todas las legislaciones. */
+    hasCesantias?: boolean;
+    hasPrima?: boolean;
+    hasParafiscales?: boolean;
+    hasTransportAllowance?: boolean;
+    hasArl?: boolean;
 }
 
 export interface CheckResult {
@@ -80,6 +107,11 @@ export const CURRENCY_TARGET_FIELDS = [
     'vacation_provision',
 ];
 
+/**
+ * Normaliza un texto para comparación: minúsculas, sin acentos, espacios colapsados.
+ * @param value - Texto a normalizar.
+ * @returns Texto normalizado.
+ */
 function normalize(value: string) {
     return value
         .toLowerCase()
@@ -89,6 +121,12 @@ function normalize(value: string) {
         .trim();
 }
 
+/**
+ * Convierte un valor arbitrario a número finito.
+ * Soporta strings con formato monetario (puntos de miles, comas decimales).
+ * @param value - Valor a convertir (number, string, Date u otro).
+ * @returns Número finito, o 0 si la conversión falla.
+ */
 function toNumber(value: unknown) {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     if (value instanceof Date) return value.getTime();
@@ -101,36 +139,83 @@ function toNumber(value: unknown) {
 }
 
 /**
- * Extract numeric constants from a DB rule row's checks array.
- * Looks for SMMLV value patterns like "$1.423.500" in check strings.
+ * Countries that have specific payroll concepts.
+ * Used to gracefully skip checks that don't apply to a country.
  */
-function parseConstantsFromDbRule(rule: CountryYearRuleRow): RuleConstants | null {
-    const checksText = rule.checks.join('\n');
+const COUNTRY_CONCEPTS: Record<string, { cesantias: boolean; prima: boolean; parafiscales: boolean; transportAllowance: boolean; arl: boolean }> = {
+    CO: { cesantias: true, prima: true, parafiscales: true, transportAllowance: true, arl: true },
+    MX: { cesantias: true, prima: true, parafiscales: true, transportAllowance: false, arl: true }, // Aguinaldo, PTU, IMSS
+    PE: { cesantias: true, prima: true, parafiscales: true, transportAllowance: false, arl: true }, // CTS, Gratificación, EsSalud
+    CL: { cesantias: false, prima: false, parafiscales: false, transportAllowance: false, arl: true }, // AFP, Fonasa/Isapre
+    BR: { cesantias: true, prima: true, parafiscales: true, transportAllowance: true, arl: true }, // FGTS, 13º, INSS
+    AR: { cesantias: false, prima: true, parafiscales: true, transportAllowance: false, arl: true }, // SAC, contribuciones patronales
+    US: { cesantias: false, prima: false, parafiscales: true, transportAllowance: false, arl: false }, // FICA, FUTA
+};
 
-    // Match SMMLV value: look for patterns like "SMMLV 2025: $1.423.500" or "Salario minimo (SMMLV) 2026: $1.750.905"
-    const smmlvMatch = checksText.match(/SMMLV[^$]*\$([0-9.,]+)/i);
-    // Match IBC max: "IBC maximo: 25 SMMLV"
-    const ibcMaxMatch = checksText.match(/IBC\s*m[aá]ximo[^0-9]*(\d+)\s*SMMLV/i);
+/**
+ * Extract numeric constants from a DB rule row's checks array.
+ * Uses parseChecksToConstants for robust multi-format parsing.
+ */
+function parseConstantsFromDbRule(rule: CountryYearRuleRow, countryCode: string): RuleConstants | null {
+    const parsed = parseChecksToConstants(rule.checks);
 
-    if (!smmlvMatch) return null;
+    if (!parsed.smmlv || parsed.smmlv <= 0) return null;
 
-    const smmlv = Number(smmlvMatch[1].replace(/\./g, '').replace(',', '.'));
-    const ibcMaxSmmlv = ibcMaxMatch ? Number(ibcMaxMatch[1]) : 25;
+    const concepts = COUNTRY_CONCEPTS[countryCode] ?? { cesantias: false, prima: false, parafiscales: false, transportAllowance: false, arl: false };
 
-    if (!Number.isFinite(smmlv) || smmlv <= 0) return null;
-    return { smmlv, ibcMaxSmmlv };
+    return {
+        smmlv: parsed.smmlv,
+        ibcMaxSmmlv: parsed.ibcMax ?? 25,
+        healthEmployee: parsed.healthEmployee,
+        healthEmployer: parsed.healthEmployer,
+        pensionEmployee: parsed.pensionEmployee,
+        pensionEmployer: parsed.pensionEmployer,
+        hasCesantias: concepts.cesantias,
+        hasPrima: concepts.prima,
+        hasParafiscales: concepts.parafiscales,
+        hasTransportAllowance: concepts.transportAllowance,
+        hasArl: concepts.arl,
+    };
 }
 
+/**
+ * Resuelve las constantes normativas para un país/año.
+ *
+ * Prioriza la extracción desde la regla de BD (`dbRule`). Si no se puede
+ * parsear, recurre a las constantes hardcodeadas del rule-engine.
+ *
+ * @param countryCode - Código ISO del país (ej. 'CO', 'MX').
+ * @param year - Año fiscal.
+ * @param dbRule - Fila de regla de BD pre-cargada (opcional).
+ * @returns Constantes normativas o null si no se encuentran para ese país/año.
+ */
 function getRuleConstants(countryCode: string, year: number, dbRule?: CountryYearRuleRow | null): RuleConstants | null {
     // 1. Try to extract from DB rule if provided
     if (dbRule) {
-        const parsed = parseConstantsFromDbRule(dbRule);
+        const parsed = parseConstantsFromDbRule(dbRule, countryCode);
         if (parsed) return parsed;
     }
-    // 2. Fall back to hardcoded constants
-    return getHardcodedConstants(countryCode, year);
+    // 2. Fall back to hardcoded constants + country concepts
+    const hc = getHardcodedConstants(countryCode, year);
+    if (!hc) return null;
+    const concepts = COUNTRY_CONCEPTS[countryCode] ?? { cesantias: false, prima: false, parafiscales: false, transportAllowance: false, arl: false };
+    return {
+        ...hc,
+        hasCesantias: concepts.cesantias,
+        hasPrima: concepts.prima,
+        hasParafiscales: concepts.parafiscales,
+        hasTransportAllowance: concepts.transportAllowance,
+        hasArl: concepts.arl,
+    };
 }
 
+/**
+ * Retorna todos los índices de columna mapeados a un campo destino.
+ * @param headerIndexByNormalized - Mapa de encabezado normalizado → índice de columna.
+ * @param relations - Relaciones de mapeo fuente→destino.
+ * @param target - Campo destino estándar (ej. 'ibc_total').
+ * @returns Array de índices de columna (puede estar vacío).
+ */
 function allIndexesForTarget(
     headerIndexByNormalized: Map<string, number>,
     relations: MappingRelationInput[],
@@ -143,6 +228,13 @@ function allIndexesForTarget(
         .filter((idx): idx is number => typeof idx === 'number' && idx >= 0);
 }
 
+/**
+ * Retorna el primer índice de columna mapeado a un campo destino, o -1.
+ * @param headerIndexByNormalized - Mapa de encabezado normalizado → índice.
+ * @param relations - Relaciones de mapeo.
+ * @param target - Campo destino estándar.
+ * @returns Índice de columna o -1 si no hay mapeo.
+ */
 function anyIndexForTarget(
     headerIndexByNormalized: Map<string, number>,
     relations: MappingRelationInput[],
@@ -152,6 +244,13 @@ function anyIndexForTarget(
     return indexes.length > 0 ? indexes[0] : -1;
 }
 
+/**
+ * Retorna índices de columna para todas las relaciones de una categoría de análisis.
+ * @param headerIndexByNormalized - Mapa de encabezado normalizado → índice.
+ * @param relations - Relaciones de mapeo.
+ * @param category - Categoría de análisis (ej. 'salary_base', 'non_salary').
+ * @returns Array de índices únicos.
+ */
 function indexesForCategory(
     headerIndexByNormalized: Map<string, number>,
     relations: MappingRelationInput[],
@@ -168,14 +267,43 @@ function pushSample(samples: string[], message: string) {
     if (samples.length < 8) samples.push(message);
 }
 
-const fmt = new Intl.NumberFormat('es-CO', {
+function createCurrencyFormatter(countryCode: string) {
+    const info = COUNTRY_CURRENCY_MAP[countryCode] ?? COUNTRY_CURRENCY_MAP['CO'];
+    return new Intl.NumberFormat(info.localeFormat, {
+        style: 'currency',
+        currency: info.currencyCode,
+        maximumFractionDigits: 0,
+    });
+}
+
+// Default formatter — overridden per-call in validatePayrollCalculations
+let _fmt = new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
     maximumFractionDigits: 0
 });
 
-const f = (val: number) => fmt.format(val);
+const f = (val: number) => _fmt.format(val);
 
+/**
+ * Ejecuta las 14 verificaciones matemáticas y normativas sobre datos de nómina.
+ *
+ * Valida registros de nómina contra las reglas del país/año, incluyendo:
+ * Ley 1393 (tope 40% no salarial), rangos IBC, consistencia de subsistemas,
+ * elegibilidad de auxilio de transporte, tasas de aportes (salud, pensión,
+ * parafiscales, ARL) y provisiones de prestaciones (cesantías, prima, vacaciones).
+ *
+ * Las constantes normativas (SMMLV, tasas) se extraen dinámicamente de la regla
+ * de BD cuando está disponible, con fallback a valores hardcodeados.
+ *
+ * @param input - Datos de entrada para la validación.
+ * @param input.countryCode - Código ISO del país (ej. 'CO').
+ * @param input.year - Año fiscal de la nómina.
+ * @param input.matrices - Matrices de datos (encabezados + filas) de los archivos cargados.
+ * @param input.relations - Relaciones de mapeo columna fuente → campo estándar.
+ * @param input.dbRule - Regla de BD pre-cargada (opcional). Evita consultas adicionales.
+ * @returns Reporte de validación con hallazgos por verificación, cobertura y métricas.
+ */
 export function validatePayrollCalculations(input: {
     countryCode: string;
     year: number;
@@ -185,6 +313,22 @@ export function validatePayrollCalculations(input: {
     dbRule?: CountryYearRuleRow | null;
 }): ValidationReport {
     const rule = getRuleConstants(input.countryCode, input.year, input.dbRule);
+
+    // Set currency formatter for this country
+    _fmt = createCurrencyFormatter(input.countryCode);
+
+    // Determine rates: prefer DB-parsed values, fall back to defaults
+    const healthEmpRate = rule?.healthEmployee != null ? rule.healthEmployee / 100 : 0.04;
+    const pensionEmpRate = rule?.pensionEmployee != null ? rule.pensionEmployee / 100 : 0.04;
+    const healthEmployerRate = rule?.healthEmployer != null ? rule.healthEmployer / 100 : 0.085;
+    const pensionEmployerRate = rule?.pensionEmployer != null ? rule.pensionEmployer / 100 : 0.12;
+
+    // Country-specific concept flags
+    const hasCesantias = rule?.hasCesantias ?? true;
+    const hasPrima = rule?.hasPrima ?? true;
+    const hasParafiscales = rule?.hasParafiscales ?? true;
+    const hasTransportAllowance = rule?.hasTransportAllowance ?? true;
+    const hasArl = rule?.hasArl ?? true;
 
     const dependencies: Record<string, string[]> = {
         ibc_rule_1393: ['base_salary', 'non_salary_payments', 'ibc_total'],
@@ -206,98 +350,98 @@ export function validatePayrollCalculations(input: {
     const checks: Record<string, CheckResult> = {
         ibc_rule_1393: {
             id: 'ibc_rule_1393',
-            label: 'Ley 1393: IBC debe incluir exceso no salarial sobre 40%',
+            label: 'Base de cotización: debe incluir exceso no salarial sobre tope permitido',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         tope_40_value: {
             id: 'tope_40_value',
-            label: 'Campo tope_40_no_salarial consistente con exceso calculado',
+            label: 'Tope de pagos no salariales consistente con exceso calculado',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         ibc_min_max: {
             id: 'ibc_min_max',
-            label: 'IBC dentro de rango legal por dias trabajados y tope 25 SMMLV',
+            label: 'Base de cotización dentro de rango legal por días trabajados',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         ibc_consistency_subsystems: {
             id: 'ibc_consistency_subsystems',
-            label: 'Consistencia entre IBC total y subsistemas (salud/pension/arl)',
+            label: 'Consistencia entre base de cotización total y subsistemas',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         transport_eligibility: {
             id: 'transport_eligibility',
-            label: 'Auxilio de transporte: solo aplica si salario <= 2 SMMLV',
+            label: 'Auxilio de transporte: solo aplica si salario <= umbral legal',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         health_deduction_4pct: {
             id: 'health_deduction_4pct',
-            label: 'Descuento salud empleado: debe ser 4% del IBC',
+            label: `Descuento salud empleado: debe ser ${(healthEmpRate * 100).toFixed(1)}% de la base`,
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         pension_deduction_4pct: {
             id: 'pension_deduction_4pct',
-            label: 'Descuento pension empleado: debe ser 4% del IBC',
+            label: `Descuento pensión empleado: debe ser ${(pensionEmpRate * 100).toFixed(1)}% de la base`,
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         cesantias_rate: {
             id: 'cesantias_rate',
-            label: 'Cesantias: provision debe ser ~8.33% del total devengado',
+            label: 'Cesantías/Aguinaldo/13º: provisión según normativa local',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         prima_rate: {
             id: 'prima_rate',
-            label: 'Prima de servicios: provision debe ser ~8.33% del total devengado',
+            label: 'Prima/Gratificación: provisión según normativa local',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         vacation_rate: {
             id: 'vacation_rate',
-            label: 'Vacaciones: provision debe ser ~4.17% del salario basico',
+            label: 'Vacaciones: provisión según normativa local',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         salud_empleador_rate: {
             id: 'salud_empleador_rate',
-            label: 'Aporte salud empleador: debe ser 8.5% del IBC',
+            label: `Aporte salud empleador: debe ser ${(healthEmployerRate * 100).toFixed(1)}% de la base`,
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         pension_empleador_rate: {
             id: 'pension_empleador_rate',
-            label: 'Aporte pension empleador: debe ser 12% del IBC',
+            label: `Aporte pensión empleador: debe ser ${(pensionEmployerRate * 100).toFixed(1)}% de la base`,
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         parafiscales_rate: {
             id: 'parafiscales_rate',
-            label: 'Parafiscales totales: deben ser ~9% del IBC (SENA 2% + ICBF 3% + Caja 4%)',
+            label: 'Contribuciones patronales según normativa local',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
         },
         arl_bounds: {
             id: 'arl_bounds',
-            label: 'ARL: valor debe estar entre 0.522% y 8.7% del IBC',
+            label: 'Seguro de riesgos laborales dentro de rango normativo',
             passedRows: 0,
             failedRows: 0,
             sampleFindings: [],
@@ -449,7 +593,7 @@ export function validatePayrollCalculations(input: {
                 }
             }
 
-            if (rule && transportIdxs.length > 0) {
+            if (rule && transportIdxs.length > 0 && hasTransportAllowance) {
                 const transportValue = transportIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
                 const twoSmmlv = rule.smmlv * 2;
                 if (transportValue > 0 && salaryTotal > twoSmmlv + 100) {
@@ -471,22 +615,21 @@ export function validatePayrollCalculations(input: {
                 const healthDeduction = healthDeductionIdxs.length > 0 
                     ? healthDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0)
                     : 0;
-                const expectedHealth = ibcEfectivo * 0.04;
+                const expectedHealth = ibcEfectivo * healthEmpRate;
                 
                 if (healthDeductionIdxs.length === 0) {
-                    // No hay campo de descuento salud mapeado
                     checks.health_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.health_deduction_4pct.sampleFindings,
-                        `${displayName}: SIN descuento salud. Esperado 4% de IBC: ${f(expectedHealth)}`
+                        `${displayName}: SIN descuento salud. Esperado ${(healthEmpRate * 100).toFixed(1)}% de base: ${f(expectedHealth)}`
                     );
                 } else if (Math.abs(healthDeduction - expectedHealth) > Math.max(100, expectedHealth * 0.01)) {
                     checks.health_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.health_deduction_4pct.sampleFindings,
-                        `${displayName}: descuento salud ${f(healthDeduction)} vs esperado 4% de IBC ${f(expectedHealth)}`
+                        `${displayName}: descuento salud ${f(healthDeduction)} vs esperado ${(healthEmpRate * 100).toFixed(1)}% de base ${f(expectedHealth)}`
                     );
                 } else {
                     checks.health_deduction_4pct.passedRows += 1;
@@ -495,22 +638,21 @@ export function validatePayrollCalculations(input: {
                 const pensionDeduction = pensionDeductionIdxs.length > 0
                     ? pensionDeductionIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0)
                     : 0;
-                const expectedPension = ibcEfectivo * 0.04;
+                const expectedPension = ibcEfectivo * pensionEmpRate;
                 
                 if (pensionDeductionIdxs.length === 0) {
-                    // No hay campo de descuento pensión mapeado
                     checks.pension_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.pension_deduction_4pct.sampleFindings,
-                        `${displayName}: SIN descuento pension. Esperado 4% de IBC: ${f(expectedPension)}`
+                        `${displayName}: SIN descuento pensión. Esperado ${(pensionEmpRate * 100).toFixed(1)}% de base: ${f(expectedPension)}`
                     );
                 } else if (Math.abs(pensionDeduction - expectedPension) > Math.max(100, expectedPension * 0.01)) {
                     checks.pension_deduction_4pct.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(
                         checks.pension_deduction_4pct.sampleFindings,
-                        `${displayName}: descuento pension ${f(pensionDeduction)} vs esperado 4% de IBC ${f(expectedPension)}`
+                        `${displayName}: descuento pensión ${f(pensionDeduction)} vs esperado ${(pensionEmpRate * 100).toFixed(1)}% de base ${f(expectedPension)}`
                     );
                 } else {
                     checks.pension_deduction_4pct.passedRows += 1;
@@ -519,27 +661,27 @@ export function validatePayrollCalculations(input: {
 
             const devengadoTotal = grossPayIdxs.length > 0 ? grossPayIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0) : totalIncome;
 
-            if (cesantiasIdxs.length > 0 && devengadoTotal > 0) {
+            if (hasCesantias && cesantiasIdxs.length > 0 && devengadoTotal > 0) {
                 const cesantias = cesantiasIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
                 const expected = devengadoTotal * 0.0833;
                 if (Math.abs(cesantias - expected) > Math.max(500, expected * 0.05)) {
                     checks.cesantias_rate.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(checks.cesantias_rate.sampleFindings,
-                        `${displayName}: cesantias ${cesantias.toFixed(0)} vs esperado 8.33% de devengado ${expected.toFixed(0)}`);
+                        `${displayName}: cesantías/aguinaldo ${cesantias.toFixed(0)} vs esperado ~8.33% de devengado ${expected.toFixed(0)}`);
                 } else {
                     checks.cesantias_rate.passedRows += 1;
                 }
             }
 
-            if (primaIdxs.length > 0 && devengadoTotal > 0) {
+            if (hasPrima && primaIdxs.length > 0 && devengadoTotal > 0) {
                 const prima = primaIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
                 const expected = devengadoTotal * 0.0833;
                 if (Math.abs(prima - expected) > Math.max(500, expected * 0.05)) {
                     checks.prima_rate.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(checks.prima_rate.sampleFindings,
-                        `${displayName}: prima ${prima.toFixed(0)} vs esperado 8.33% de devengado ${expected.toFixed(0)}`);
+                        `${displayName}: prima/gratificación ${prima.toFixed(0)} vs esperado ~8.33% de devengado ${expected.toFixed(0)}`);
                 } else {
                     checks.prima_rate.passedRows += 1;
                 }
@@ -560,12 +702,12 @@ export function validatePayrollCalculations(input: {
 
             if (saludEmpleadorIdxs.length > 0 && ibcValue > 0) {
                 const saludEmp = saludEmpleadorIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
-                const expected = ibcValue * 0.085;
+                const expected = ibcValue * healthEmployerRate;
                 if (Math.abs(saludEmp - expected) > Math.max(100, expected * 0.01)) {
                     checks.salud_empleador_rate.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(checks.salud_empleador_rate.sampleFindings,
-                        `${displayName}: salud empleador ${saludEmp.toFixed(0)} vs esperado 8.5% de IBC ${expected.toFixed(0)}`);
+                        `${displayName}: salud empleador ${saludEmp.toFixed(0)} vs esperado ${(healthEmployerRate * 100).toFixed(1)}% de base ${expected.toFixed(0)}`);
                 } else {
                     checks.salud_empleador_rate.passedRows += 1;
                 }
@@ -573,31 +715,31 @@ export function validatePayrollCalculations(input: {
 
             if (pensionEmpleadorIdxs.length > 0 && ibcValue > 0) {
                 const pensionEmp = pensionEmpleadorIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
-                const expected = ibcValue * 0.12;
+                const expected = ibcValue * pensionEmployerRate;
                 if (Math.abs(pensionEmp - expected) > Math.max(100, expected * 0.01)) {
                     checks.pension_empleador_rate.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(checks.pension_empleador_rate.sampleFindings,
-                        `${displayName}: pension empleador ${f(pensionEmp)} vs esperado 12% de IBC ${f(expected)}`);
+                        `${displayName}: pensión empleador ${f(pensionEmp)} vs esperado ${(pensionEmployerRate * 100).toFixed(1)}% de base ${f(expected)}`);
                 } else {
                     checks.pension_empleador_rate.passedRows += 1;
                 }
             }
 
-            if (parafiscalesTotalIdxs.length > 0 && ibcValue > 0) {
+            if (hasParafiscales && parafiscalesTotalIdxs.length > 0 && ibcValue > 0) {
                 const parafiscales = parafiscalesTotalIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
                 const expected = ibcValue * 0.09;
                 if (Math.abs(parafiscales - expected) > Math.max(100, expected * 0.02)) {
                     checks.parafiscales_rate.failedRows += 1;
                     rowHasFinding = true;
                     pushSample(checks.parafiscales_rate.sampleFindings,
-                        `${displayName}: parafiscales ${parafiscales.toFixed(0)} vs esperado 9% de IBC ${expected.toFixed(0)}`);
+                        `${displayName}: contribuciones patronales ${parafiscales.toFixed(0)} vs esperado ~9% de base ${expected.toFixed(0)}`);
                 } else {
                     checks.parafiscales_rate.passedRows += 1;
                 }
             }
 
-            if (arlValueIdxs.length > 0 && ibcValue > 0) {
+            if (hasArl && arlValueIdxs.length > 0 && ibcValue > 0) {
                 const arlValue = arlValueIdxs.reduce((sum, idx) => sum + toNumber(row[idx]), 0);
                 const minArl = ibcValue * 0.00522;
                 const maxArl = ibcValue * 0.087;

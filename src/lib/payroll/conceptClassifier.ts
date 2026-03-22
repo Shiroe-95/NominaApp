@@ -25,17 +25,17 @@ export interface RiskReport {
 }
 
 const CATEGORY_RULES: Array<{ category: PayrollConceptCategory; patterns: RegExp[] }> = [
-    { category: 'identity', patterns: [/documento|empleado|nombre|identificacion|codigo empleado/i] },
-    { category: 'contract', patterns: [/contrato|cargo|fecha de ingreso|fecha de retiro|area/i] },
-    { category: 'salary_base', patterns: [/sueldo|salario basico|base salarial|apoyo sostenimiento/i] },
-    { category: 'overtime', patterns: [/hora extra|recargo|dominical|festiva|nocturna/i] },
-    { category: 'leave_disability', patterns: [/incapacidad|licencia|vacaciones|ausencia|atep/i] },
-    { category: 'salary_earnings', patterns: [/comision|bonificacion|prima|incentivo|retroactivo|dias no habiles|dias habiles/i] },
-    { category: 'non_salary_earnings', patterns: [/auxilio|rodamiento|movilidad|educacion|recreacion|vivienda|transporte/i] },
-    { category: 'deductions', patterns: [/descuento|dcto|retencion|prestamo|libranza|embargo/i] },
-    { category: 'contributions', patterns: [/ibc|ibl|aporte|salud|pension|arl|parafiscal|pila/i] },
-    { category: 'provisions', patterns: [/cesantia|interes cesantia|prima servicios|provision/i] },
-    { category: 'net_payment', patterns: [/neto|pago fuera|pagos|devengado/i] },
+    { category: 'identity', patterns: [/documento|empleado|nombre|identificacion|codigo empleado|employee|cpf|rut|curp|cuil|ssn|worker/i] },
+    { category: 'contract', patterns: [/contrato|cargo|fecha de ingreso|fecha de retiro|area|contract|position|hire date|termination|admissao|demissao/i] },
+    { category: 'salary_base', patterns: [/sueldo|salario basico|base salarial|apoyo sostenimiento|base salary|salario base|remuneracao|vencimento basico|sueldo base/i] },
+    { category: 'overtime', patterns: [/hora extra|recargo|dominical|festiva|nocturna|overtime|horas extras|adicional noturno|dsr/i] },
+    { category: 'leave_disability', patterns: [/incapacidad|licencia|vacaciones|ausencia|atep|disability|leave|vacation|ferias|afastamento|licenca/i] },
+    { category: 'salary_earnings', patterns: [/comision|bonificacion|prima|incentivo|retroactivo|dias no habiles|dias habiles|commission|bonus|gratificacion|aguinaldo|13.? salario|decimo terceiro/i] },
+    { category: 'non_salary_earnings', patterns: [/auxilio|rodamiento|movilidad|educacion|recreacion|vivienda|transporte|allowance|vale.?transporte|vale.?refeicao|cesta basica/i] },
+    { category: 'deductions', patterns: [/descuento|dcto|retencion|prestamo|libranza|embargo|deduction|withholding|imposto de renda|irrf|isr|ganancias/i] },
+    { category: 'contributions', patterns: [/ibc|ibl|aporte|salud|pension|arl|parafiscal|pila|inss|fgts|imss|afp|fonasa|isapre|fica|social security|seguridad social|previdencia/i] },
+    { category: 'provisions', patterns: [/cesantia|interes cesantia|prima servicios|provision|severance|cts|gratificacao|aguinaldo|sac|13.? salario/i] },
+    { category: 'net_payment', patterns: [/neto|pago fuera|pagos|devengado|net pay|total earnings|liquido|salario liquido|percepciones/i] },
 ];
 
 export function normalizeHeader(value: string) {

@@ -60,24 +60,51 @@ export interface CountryYearRuleRow {
   status: 'draft' | 'pending_review' | 'approved' | 'rejected';
 }
 
-// ── Hardcoded fallback constants (Colombia) ─────────────────────────
+// ── Hardcoded fallback constants (multi-country) ────────────────────
 // @deprecated – Use loadAndValidateRules() to load constants from the DB.
 // Kept temporarily as a fallback for callers that haven't migrated yet.
 
-const CO_CONSTANTS: Record<number, { smmlv: number; ibcMaxSmmlv: number }> = {
-  2025: { smmlv: 1_423_500, ibcMaxSmmlv: 25 },
-  2026: { smmlv: 1_750_905, ibcMaxSmmlv: 25 },
+const COUNTRY_CONSTANTS: Record<string, Record<number, { smmlv: number; ibcMaxSmmlv: number }>> = {
+  CO: {
+    2025: { smmlv: 1_423_500, ibcMaxSmmlv: 25 },
+    2026: { smmlv: 1_750_905, ibcMaxSmmlv: 25 },
+  },
+  MX: {
+    2025: { smmlv: 7_468, ibcMaxSmmlv: 25 }, // Salario mínimo diario × 30
+    2026: { smmlv: 8_200, ibcMaxSmmlv: 25 },
+  },
+  PE: {
+    2025: { smmlv: 1_025, ibcMaxSmmlv: 25 }, // RMV en soles
+    2026: { smmlv: 1_130, ibcMaxSmmlv: 25 },
+  },
+  CL: {
+    2025: { smmlv: 500_000, ibcMaxSmmlv: 80 }, // Sueldo mínimo en CLP, tope 80.2 UF
+    2026: { smmlv: 530_000, ibcMaxSmmlv: 80 },
+  },
+  BR: {
+    2025: { smmlv: 1_518, ibcMaxSmmlv: 25 }, // Salário mínimo em BRL
+    2026: { smmlv: 1_640, ibcMaxSmmlv: 25 },
+  },
+  AR: {
+    2025: { smmlv: 268_056, ibcMaxSmmlv: 25 }, // SMVM en ARS
+    2026: { smmlv: 350_000, ibcMaxSmmlv: 25 },
+  },
+  US: {
+    2025: { smmlv: 1_257, ibcMaxSmmlv: 25 }, // Federal minimum wage monthly
+    2026: { smmlv: 1_305, ibcMaxSmmlv: 25 },
+  },
 };
 
 /**
  * @deprecated Use `loadAndValidateRules()` instead. This function returns
- * hardcoded constants only for Colombia and will be removed in a future release.
+ * hardcoded constants as fallback and will be removed in a future release.
  */
 export function getHardcodedConstants(
   countryCode: string,
   year: number,
 ): { smmlv: number; ibcMaxSmmlv: number } | null {
-  if (countryCode === 'CO' && CO_CONSTANTS[year]) return CO_CONSTANTS[year];
+  const country = COUNTRY_CONSTANTS[countryCode];
+  if (country && country[year]) return country[year];
   return null;
 }
 

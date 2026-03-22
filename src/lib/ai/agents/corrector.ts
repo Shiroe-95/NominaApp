@@ -52,12 +52,16 @@ export interface CorrectionReport {
   aiSummary?: string;
 }
 
-// ── Colombian normative formulas ────────────────────────────────────
+// ── Correction formulas (default rates, used as fallback) ────────────
 
 /**
  * Maps auditor check IDs to deterministic correction formulas.
  * Each formula receives the payroll row values and returns the correct value,
  * or null when the calculation is not deterministic (Req 7.3).
+ *
+ * Rates are loaded dynamically from countryRules when available.
+ * The factory function `buildCorrectionFormulas()` creates formulas
+ * with the correct rates for the country being processed.
  */
 
 interface FormulaContext {
@@ -86,73 +90,104 @@ const FIELD_FOR_CHECK: Record<string, string> = {
   parafiscales_rate: 'parafiscales_total',
 };
 
-const CORRECTION_FORMULAS: Record<string, CorrectionFormula> = {
-  health_deduction_4pct: (ctx) => {
-    if (ctx.ibcTotal <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.ibcTotal * 0.04),
-      justification: `Ley 100/1993, Art. 204: Aporte salud empleado = IBC × 4% = ${ctx.ibcTotal} × 0.04`,
-    };
-  },
+/**
+ * Builds correction formulas with rates from country rules.
+ * Falls back to default rates (CO) when country-specific rates are not available.
+ */
+function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): Record<string, CorrectionFormula> {
+  // Try to extract rates from country rules checks
+  let healthEmpRate = 0.04;
+  let pensionEmpRate = 0.04;
+  let healthEmployerRate = 0.085;
+  let pensionEmployerRate = 0.12;
 
-  pension_deduction_4pct: (ctx) => {
-    if (ctx.ibcTotal <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.ibcTotal * 0.04),
-      justification: `Ley 100/1993, Art. 20: Aporte pensión empleado = IBC × 4% = ${ctx.ibcTotal} × 0.04`,
-    };
-  },
+  if (countryRules?.checks) {
+    for (const check of countryRules.checks) {
+      const healthEmpMatch = check.match(/salud\s*empleado(?!r)[^0-9]*([0-9.,]+)\s*%/i);
+      if (healthEmpMatch) healthEmpRate = parseFloat(healthEmpMatch[1].replace(',', '.')) / 100;
 
-  cesantias_rate: (ctx) => {
-    const base = ctx.grossPay > 0 ? ctx.grossPay : ctx.totalIncome;
-    if (base <= 0) return null;
-    return {
-      suggestedValue: Math.round(base * 0.0833),
-      justification: `Art. 249 CST: Cesantías = Total devengado × 8.33% = ${base} × 0.0833`,
-    };
-  },
+      const pensionEmpMatch = check.match(/pensi[oó]n\s*empleado(?!r)[^0-9]*([0-9.,]+)\s*%/i);
+      if (pensionEmpMatch) pensionEmpRate = parseFloat(pensionEmpMatch[1].replace(',', '.')) / 100;
 
-  prima_rate: (ctx) => {
-    const base = ctx.grossPay > 0 ? ctx.grossPay : ctx.totalIncome;
-    if (base <= 0) return null;
-    return {
-      suggestedValue: Math.round(base * 0.0833),
-      justification: `Art. 306 CST: Prima de servicios = Total devengado × 8.33% = ${base} × 0.0833`,
-    };
-  },
+      const healthErMatch = check.match(/salud\s*empleador[^0-9]*([0-9.,]+)\s*%/i);
+      if (healthErMatch) healthEmployerRate = parseFloat(healthErMatch[1].replace(',', '.')) / 100;
 
-  vacation_rate: (ctx) => {
-    if (ctx.baseSalary <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.baseSalary * 0.0417),
-      justification: `Art. 186 CST: Vacaciones = Salario básico × 4.17% = ${ctx.baseSalary} × 0.0417`,
-    };
-  },
+      const pensionErMatch = check.match(/pensi[oó]n\s*empleador[^0-9]*([0-9.,]+)\s*%/i);
+      if (pensionErMatch) pensionEmployerRate = parseFloat(pensionErMatch[1].replace(',', '.')) / 100;
+    }
+  }
 
-  salud_empleador_rate: (ctx) => {
-    if (ctx.ibcTotal <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.ibcTotal * 0.085),
-      justification: `Ley 100/1993: Aporte salud empleador = IBC × 8.5% = ${ctx.ibcTotal} × 0.085`,
-    };
-  },
+  return {
+    health_deduction_4pct: (ctx) => {
+      if (ctx.ibcTotal <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.ibcTotal * healthEmpRate),
+        justification: `Aporte salud empleado = Base cotización × ${(healthEmpRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${healthEmpRate}`,
+      };
+    },
 
-  pension_empleador_rate: (ctx) => {
-    if (ctx.ibcTotal <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.ibcTotal * 0.12),
-      justification: `Ley 100/1993: Aporte pensión empleador = IBC × 12% = ${ctx.ibcTotal} × 0.12`,
-    };
-  },
+    pension_deduction_4pct: (ctx) => {
+      if (ctx.ibcTotal <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.ibcTotal * pensionEmpRate),
+        justification: `Aporte pensión empleado = Base cotización × ${(pensionEmpRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${pensionEmpRate}`,
+      };
+    },
 
-  parafiscales_rate: (ctx) => {
-    if (ctx.ibcTotal <= 0) return null;
-    return {
-      suggestedValue: Math.round(ctx.ibcTotal * 0.09),
-      justification: `Ley 21/1982: Parafiscales = IBC × 9% (SENA 2% + ICBF 3% + Caja 4%) = ${ctx.ibcTotal} × 0.09`,
-    };
-  },
-};
+    cesantias_rate: (ctx) => {
+      const base = ctx.grossPay > 0 ? ctx.grossPay : ctx.totalIncome;
+      if (base <= 0) return null;
+      return {
+        suggestedValue: Math.round(base * 0.0833),
+        justification: `Cesantías/Aguinaldo = Total devengado × 8.33% = ${base} × 0.0833`,
+      };
+    },
+
+    prima_rate: (ctx) => {
+      const base = ctx.grossPay > 0 ? ctx.grossPay : ctx.totalIncome;
+      if (base <= 0) return null;
+      return {
+        suggestedValue: Math.round(base * 0.0833),
+        justification: `Prima/Gratificación = Total devengado × 8.33% = ${base} × 0.0833`,
+      };
+    },
+
+    vacation_rate: (ctx) => {
+      if (ctx.baseSalary <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.baseSalary * 0.0417),
+        justification: `Vacaciones = Salario básico × 4.17% = ${ctx.baseSalary} × 0.0417`,
+      };
+    },
+
+    salud_empleador_rate: (ctx) => {
+      if (ctx.ibcTotal <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.ibcTotal * healthEmployerRate),
+        justification: `Aporte salud empleador = Base cotización × ${(healthEmployerRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${healthEmployerRate}`,
+      };
+    },
+
+    pension_empleador_rate: (ctx) => {
+      if (ctx.ibcTotal <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.ibcTotal * pensionEmployerRate),
+        justification: `Aporte pensión empleador = Base cotización × ${(pensionEmployerRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${pensionEmployerRate}`,
+      };
+    },
+
+    parafiscales_rate: (ctx) => {
+      if (ctx.ibcTotal <= 0) return null;
+      return {
+        suggestedValue: Math.round(ctx.ibcTotal * 0.09),
+        justification: `Contribuciones patronales = Base cotización × 9% = ${ctx.ibcTotal} × 0.09`,
+      };
+    },
+  };
+}
+
+// Default formulas (CO rates) — used by revalidateRow and other static callers
+const CORRECTION_FORMULAS: Record<string, CorrectionFormula> = buildCorrectionFormulas();
 
 // Checks where the correct value is NOT deterministic (Req 7.3)
 const NON_DETERMINISTIC_CHECKS = new Set([
@@ -256,24 +291,24 @@ function findCheckIdForFinding(finding: AuditFinding): string | null {
 
 // ── System prompt ───────────────────────────────────────────────────
 
-const CORRECTOR_SYSTEM_PROMPT = `Eres el Agente Corrector de NóminaSmart, especializado en proponer correcciones numéricas precisas para errores de nómina colombiana.
+const CORRECTOR_SYSTEM_PROMPT = `Eres el Agente Corrector de NóminaSmart, especializado en proponer correcciones numéricas precisas para errores de nómina multi-país.
 
 Tu rol es analizar los hallazgos del Agente Auditor y las correcciones determinísticas calculadas, y proporcionar un resumen ejecutivo de las correcciones propuestas.
 
-Fórmulas normativas que aplicas:
-- Salud empleado: 4% del IBC (Ley 100/1993, Art. 204)
-- Pensión empleado: 4% del IBC (Ley 100/1993, Art. 20)
-- Cesantías: 8.33% del total devengado (Art. 249 CST)
-- Prima de servicios: 8.33% del total devengado (Art. 306 CST)
-- Vacaciones: 4.17% del salario básico (Art. 186 CST)
-- Salud empleador: 8.5% del IBC (Ley 100/1993)
-- Pensión empleador: 12% del IBC (Ley 100/1993)
-- Parafiscales: 9% del IBC (SENA 2% + ICBF 3% + Caja 4%, Ley 21/1982)
+Las fórmulas y porcentajes se cargan dinámicamente desde la tabla country_year_rules según el país y año del contexto. Los porcentajes por defecto (fallback para Colombia) son:
+- Salud empleado: 4% de la base de cotización
+- Pensión empleado: 4% de la base de cotización
+- Cesantías/Aguinaldo: 8.33% del total devengado
+- Prima de servicios: 8.33% del total devengado
+- Vacaciones: 4.17% del salario básico
+- Salud empleador: 8.5% de la base de cotización
+- Pensión empleador: 12% de la base de cotización
+- Parafiscales: 9% de la base de cotización
 
 Reglas estrictas:
 - SOLO propones correcciones cuando el cálculo es 100% determinístico
 - NUNCA propones valores especulativos
-- Cada corrección incluye la fórmula exacta aplicada
+- Cada corrección incluye la fórmula exacta aplicada y la norma del país
 - Si no puedes calcular con certeza, omites la corrección`;
 
 // ── Agent factory ───────────────────────────────────────────────────
@@ -283,7 +318,7 @@ export function createCorrectorAgent(): AgentDefinition {
     {
       name: 'calculateCorrections',
       description:
-        'Calcula correcciones numéricas determinísticas usando fórmulas normativas colombianas para cada hallazgo del auditor.',
+        'Calcula correcciones numéricas determinísticas usando fórmulas normativas del país correspondiente para cada hallazgo del auditor.',
       parameters: {
         type: 'object',
         properties: {
@@ -305,7 +340,8 @@ export function createCorrectorAgent(): AgentDefinition {
     const auditorData = context.previousResults?.['auditor'] as AuditReport | undefined;
     const findings: AuditFinding[] = auditorData?.findings ?? [];
 
-    // Calculate deterministic corrections
+    // Calculate deterministic corrections using country-specific rates
+    const formulas = buildCorrectionFormulas(context.countryRules);
     const corrections: CorrectionEntry[] = [];
     let skipped = 0;
 
@@ -318,7 +354,7 @@ export function createCorrectorAgent(): AgentDefinition {
         continue;
       }
 
-      const formula = CORRECTION_FORMULAS[checkId];
+      const formula = formulas[checkId];
       if (!formula) {
         skipped++;
         continue;
@@ -375,10 +411,18 @@ export function createCorrectorAgent(): AgentDefinition {
           )
           .join('\n');
 
+        // Build country-aware system prompt
+        const countryContext = context.countryRules
+          ? `\n\nCONTEXTO NORMATIVO (${context.countryCode} ${context.year}):\nRegla: ${context.countryRules.label}\nVerificaciones:\n${context.countryRules.checks.slice(0, 10).map(c => `• ${c}`).join('\n')}`
+          : '';
+        const dynamicSystemPrompt = CORRECTOR_SYSTEM_PROMPT + countryContext;
+
         const { text, usage } = await generateText({
           model,
-          system: CORRECTOR_SYSTEM_PROMPT,
-          prompt: `Analiza las siguientes ${corrections.length} correcciones propuestas y genera un resumen ejecutivo breve (máximo 2 párrafos) indicando los patrones de error más comunes y el impacto estimado:
+          system: dynamicSystemPrompt,
+          prompt: `País: ${context.countryCode} | Año: ${context.year}
+
+Analiza las siguientes ${corrections.length} correcciones propuestas y genera un resumen ejecutivo breve (máximo 2 párrafos) indicando los patrones de error más comunes y el impacto estimado. Referencia las normas del país ${context.countryCode}:
 
 Correcciones omitidas (no determinísticas): ${skipped}
 
@@ -403,7 +447,37 @@ ${correctionsText}`,
       }
     }
 
-    const report: CorrectionReport = { corrections, skipped, aiSummary };
+    // ── Inter-agent: consult payroll-expert for non-deterministic findings ──
+    // When there are skipped (non-deterministic) findings and the bus is
+    // available, ask the payroll-expert for guidance on how to handle them.
+    let expertGuidance: string | undefined;
+    if (skipped > 0 && context.bus?.hasAgent('payroll-expert')) {
+      try {
+        const expertResult = await context.bus.send({
+          fromAgent: 'corrector',
+          toAgent: 'payroll-expert',
+          queryType: 'non-deterministic-guidance',
+          payload: {
+            userMessage: `Tengo ${skipped} hallazgos de auditoría de nómina (${context.countryCode} ${context.year}) que no son determinísticos y no puedo corregir automáticamente. ¿Qué recomendaciones generales puedes dar para revisarlos manualmente?`,
+            countryCode: context.countryCode,
+            year: context.year,
+          },
+        });
+        if (expertResult.success) {
+          const expertData = expertResult.data as Record<string, unknown>;
+          expertGuidance = expertData?.reply as string | undefined;
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
+    const report: CorrectionReport & { expertGuidance?: string } = {
+      corrections,
+      skipped,
+      aiSummary,
+      expertGuidance,
+    };
 
     return {
       agentName: 'corrector',

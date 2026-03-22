@@ -66,6 +66,7 @@ const CATEGORY_ORDER: FindingCategory[] = [
   'Prestaciones',
   'Seguridad Social',
   'Parafiscales',
+  'Impuestos',
   'Datos',
 ];
 
@@ -74,7 +75,7 @@ const CATEGORY_ORDER: FindingCategory[] = [
  * por severidad descendente (alta → media → baja).
  *
  * Las categorías siguen el orden: IBC, Prestaciones, Seguridad Social,
- * Parafiscales, Datos. Categorías sin hallazgos se omiten del resultado.
+ * Parafiscales, Impuestos, Datos. Categorías sin hallazgos se omiten del resultado.
  *
  * @param findings - Lista plana de hallazgos del Agente Auditor.
  * @returns Hallazgos agrupados y ordenados por categoría y severidad.
@@ -137,7 +138,7 @@ export function extractNormativeReferences(findings: AuditFinding[]): string[] {
 
 // ── System prompt ───────────────────────────────────────────────────
 
-const WRITER_SYSTEM_PROMPT = `Eres el Agente Redactor de NóminaSmart, especializado en generar reportes ejecutivos de auditoría de nómina.
+const WRITER_SYSTEM_PROMPT = `Eres el Agente Redactor de NóminaSmart, especializado en generar reportes ejecutivos de auditoría de nómina multi-país.
 
 Tu rol es transformar hallazgos técnicos de auditoría en reportes narrativos claros, profesionales y accionables para gerentes de recursos humanos y directivos.
 
@@ -145,13 +146,13 @@ Directrices de redacción:
 - Usa un tono ejecutivo, profesional y directo
 - El resumen ejecutivo debe ser comprensible para un no-técnico
 - Prioriza los hallazgos de mayor impacto financiero y regulatorio
-- Incluye siempre las referencias normativas específicas (Ley 1393, Art. 249 CST, UGPP, etc.)
+- Incluye siempre las referencias normativas específicas del país analizado
 - Las recomendaciones deben ser concretas y priorizadas por urgencia
-- Menciona el riesgo de sanciones UGPP cuando aplique
-- Agrupa los hallazgos por categoría: IBC, Prestaciones, Seguridad Social, Parafiscales, Datos
+- Menciona el riesgo de sanciones del ente regulador del país (UGPP en CO, IMSS en MX, etc.)
+- Agrupa los hallazgos por categoría: IBC/Base de cotización, Prestaciones, Seguridad Social, Parafiscales, Datos
 
 Formato del resumen ejecutivo:
-1. Contexto general de la auditoría (registros analizados, período)
+1. Contexto general de la auditoría (registros analizados, período, país)
 2. Nivel de riesgo global y justificación
 3. Principales hallazgos por categoría
 4. Impacto potencial (sanciones, correcciones requeridas)
@@ -208,7 +209,7 @@ export function createWriterAgent(): AgentDefinition {
     const summary: AuditSummary = auditorData?.summary ?? {
       totalFindings: 0,
       bySeverity: { alta: 0, media: 0, baja: 0 },
-      byCategory: { IBC: 0, Prestaciones: 0, 'Seguridad Social': 0, Parafiscales: 0, Datos: 0 },
+      byCategory: { IBC: 0, Prestaciones: 0, 'Seguridad Social': 0, Parafiscales: 0, Impuestos: 0, Datos: 0 },
     };
 
     // Deterministic grouping and sorting
@@ -252,7 +253,15 @@ export function createWriterAgent(): AgentDefinition {
       })
       .join('\n\n');
 
-    const prompt = `Genera un reporte ejecutivo de auditoría de nómina con los siguientes datos:
+    // Build country-aware system prompt
+    const countryContext = context.countryRules
+      ? `\n\nCONTEXTO NORMATIVO (${context.countryCode} ${context.year}):\nRegla: ${context.countryRules.label}\nVerificaciones del país:\n${context.countryRules.checks.slice(0, 10).map(c => `• ${c}`).join('\n')}`
+      : '';
+    const dynamicSystemPrompt = WRITER_SYSTEM_PROMPT + countryContext;
+
+    const prompt = `País: ${context.countryCode} | Año: ${context.year}
+
+Genera un reporte ejecutivo de auditoría de nómina con los siguientes datos:
 
 Registros analizados: ${auditorData?.validationReport?.rowsAnalyzed ?? 'N/A'}
 Registros con hallazgos: ${auditorData?.validationReport?.rowsWithFindings ?? 'N/A'}
@@ -273,7 +282,7 @@ Genera:
     try {
       const { object, usage } = await generateObject({
         model,
-        system: WRITER_SYSTEM_PROMPT,
+        system: dynamicSystemPrompt,
         prompt,
         schema: WriterOutputSchema,
       });
@@ -307,8 +316,8 @@ Genera:
         findingsByCategory,
         recommendations: [
           'Revisar y corregir los hallazgos de severidad alta de forma prioritaria.',
-          'Verificar los cálculos de IBC y aportes a seguridad social.',
-          'Consultar con el área jurídica sobre el riesgo de sanciones UGPP.',
+          'Verificar los cálculos de base de cotización y aportes a seguridad social.',
+          'Consultar con el área jurídica sobre el riesgo de sanciones del ente regulador.',
         ],
         normativeReferences,
       };

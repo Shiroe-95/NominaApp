@@ -1,4 +1,5 @@
 import type { LanguageModel } from 'ai';
+import type { AgentBus } from './agents/agent-bus';
 
 // ── Domain helpers ──────────────────────────────────────────────────
 
@@ -43,6 +44,15 @@ export interface AgentContext {
   locale?: string;
   /** ISO 4217 currency code, e.g. "COP", "BRL" */
   currencyCode?: string;
+  /** Inter-agent communication bus — allows agents to request help from peers */
+  bus?: AgentBus;
+  /** Country-specific rules loaded from DB (checks, required_fields, etc.) */
+  countryRules?: {
+    label: string;
+    checks: string[];
+    requiredFields: string[];
+    requiredCalculations: string[];
+  };
 }
 
 export interface AgentResult {
