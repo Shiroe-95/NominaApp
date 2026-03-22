@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth, requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string) {
     if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
@@ -98,6 +99,12 @@ const DEFAULT_RULES = [
 ];
 
 export async function GET(req: Request) {
+    const rl = applyRateLimit(req, 'rules', RATE_LIMITS.read);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     try {
         const supabase = createAdminClient();
         const { searchParams } = new URL(req.url);
@@ -157,6 +164,12 @@ export async function GET(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+    const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
+    if (rl) return rl;
+
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     const { searchParams } = new URL(req.url);
     const countryCode = searchParams.get('countryCode');
@@ -180,6 +193,12 @@ export async function DELETE(req: Request) {
 }
 
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
+    if (rl) return rl;
+
+    const auth = await requireAdmin();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     try {
         const body = await req.json();

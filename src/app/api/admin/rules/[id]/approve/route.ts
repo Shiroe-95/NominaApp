@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/audit-service';
+import { applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 /**
  * PATCH /api/admin/rules/[id]/approve — Approves a pending rule.
@@ -11,9 +12,12 @@ import { logAudit } from '@/lib/audit/audit-service';
  * Requirements: 3.4, 6.1
  */
 export async function PATCH(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rl = applyRateLimit(req, 'admin-rules-approve', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
   try {
     const { id } = await params;
 

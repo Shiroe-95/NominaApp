@@ -1,5 +1,16 @@
+/**
+ * API Route: /api/sync/history
+ *
+ * Historial de sincronizaciones regulatorias.
+ * Requiere autenticación. Filtro opcional por código de país (ISO 3166-1 alpha-2).
+ *
+ * - GET — Lista historial de sincronizaciones ordenado por fecha descendente
+ *
+ * @module api/sync/history
+ */
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { applyRateLimit, requireAuth, isValidCountryCode, RATE_LIMITS } from '@/lib/api/guard';
 
 /**
  * GET /api/sync/history — Returns sync history, optionally filtered by country_code.
@@ -10,10 +21,17 @@ import { createAdminClient } from '@/lib/supabase/admin';
  * Requirement: 1.6
  */
 export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'sync-history', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const supabase = createAdminClient();
     const { searchParams } = new URL(req.url);
-    const countryCode = searchParams.get('country_code');
+    const rawCountryCode = searchParams.get('country_code');
+    const countryCode = rawCountryCode && isValidCountryCode(rawCountryCode) ? rawCountryCode.toUpperCase() : null;
 
     let query = supabase
       .from('sync_history')

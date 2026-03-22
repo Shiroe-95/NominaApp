@@ -1,9 +1,21 @@
+/**
+ * API Route: /api/settings/providers/:id/test
+ *
+ * Prueba de conectividad para un proveedor de IA.
+ * Requiere rol admin. Envía un prompt mínimo al modelo configurado
+ * y actualiza el estado de test en la BD.
+ *
+ * - POST — Ejecuta test de conectividad
+ *
+ * @module api/settings/providers/[id]/test
+ */
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { decryptApiKey } from '@/lib/ai/encryption';
 import { buildRegistry } from '@/lib/ai/providers';
 import type { ProviderConfig } from '@/lib/ai/types';
+import { applyRateLimit, requireAdmin, isValidUuid, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
@@ -14,8 +26,18 @@ function getErrorMessage(error: unknown, fallback: string): string {
 type RouteContext = { params: Promise<{ id: string }> };
 
 /** POST /api/settings/providers/:id/test — test connectivity for a provider */
-export async function POST(_req: Request, context: RouteContext) {
+export async function POST(req: Request, context: RouteContext) {
+  const rl = applyRateLimit(req, 'settings-providers-test', RATE_LIMITS.ai);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid provider id' }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
 
   try {

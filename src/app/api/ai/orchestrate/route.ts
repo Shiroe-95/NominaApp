@@ -1,5 +1,18 @@
+/**
+ * API Route: /api/ai/orchestrate
+ *
+ * Orquestación multi-agente de IA. Ejecuta el Agente Maestro que coordina
+ * sub-agentes especializados (auditor, corrector, mapeador, redactor, investigador).
+ * Requiere autenticación. Rate limited con preset `ai` (20/min).
+ *
+ * Carga proveedores de IA del usuario desde BD, construye registry dinámico,
+ * ejecuta con fallback automático entre proveedores y registra uso por agente.
+ *
+ * - POST — Ejecuta pipeline de orquestación multi-agente
+ *
+ * @module api/ai/orchestrate
+ */
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { OrchestrateRequestSchema } from '@/lib/ai/schemas';
 import { buildRegistry } from '@/lib/ai/providers';
 import { executeWithFallback } from '@/lib/ai/fallback';
@@ -9,26 +22,19 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { AgentContext, OrchestrateResponse } from '@/lib/ai/types';
 import { decryptApiKey } from '@/lib/ai/encryption';
 import type { ProviderConfig } from '@/lib/ai/types';
+import { applyRateLimit, requireAuth, RATE_LIMITS } from '@/lib/api/guard';
 
 // ── POST /api/ai/orchestrate ────────────────────────────────────────
 
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'ai-orchestrate', RATE_LIMITS.ai);
+  if (rl) return rl;
+
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    // 1. Authenticate user via Supabase session
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 },
-      );
-    }
-
-    // 2. Validate request body
+    // Validate request body
     const body = await req.json();
     const parsed = OrchestrateRequestSchema.safeParse(body);
 
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
     const { data: providers, error: provError } = await admin
       .from('ai_providers')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', auth.userId)
       .eq('is_active', true)
       .order('priority', { ascending: true });
 

@@ -1,7 +1,22 @@
+/**
+ * API Route: /api/sync/run
+ *
+ * Ejecuta sincronización regulatoria. Autenticado vía CRON_SECRET (Bearer token).
+ * Rate limited con preset `cron` (5/min). Opciones opcionales en body:
+ * countryCode, year, force.
+ *
+ * - POST — Ejecuta sincronización regulatoria
+ *
+ * @module api/sync/run
+ */
 import { NextResponse } from 'next/server';
 import { runSync } from '@/lib/sync/sync-service';
+import { applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'sync-run', RATE_LIMITS.cron);
+  if (rl) return rl;
+
   // Validate CRON_SECRET authentication
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;

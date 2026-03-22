@@ -13,7 +13,7 @@ interface AppShellProps {
 export default function AppShell({ children }: AppShellProps) {
     const pathname = usePathname();
     const isLoginPage = pathname === '/login';
-    const isPublicPage = pathname === '/' || pathname === '/pricing' || pathname === '/contact';
+    const isPublicPage = pathname === '/' || pathname === '/pricing' || pathname === '/contact' || pathname === '/about';
 
     if (isLoginPage || isPublicPage) {
         return <>{children}</>;

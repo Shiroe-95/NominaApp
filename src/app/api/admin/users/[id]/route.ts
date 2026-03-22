@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
@@ -11,6 +12,12 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** PUT /api/admin/users/:id — Update user role, company, or status */
 export async function PUT(req: Request, context: RouteContext) {
+  const rl = applyRateLimit(req, 'admin-users-update', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const supabase = createAdminClient();
 
@@ -74,7 +81,13 @@ export async function PUT(req: Request, context: RouteContext) {
 }
 
 /** DELETE /api/admin/users/:id — Soft-delete (deactivate) user */
-export async function DELETE(_req: Request, context: RouteContext) {
+export async function DELETE(req: Request, context: RouteContext) {
+  const rl = applyRateLimit(req, 'admin-users-delete', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const supabase = createAdminClient();
 

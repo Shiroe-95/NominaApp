@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { Lock, Mail, ArrowRight, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -26,8 +28,16 @@ export default function LoginPage() {
             return;
         }
 
-        router.push('/dashboard');
-        router.refresh();
+        // Respetar redirectTo si el middleware lo puso, sino ir al dashboard
+        const redirectTo = searchParams.get('redirectTo');
+        if (redirectTo && !redirectTo.includes('/login')) {
+            // redirectTo ya tiene locale (ej: /es/dashboard), usar window.location
+            // para forzar un full navigation que pase por el middleware
+            window.location.href = redirectTo;
+        } else {
+            router.push('/dashboard');
+            router.refresh();
+        }
     };
 
     const inputClass = "block w-full pl-10 pr-4 h-11 rounded-xl bg-[#0a0e18] border border-[#4a4455]/[0.15] text-sm text-[#e0e2f1] placeholder-[#958da1] focus:outline-none focus:border-[#7C3AED]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.12)] transition-all";

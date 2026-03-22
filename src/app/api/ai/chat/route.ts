@@ -1,35 +1,85 @@
+/**
+ * API Route: POST /api/ai/chat
+ *
+ * Chat conversacional con IA para gestión de reglas normativas de nómina.
+ * Soporta function calling (OpenAI) con fallback a generación de texto (Groq).
+ *
+ * Proveedores de IA (en orden de prioridad):
+ * 1. OpenAI (gpt-4o-mini) — soporta tool/function calling para CRUD de reglas.
+ * 2. Groq (llama-3.3-70b-versatile) — solo texto, sin herramientas.
+ *
+ * Herramientas disponibles (solo con OpenAI):
+ * - `listar_reglas` — Consulta reglas por país/año.
+ * - `actualizar_regla` — Modifica campos, cálculos o verificaciones de una regla.
+ * - `crear_regla` — Crea una nueva regla normativa.
+ * - `eliminar_regla` — Elimina una regla (requiere confirmación del usuario).
+ *
+ * Body esperado (JSON):
+ * - `messages` (ChatMessage[], requerido) — Historial de conversación.
+ * - `context` (string, opcional) — Contexto del dashboard para enriquecer respuestas.
+ *
+ * Respuesta exitosa (200):
+ * ```json
+ * { "reply": "string", "actionsPerformed": [{ "herramienta": "string", "exito": boolean, "resumen": "string" }] }
+ * ```
+ *
+ * Errores:
+ * - 400 — `messages` no es un array válido.
+ * - 500 — Error interno del proveedor de IA.
+ */
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
-// Get AI provider - OpenAI first, then Groq fallback
+/**
+ * Inicializa el cliente de OpenAI si la API key está configurada.
+ * @returns Instancia de OpenAI o null si no hay key.
+ */
 function getOpenAI() {
     if (!process.env.OPENAI_API_KEY) return null;
     return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
 
+/**
+ * Inicializa el proveedor de Groq si la API key está configurada.
+ * @returns Proveedor Groq o null si no hay key.
+ */
 function getGroq() {
     if (!process.env.GROQ_API_KEY) return null;
     return createGroq({ apiKey: process.env.GROQ_API_KEY });
 }
 
+/**
+ * Verifica si al menos un proveedor de IA está disponible.
+ * @returns `true` si OPENAI_API_KEY o GROQ_API_KEY están definidas.
+ */
 function isAIAvailable() {
     return !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
 }
 
+/** Mensaje individual del chat. */
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
 }
 
+/** Registro de una acción ejecutada por una herramienta durante el chat. */
 export interface ActionPerformed {
     herramienta: string;
     exito: boolean;
     resumen: string;
 }
 
+/**
+ * Extrae el mensaje de un error desconocido de forma segura.
+ *
+ * @param error - El error capturado (tipo desconocido).
+ * @param fallback - Mensaje por defecto si no se puede extraer uno del error.
+ * @returns El mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
 }
@@ -144,6 +194,13 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 // ── Tool executors ────────────────────────────────────────────────────────────
 
+/**
+ * Lista reglas normativas de la tabla `country_year_rules`.
+ * Filtra opcionalmente por código de país y/o año.
+ *
+ * @param args - Filtros opcionales: countryCode (ISO alpha-2), ruleYear.
+ * @returns Resultado con éxito/fallo, resumen y texto formateado de las reglas.
+ */
 async function toolListarReglas(args: { countryCode?: string; ruleYear?: number }): Promise<{ success: boolean; resumen: string; result: string }> {
     const supabase = createAdminClient();
     let query = supabase
@@ -170,6 +227,13 @@ async function toolListarReglas(args: { countryCode?: string; ruleYear?: number 
     return { success: true, resumen: `${data.length} regla(s) encontrada(s)`, result: text };
 }
 
+/**
+ * Actualiza una regla normativa existente. Permite agregar/quitar campos requeridos,
+ * cálculos, verificaciones y cambiar la etiqueta.
+ *
+ * @param args - Datos de la regla a modificar (countryCode y ruleYear requeridos).
+ * @returns Resultado con detalle de los cambios aplicados.
+ */
 async function toolActualizarRegla(args: {
     countryCode: string;
     ruleYear: number;
@@ -250,6 +314,13 @@ async function toolActualizarRegla(args: {
     return { success: true, resumen, result: resumen };
 }
 
+/**
+ * Crea una nueva regla normativa (o la reemplaza si ya existe, vía upsert).
+ *
+ * @param args - Datos de la regla: countryCode, ruleYear, etiqueta (requeridos),
+ *               camposRequeridos, calculosRequeridos, verificaciones (opcionales).
+ * @returns Resultado con confirmación de creación.
+ */
 async function toolCrearRegla(args: {
     countryCode: string;
     ruleYear: number;
@@ -282,6 +353,12 @@ async function toolCrearRegla(args: {
     };
 }
 
+/**
+ * Elimina permanentemente una regla normativa de la base de datos.
+ *
+ * @param args - countryCode y ruleYear de la regla a eliminar.
+ * @returns Resultado con confirmación de eliminación.
+ */
 async function toolEliminarRegla(args: { countryCode: string; ruleYear: number }): Promise<{ success: boolean; resumen: string; result: string }> {
     const supabase = createAdminClient();
     const cc = args.countryCode.toUpperCase();
@@ -296,6 +373,14 @@ async function toolEliminarRegla(args: { countryCode: string; ruleYear: number }
     return { success: true, resumen: `Regla ${cc} ${args.ruleYear} eliminada`, result: `La regla ${cc} ${args.ruleYear} fue eliminada permanentemente.` };
 }
 
+/**
+ * Dispatcher central de herramientas. Parsea los argumentos JSON y delega
+ * la ejecución a la función correspondiente según el nombre de la herramienta.
+ *
+ * @param name - Nombre de la herramienta (debe coincidir con las definiciones en TOOLS).
+ * @param argsJson - Argumentos serializados como JSON string.
+ * @returns Resultado estandarizado con success, resumen y result.
+ */
 async function executeTool(name: string, argsJson: string): Promise<{ success: boolean; resumen: string; result: string }> {
     try {
         const args = JSON.parse(argsJson) as Record<string, unknown>;
@@ -337,7 +422,28 @@ INSTRUCCIONES:
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
+/**
+ * POST /api/ai/chat — Procesa un mensaje del chat de IA.
+ *
+ * Flujo con OpenAI (function calling):
+ * 1. Envía el historial + system prompt al modelo.
+ * 2. Si el modelo solicita tool_calls, ejecuta cada herramienta.
+ * 3. Envía los resultados de vuelta al modelo para generar la respuesta final.
+ *
+ * Flujo con Groq (fallback, solo texto):
+ * 1. Toma el último mensaje del usuario.
+ * 2. Genera una respuesta de texto sin herramientas.
+ *
+ * @param req - Request HTTP con body JSON `{ messages: ChatMessage[], context?: string }`.
+ * @returns JSON `{ reply: string, actionsPerformed: ActionPerformed[] }` o `{ error: string }`.
+ */
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'ai/chat', RATE_LIMITS.aiChat);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     try {
         if (!isAIAvailable()) {
             return NextResponse.json({ 

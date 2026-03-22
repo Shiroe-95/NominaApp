@@ -1,6 +1,16 @@
+/**
+ * API Route: /api/notifications
+ *
+ * Notificaciones in-app del usuario autenticado.
+ * Requiere autenticación. Filtra por user_id del usuario en sesión.
+ *
+ * - GET — Lista notificaciones del usuario ordenadas por fecha descendente
+ *
+ * @module api/notifications
+ */
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { applyRateLimit, requireAuth, RATE_LIMITS } from '@/lib/api/guard';
 
 /**
  * GET /api/notifications — Returns notifications for the authenticated user,
@@ -8,25 +18,21 @@ import { createAdminClient } from '@/lib/supabase/admin';
  *
  * Requirements: 5.1, 5.4
  */
-export async function GET() {
-  try {
-    // Get authenticated user
-    const supabaseAuth = await createClient();
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'notifications', RATE_LIMITS.read);
+  if (rl) return rl;
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
+  try {
 
     // Fetch notifications using admin client
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', auth.userId)
       .order('created_at', { ascending: false });
 
     if (error) {

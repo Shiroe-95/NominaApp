@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string) {
     if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
     return error instanceof Error ? error.message : fallback;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+    const rl = applyRateLimit(req, 'companies', RATE_LIMITS.read);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     const { data, error } = await supabase
         .from('companies')
@@ -23,6 +30,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'companies-write', RATE_LIMITS.write);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     try {
         const body = await req.json();

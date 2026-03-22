@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 const VALID_COMPLEXITY_LEVELS = ['simple', 'moderate', 'complex'] as const;
 
@@ -17,6 +18,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
  * Validates: Requirements 7.4, 8.2
  */
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'admin-routing-rules-create', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {

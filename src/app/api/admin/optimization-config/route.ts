@@ -1,8 +1,26 @@
+/**
+ * API Route: /api/admin/optimization-config
+ *
+ * Gestión de la configuración de optimización de tokens IA (solo administradores).
+ * Permite consultar y actualizar la estrategia de enrutamiento de modelos,
+ * pesos de costo/calidad, umbral mínimo de calidad y auto-routing.
+ *
+ * Requiere rol `admin`. Protegido con rate limiting.
+ */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
+/** Estrategias de optimización válidas para el enrutamiento de modelos IA. */
 const VALID_STRATEGIES = ['cost-first', 'quality-first', 'balanced'] as const;
 
+/**
+ * Extrae el mensaje de un error desconocido de forma segura.
+ *
+ * @param error - El error capturado (tipo desconocido).
+ * @param fallback - Mensaje por defecto si no se puede extraer uno del error.
+ * @returns El mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
     return String((error as { message: unknown }).message);
@@ -10,12 +28,24 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * GET /api/admin/optimization-config
+ * GET /api/admin/optimization-config — Obtiene la configuración de optimización y reglas de enrutamiento.
  *
- * Returns the current optimization configuration and all model routing rules.
+ * Retorna la configuración actual (estrategia, pesos, umbral, auto-routing)
+ * junto con todas las reglas de enrutamiento de modelos.
+ *
  * Validates: Requirements 7.1, 7.5
+ *
+ * @param req - Request HTTP.
+ * @returns JSON `{ config: OptimizationConfig, rules: ModelRoutingRule[] }`
+ *          o `{ error: string }` con status 401/403/429/500.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'admin-optimization-config', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {
@@ -58,19 +88,37 @@ export async function GET() {
 
 
 /**
- * PUT /api/admin/optimization-config
+ * PUT /api/admin/optimization-config — Actualiza la configuración de optimización.
  *
- * Updates the optimization strategy, weights, min quality threshold,
- * and auto-routing toggle.
+ * Permite modificar la estrategia, pesos de costo/calidad, umbral mínimo
+ * de calidad y el toggle de auto-routing.
  *
- * Validations:
- *  - cost_weight + quality_weight must equal 1.0
- *  - min_quality_threshold must be between 0.0 and 1.0
- *  - strategy must be one of: 'cost-first', 'quality-first', 'balanced'
+ * Validaciones:
+ *  - `cost_weight` + `quality_weight` deben sumar 1.0
+ *  - `min_quality_threshold` debe estar entre 0.0 y 1.0
+ *  - `strategy` debe ser uno de: `cost-first`, `quality-first`, `balanced`
  *
  * Validates: Requirements 7.1, 7.2, 7.3, 7.5
+ *
+ * @param req - Request HTTP.
+ *
+ * Body esperado (JSON, todos opcionales):
+ * - `strategy` (string) — Estrategia de optimización.
+ * - `cost_weight` (number) — Peso del costo (0.0–1.0).
+ * - `quality_weight` (number) — Peso de la calidad (0.0–1.0).
+ * - `min_quality_threshold` (number) — Umbral mínimo de calidad (0.0–1.0).
+ * - `enable_auto_routing` (boolean) — Activar/desactivar enrutamiento automático.
+ *
+ * @returns JSON `{ config: OptimizationConfig }` con la configuración actualizada,
+ *          o `{ error: string }` con status 400/401/403/429/500.
  */
 export async function PUT(req: Request) {
+  const rl = applyRateLimit(req, 'admin-optimization-config-update', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {

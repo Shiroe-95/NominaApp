@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string) {
     if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
@@ -7,6 +8,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
+    const rl = applyRateLimit(req, 'actions-patch', RATE_LIMITS.write);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     try {
         const { id } = await context.params;

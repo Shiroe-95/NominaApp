@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 export interface AiCorrectionSuggestion {
     rowIndex: number;
@@ -22,6 +23,12 @@ function getGroq() {
 }
 
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'ai/corrections', RATE_LIMITS.ai);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     try {
         const openai = getOpenAI();
         const groq = getGroq();

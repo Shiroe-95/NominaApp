@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 export type ActionStatus = 'open' | 'assigned' | 'resolved';
 
@@ -9,6 +10,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function GET(req: Request) {
+    const rl = applyRateLimit(req, 'actions', RATE_LIMITS.read);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     const { searchParams } = new URL(req.url);
     const payrollId = searchParams.get('payrollId');
@@ -34,6 +41,12 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'actions-write', RATE_LIMITS.write);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const supabase = createAdminClient();
     try {
         const body = await req.json();

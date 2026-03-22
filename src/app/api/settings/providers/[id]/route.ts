@@ -1,3 +1,14 @@
+/**
+ * API Route: /api/settings/providers/:id
+ *
+ * Operaciones sobre un proveedor de IA específico.
+ * Requiere rol admin. Valida UUID del parámetro dinámico.
+ *
+ * - PUT    — Actualiza configuración del proveedor (re-valida conectividad si cambia key/modelo)
+ * - DELETE — Elimina un proveedor
+ *
+ * @module api/settings/providers/[id]
+ */
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -5,6 +16,7 @@ import { encryptApiKey, decryptApiKey } from '@/lib/ai/encryption';
 import { ProviderConfigSchema } from '@/lib/ai/schemas';
 import { buildRegistry } from '@/lib/ai/providers';
 import type { ProviderConfig } from '@/lib/ai/types';
+import { applyRateLimit, requireAdmin, isValidUuid, RATE_LIMITS } from '@/lib/api/guard';
 
 function maskApiKey(key: string): string {
   if (key.length <= 4) return '****';
@@ -21,7 +33,17 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** PUT /api/settings/providers/:id — update a provider */
 export async function PUT(req: Request, context: RouteContext) {
+  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid provider id' }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
 
   try {
@@ -117,8 +139,18 @@ export async function PUT(req: Request, context: RouteContext) {
 }
 
 /** DELETE /api/settings/providers/:id — remove a provider */
-export async function DELETE(_req: Request, context: RouteContext) {
+export async function DELETE(req: Request, context: RouteContext) {
+  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
+  if (!isValidUuid(id)) {
+    return NextResponse.json({ error: 'Invalid provider id' }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
 
   try {

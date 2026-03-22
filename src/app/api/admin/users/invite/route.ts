@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/email-service';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 /**
  * POST /api/admin/users/invite — Invite a new user by email.
@@ -15,6 +16,12 @@ import { sendEmail } from '@/lib/email/email-service';
  * Requirements: 7.1, 7.2, 7.3
  */
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'admin-users-invite', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {

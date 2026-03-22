@@ -1,19 +1,37 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/email-service';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 /**
- * POST /api/admin/users/[id]/resend-invite — Resend invitation to a pending user.
+ * POST /api/admin/users/[id]/resend-invite — Reenvía invitación a un usuario pendiente.
  *
- * - Verifies user has invitation_status='pending' before resending
- * - Rejects resend if user is already active
+ * Protegido con rate limiting (`adminWrite`) y requiere rol `admin`.
+ *
+ * Flujo:
+ * 1. Valida rate limit y autenticación admin.
+ * 2. Verifica que el usuario tenga `invitation_status = 'pending'`.
+ * 3. Reenvía la invitación vía Supabase Auth y envía email de invitación localizado.
+ *
+ * @param req - Request HTTP entrante.
+ * @param params - Parámetros de ruta con `id` (UUID del usuario destino).
+ *
+ * @returns JSON `{ ok: true, inviteResent: true }` con status 200 si se reenvió correctamente,
+ *          o `{ error: string }` con status 400 (usuario activo o sin email),
+ *          404 (usuario no encontrado), 401/403 (no autorizado), 429 (rate limit) o 500 (error interno).
  *
  * Requirements: 7.4, 7.6
  */
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const rl = applyRateLimit(req, 'admin-users-resend-invite', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { id } = await params;
 

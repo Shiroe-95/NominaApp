@@ -1,3 +1,15 @@
+/**
+ * API Route: /api/settings/providers
+ *
+ * Gestión de proveedores de IA (OpenAI, Anthropic, Groq, etc.).
+ * Requiere rol admin. API keys se almacenan cifradas (AES-256-GCM)
+ * y nunca se exponen en respuestas.
+ *
+ * - GET  — Lista todos los proveedores (keys enmascaradas)
+ * - POST — Crea un nuevo proveedor, valida conectividad antes de guardar
+ *
+ * @module api/settings/providers
+ */
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -5,6 +17,7 @@ import { encryptApiKey } from '@/lib/ai/encryption';
 import { ProviderConfigSchema } from '@/lib/ai/schemas';
 import { buildRegistry } from '@/lib/ai/providers';
 import type { ProviderConfig } from '@/lib/ai/types';
+import { applyRateLimit, requireAdmin, RATE_LIMITS } from '@/lib/api/guard';
 
 function maskApiKey(key: string): string {
   if (key.length <= 4) return '****';
@@ -18,7 +31,13 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 /** GET /api/settings/providers — list all providers (API keys masked) */
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'settings-providers', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
@@ -53,6 +72,12 @@ export async function GET() {
 
 /** POST /api/settings/providers — create a new provider + validate connectivity */
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {

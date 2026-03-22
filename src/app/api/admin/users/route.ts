@@ -1,14 +1,51 @@
+/**
+ * API Route: /api/admin/users
+ *
+ * Gestión de usuarios del sistema (solo administradores).
+ * Permite listar usuarios con sus perfiles y crear nuevos usuarios
+ * en Supabase Auth con su perfil asociado.
+ *
+ * Requiere rol `admin`. Protegido con rate limiting.
+ */
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
+/**
+ * Extrae el mensaje de un error desconocido de forma segura.
+ *
+ * @param error - El error capturado (tipo desconocido).
+ * @param fallback - Mensaje por defecto si no se puede extraer uno del error.
+ * @returns El mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
     return String((error as { message: unknown }).message);
   return fallback;
 }
 
-/** GET /api/admin/users — List all users with profiles */
+/**
+ * GET /api/admin/users — Lista todos los usuarios con sus perfiles.
+ *
+ * Combina datos de `user_profiles` con emails de `auth.users`.
+ *
+ * @param req - Request HTTP.
+ *
+ * Query params opcionales:
+ * - `role` — Filtrar por rol (`admin` | `analyst` | `client`).
+ * - `company_id` — Filtrar por UUID de empresa.
+ * - `status` — Filtrar por estado (`active` | `inactive`).
+ *
+ * @returns JSON `{ users: Array<{ id, email, display_name, role, company_id, company_name, is_active, created_at }> }`
+ *          o `{ error: string }` con status 401/403/429/500.
+ */
 export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'admin-users', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {
@@ -78,8 +115,31 @@ export async function GET(req: Request) {
   }
 }
 
-/** POST /api/admin/users — Create a new user in Auth + profile */
+/**
+ * POST /api/admin/users — Crea un nuevo usuario en Auth y su perfil.
+ *
+ * Crea el usuario en Supabase Auth (con email confirmado) y actualiza
+ * el perfil generado automáticamente por el trigger de la BD.
+ *
+ * @param req - Request HTTP.
+ *
+ * Body esperado (JSON):
+ * - `email` (string, requerido) — Correo electrónico del usuario.
+ * - `password` (string, requerido) — Contraseña del usuario.
+ * - `display_name` (string, opcional) — Nombre para mostrar.
+ * - `role` (string, opcional) — Rol: `admin` | `analyst` | `client`. Por defecto `client`.
+ * - `company_id` (string, opcional) — UUID de la empresa asociada.
+ *
+ * @returns JSON `{ user: { id, email, display_name, role, company_id } }` con status 201,
+ *          o `{ error: string }` con status 400/401/403/429/500.
+ */
 export async function POST(req: Request) {
+  const rl = applyRateLimit(req, 'admin-users-create', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 function getErrorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
@@ -312,6 +313,12 @@ ${JSON.stringify(allFindings.slice(0, 40))}`;
 }
 
 export async function POST(req: Request) {
+    const rl = applyRateLimit(req, 'ai/validation', RATE_LIMITS.ai);
+    if (rl) return rl;
+
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     try {
         const openai = getOpenAI();
         const groq = getGroq();

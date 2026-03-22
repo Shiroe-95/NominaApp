@@ -1,15 +1,53 @@
+/**
+ * API Route: /api/settings/usage
+ *
+ * Estadísticas agregadas de uso de IA con desgloses multidimensionales.
+ * Requiere rol admin. Soporta filtros por proveedor, agente, fechas,
+ * empresa, complejidad y tipo de tarea.
+ *
+ * - GET — Retorna estadísticas agregadas (por proveedor, agente, tarea, cliente)
+ *
+ * @module api/settings/usage
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsageStats } from '@/lib/ai/usage-logger';
 import type { EnhancedUsageStatsFilters, GroupByDimension } from '@/lib/ai/usage-logger';
+import { applyRateLimit, requireAdmin, RATE_LIMITS } from '@/lib/api/guard';
 
+/** Dimensiones válidas para agrupar estadísticas de uso */
 const VALID_GROUP_BY: GroupByDimension[] = ['provider', 'agent', 'task', 'client', 'model'];
 
-/** GET /api/settings/usage — aggregated usage statistics with multi-dimensional breakdowns */
+/**
+ * GET /api/settings/usage — Estadísticas agregadas de uso de IA con desgloses multidimensionales.
+ *
+ * Requiere rol de administrador. Aplica rate limiting de lectura.
+ *
+ * @param req - NextRequest con los siguientes query params opcionales:
+ *   - `provider_type` — Filtrar por tipo de proveedor IA (ej: "openai", "anthropic")
+ *   - `agent_name` — Filtrar por nombre de agente (ej: "auditor", "mapper")
+ *   - `from` — Fecha inicio del rango (ISO 8601)
+ *   - `to` — Fecha fin del rango (ISO 8601)
+ *   - `company_id` — Filtrar por ID de empresa/cliente
+ *   - `complexity_level` — Filtrar por nivel de complejidad de tarea
+ *   - `task_type` — Filtrar por tipo de tarea
+ *   - `group_by` — Dimensión de agrupación: "provider" | "agent" | "task" | "client" | "model"
+ *
+ * @returns Si `group_by` está presente: `{ stats: UsageStat[] }` agrupado por esa dimensión.
+ *   Si no: respuesta multidimensional con `{ stats, by_agent, by_task, by_client, aggregated }`.
+ *   `aggregated` incluye: total_calls, total_tokens, total_cost_usd, global_error_rate, avg_latency_ms.
+ *   En caso de error: `{ error: string }` con status 400 o 500.
+ */
 export async function GET(req: NextRequest) {
+  const rl = applyRateLimit(req, 'settings-usage', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = req.nextUrl;
 
-    // ── Build base filters ──
+    // Construir filtros base a partir de query params
     const baseFilters: EnhancedUsageStatsFilters = {};
 
     const providerType = searchParams.get('provider_type');
@@ -33,7 +71,7 @@ export async function GET(req: NextRequest) {
     const taskType = searchParams.get('task_type');
     if (taskType) baseFilters.task_type = taskType;
 
-    // ── Single group_by mode ──
+    // Modo de agrupación única: retorna stats agrupados por una sola dimensión
     const groupBy = searchParams.get('group_by') as GroupByDimension | null;
 
     if (groupBy) {
@@ -48,7 +86,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ stats });
     }
 
-    // ── Multi-dimensional response (no group_by specified) ──
+    // Respuesta multidimensional: consulta paralela por proveedor, agente, tarea y cliente
     const [byProvider, byAgent, byTask, byClient] = await Promise.all([
       getUsageStats({ ...baseFilters, group_by: 'provider' }),
       getUsageStats({ ...baseFilters, group_by: 'agent' }),
@@ -56,7 +94,7 @@ export async function GET(req: NextRequest) {
       getUsageStats({ ...baseFilters, group_by: 'client' }),
     ]);
 
-    // ── Compute aggregated totals from provider breakdown ──
+    // Calcular totales agregados a partir del desglose por proveedor
     const totalCalls = byProvider.reduce((sum, s) => sum + s.total_calls, 0);
     const totalTokens = byProvider.reduce((sum, s) => sum + s.total_tokens, 0);
     const totalCost = byProvider.reduce((sum, s) => sum + s.cost_usd, 0);

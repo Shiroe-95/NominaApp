@@ -1,18 +1,46 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getBreakdown, type FinanceFilters } from '@/lib/ai/cost-calculator';
 import { NextResponse } from 'next/server';
+import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
-/** Default monthly infrastructure cost in USD when no DB records exist */
+/** Costo mensual de infraestructura por defecto (USD) cuando no existen registros en BD */
 const DEFAULT_INFRASTRUCTURE_COST_USD = 50;
 
+/**
+ * Extrae un mensaje legible de un error desconocido.
+ *
+ * @param error - Valor capturado en un bloque catch.
+ * @param fallback - Mensaje por defecto si el error no contiene `.message`.
+ * @returns Mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
     return String((error as { message: unknown }).message);
   return fallback;
 }
 
-/** GET /api/admin/finance — Financial overview: tokens, costs, revenue, profitability */
+/**
+ * GET /api/admin/finance — Resumen financiero de IA.
+ *
+ * Requiere rol `admin`. Aplica rate limiting con preset `read`.
+ *
+ * Query params opcionales:
+ * - `from` (ISO date) — Inicio del rango de fechas.
+ * - `to` (ISO date) — Fin del rango de fechas.
+ * - `company_id` (UUID) — Filtrar por empresa.
+ *
+ * @returns JSON con KPIs (costo IA, ingresos, márgenes, costo por nómina),
+ *          desgloses por proveedor/agente/cliente, breakdown de ingresos,
+ *          rentabilidad y metadatos del período.
+ *          Retorna 401 si no autenticado, 403 si no es admin, 429 si excede rate limit.
+ */
 export async function GET(req: Request) {
+  const rl = applyRateLimit(req, 'admin-finance', RATE_LIMITS.read);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {
@@ -168,6 +196,13 @@ export async function GET(req: Request) {
   }
 }
 
+/**
+ * Redondea un número a la cantidad de decimales indicada.
+ *
+ * @param n - Número a redondear.
+ * @param decimals - Cantidad de decimales (por defecto 4).
+ * @returns Número redondeado.
+ */
 function round(n: number, decimals = 4): number {
   const f = 10 ** decimals;
   return Math.round(n * f) / f;

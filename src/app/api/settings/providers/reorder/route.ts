@@ -1,6 +1,17 @@
+/**
+ * API Route: /api/settings/providers/reorder
+ *
+ * Reordena la prioridad de los proveedores de IA.
+ * Requiere rol admin. Recibe un array de { id, priority } validado con Zod.
+ *
+ * - PUT — Actualiza prioridades de múltiples proveedores
+ *
+ * @module api/settings/providers/reorder
+ */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { applyRateLimit, requireAdmin, RATE_LIMITS } from '@/lib/api/guard';
 
 const ReorderSchema = z.object({
   order: z.array(
@@ -19,6 +30,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 /** PUT /api/settings/providers/reorder — reorder provider priorities */
 export async function PUT(req: Request) {
+  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  if (rl) return rl;
+
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   const supabase = createAdminClient();
 
   try {
