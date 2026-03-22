@@ -16,7 +16,7 @@ import { requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
  * Requirements: 7.1, 7.2, 7.3
  */
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'admin-users-invite', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-users-invite', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

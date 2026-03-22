@@ -21,7 +21,7 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ ruleId: string }> },
 ) {
-  const rl = applyRateLimit(req, 'audit', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'audit', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAuth();

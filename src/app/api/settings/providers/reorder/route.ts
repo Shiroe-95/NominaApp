@@ -30,7 +30,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 /** PUT /api/settings/providers/reorder — reorder provider priorities */
 export async function PUT(req: Request) {
-  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

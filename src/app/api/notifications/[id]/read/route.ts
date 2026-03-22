@@ -35,7 +35,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const rl = applyRateLimit(req, 'notifications-write', RATE_LIMITS.write);
+  const rl = await applyRateLimit(req, 'notifications-write', RATE_LIMITS.write);
   if (rl) return rl;
 
   const auth = await requireAuth();

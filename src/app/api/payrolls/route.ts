@@ -8,7 +8,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function GET(req: Request) {
-    const rl = applyRateLimit(req, 'payrolls', RATE_LIMITS.read);
+    const rl = await applyRateLimit(req, 'payrolls', RATE_LIMITS.read);
     if (rl) return rl;
 
     const auth = await requireAuth();
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAuth();
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-    const rl = applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAuth();
@@ -167,7 +167,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    const rl = applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'payrolls-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAuth();

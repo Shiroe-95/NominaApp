@@ -38,7 +38,7 @@ const VALID_GROUP_BY: GroupByDimension[] = ['provider', 'agent', 'task', 'client
  *   En caso de error: `{ error: string }` con status 400 o 500.
  */
 export async function GET(req: NextRequest) {
-  const rl = applyRateLimit(req, 'settings-usage', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'settings-usage', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();

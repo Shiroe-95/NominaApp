@@ -21,7 +21,7 @@ import { applyRateLimit, requireAuth, isValidCountryCode, RATE_LIMITS } from '@/
  * Requirement: 1.6
  */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'sync-history', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'sync-history', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAuth();

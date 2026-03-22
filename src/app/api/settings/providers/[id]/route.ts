@@ -33,7 +33,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** PUT /api/settings/providers/:id — update a provider */
 export async function PUT(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -140,7 +140,7 @@ export async function PUT(req: Request, context: RouteContext) {
 
 /** DELETE /api/settings/providers/:id — remove a provider */
 export async function DELETE(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

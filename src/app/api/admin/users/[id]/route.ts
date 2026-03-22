@@ -12,7 +12,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** PUT /api/admin/users/:id — Update user role, company, or status */
 export async function PUT(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'admin-users-update', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-users-update', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -82,7 +82,7 @@ export async function PUT(req: Request, context: RouteContext) {
 
 /** DELETE /api/admin/users/:id — Soft-delete (deactivate) user */
 export async function DELETE(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'admin-users-delete', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-users-delete', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

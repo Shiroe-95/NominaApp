@@ -7,7 +7,7 @@
  * ## Uso típico en una API route:
  * ```ts
  * export async function GET(req: Request) {
- *   const rl = applyRateLimit(req, 'my-route', RATE_LIMITS.read);
+ *   const rl = await applyRateLimit(req, 'my-route', RATE_LIMITS.read);
  *   if (rl) return rl;
  *
  *   const auth = await requireAuth();
@@ -38,6 +38,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   checkRateLimit,
+  checkRateLimitSync,
   getClientIp,
   RATE_LIMITS,
   type RateLimitConfig,
@@ -76,22 +77,21 @@ function forbiddenResponse(msg = 'Forbidden') {
 /**
  * Aplica rate limiting a un request.
  *
- * Combina la IP del cliente con la clave de ruta para generar un identificador
- * único y consulta el rate limiter in-memory.
+ * Usa Redis distribuido (Upstash) si está configurado, o in-memory como fallback.
  *
  * @param req - Request entrante (se extrae la IP del header `x-forwarded-for`).
  * @param routeKey - Identificador de la ruta (ej. `'actions'`, `'ai-chat'`).
  * @param config - Configuración de límite; por defecto `RATE_LIMITS.read` (60 req/min).
  * @returns `NextResponse` 429 con header `Retry-After` si excede el límite, o `null` si está permitido.
  */
-export function applyRateLimit(
+export async function applyRateLimit(
   req: Request,
   routeKey: string,
   config: RateLimitConfig = RATE_LIMITS.read,
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const ip = getClientIp(req);
   const key = `${ip}:${routeKey}`;
-  const result = checkRateLimit(key, config);
+  const result = await checkRateLimit(key, config);
 
   if (!result.allowed) {
     return rateLimitResponse(result.resetAt);

@@ -438,7 +438,7 @@ INSTRUCCIONES:
  * @returns JSON `{ reply: string, actionsPerformed: ActionPerformed[] }` o `{ error: string }`.
  */
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'ai/chat', RATE_LIMITS.aiChat);
+    const rl = await applyRateLimit(req, 'ai/chat', RATE_LIMITS.aiChat);
     if (rl) return rl;
 
     const auth = await requireAuth();

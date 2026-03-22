@@ -30,7 +30,7 @@ const TABLE = 'supported_countries';
  * @returns 200 con array de países | 401 si no autenticado | 403 si no es admin | 429 si excede rate limit | 500 en error de BD.
  */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'admin/countries', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'admin/countries', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
  * - `currency_code` (string, opcional) — Código de moneda ISO 4217 (ej: "COP", "USD").
  */
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const rl = applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -110,7 +110,7 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const rl = applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin/countries', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

@@ -35,7 +35,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
  *          Retorna 401 si no autenticado, 403 si no es admin, 429 si excede rate limit.
  */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'admin-finance', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'admin-finance', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();

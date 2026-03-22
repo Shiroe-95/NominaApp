@@ -17,6 +17,13 @@ import { buildRegistry } from '@/lib/ai/providers';
 import type { ProviderConfig } from '@/lib/ai/types';
 import { applyRateLimit, requireAdmin, isValidUuid, RATE_LIMITS } from '@/lib/api/guard';
 
+/**
+ * Extrae un mensaje legible de un error desconocido.
+ *
+ * @param error - Error capturado (puede ser cualquier tipo).
+ * @param fallback - Mensaje por defecto si no se puede extraer uno del error.
+ * @returns Mensaje de error como string.
+ */
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error)
     return String((error as { message: unknown }).message);
@@ -25,9 +32,18 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** POST /api/settings/providers/:id/test — test connectivity for a provider */
+/**
+ * POST /api/settings/providers/:id/test — Prueba de conectividad para un proveedor de IA.
+ *
+ * Envía un prompt mínimo ("Hello", maxTokens: 5) al modelo configurado y actualiza
+ * el estado de test en la tabla `ai_providers`. Si falla, desactiva el proveedor.
+ *
+ * @param req - Request HTTP entrante.
+ * @param context - Contexto de ruta con `params.id` (UUID del proveedor).
+ * @returns JSON `{ success: boolean, error?: string }`. Status 400 si UUID inválido, 404 si no existe, 500 en error inesperado.
+ */
 export async function POST(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'settings-providers-test', RATE_LIMITS.ai);
+  const rl = await applyRateLimit(req, 'settings-providers-test', RATE_LIMITS.ai);
   if (rl) return rl;
 
   const auth = await requireAdmin();

@@ -313,7 +313,7 @@ ${JSON.stringify(allFindings.slice(0, 40))}`;
 }
 
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'ai/validation', RATE_LIMITS.ai);
+    const rl = await applyRateLimit(req, 'ai/validation', RATE_LIMITS.ai);
     if (rl) return rl;
 
     const auth = await requireAuth();

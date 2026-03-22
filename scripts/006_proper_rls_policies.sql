@@ -1,0 +1,20 @@
+-- ============================================================
+-- 006: Proper RLS Policies + Finance Tables
+-- Applied via Supabase MCP migrations:
+--   - 005_finance_token_optimization (model_routing_rules, quality_metrics, optimization_config)
+--   - 006_proper_rls_all_tables (company-scoped + role-based policies)
+--
+-- This file is kept for reference. The actual migration was applied
+-- directly to the database via Supabase MCP.
+--
+-- Summary of RLS strategy:
+--   - Helper functions: get_user_company_id(), is_admin(), is_analyst_or_admin()
+--   - Company-scoped: companies, employees, audits, reconciliation_records,
+--     payroll_uploads, payroll_action_items, applied_corrections
+--   - User-scoped: notifications (user_id = auth.uid()), user_profiles, ai_providers
+--   - Admin-only: infrastructure_costs, sync_history, email_log
+--   - Auth read + admin write: country_year_rules, supported_countries,
+--     task_pricing, provider_token_rates, research_sources,
+--     model_routing_rules, quality_metrics, optimization_config
+--   - Admin read + auth write: agent_communications, rule_audit_log
+-- ============================================================

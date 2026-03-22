@@ -8,7 +8,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
-    const rl = applyRateLimit(req, 'actions-patch', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'actions-patch', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAuth();

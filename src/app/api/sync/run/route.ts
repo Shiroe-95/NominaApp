@@ -14,7 +14,7 @@ import { runSync } from '@/lib/sync/sync-service';
 import { applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
 
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'sync-run', RATE_LIMITS.cron);
+  const rl = await applyRateLimit(req, 'sync-run', RATE_LIMITS.cron);
   if (rl) return rl;
 
   // Validate CRON_SECRET authentication

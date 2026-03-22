@@ -485,6 +485,10 @@ nomina-smart/
 │   │   ├── api/                  # Guard + Rate limiter
 │   │   ├── audit/                # Auditoría de reglas
 │   │   ├── email/                # Email (Resend) + plantillas
+│   │   ├── integrations/         # Conectores con sistemas externos (ERPs)
+│   │   │   ├── connectors/       # Implementaciones: generic-api, siigo
+│   │   │   ├── registry.ts       # Registro central de conectores
+│   │   │   └── types.ts          # Tipos base (IntegrationConnector, SyncResult)
 │   │   ├── notifications/        # Notificaciones in-app
 │   │   ├── payroll/              # Lógica de nómina
 │   │   ├── sync/                 # Sincronización regulatoria
@@ -548,6 +552,8 @@ Ejecuta los scripts SQL en orden desde el SQL Editor de Supabase:
 | `ENCRYPTION_KEY` | ✅ | Clave AES-256 (64 chars hex) |
 | `CRON_SECRET` | ✅ | Secret para cron jobs de Vercel |
 | `FIRECRAWL_API_KEY` | ⬜ | API key de Firecrawl para investigación regulatoria (búsqueda web + scraping). [Obtener key](https://www.firecrawl.dev/). Si no se configura, el agente investigador usa datos de respaldo (REGULATION_DB) con confianza baja. |
+| `UPSTASH_REDIS_REST_URL` | ⬜ | URL REST de Upstash Redis para rate limiting distribuido. Si no se configura, usa store in-memory. |
+| `UPSTASH_REDIS_REST_TOKEN` | ⬜ | Token de autenticación de Upstash Redis. Requerido junto con `UPSTASH_REDIS_REST_URL`. |
 
 Generar `ENCRYPTION_KEY`:
 ```bash
@@ -623,7 +629,7 @@ Locales: `es` (default), `en`, `pt`. Prefijo siempre visible en URL. Diccionario
 | `write` | 40/min | Escrituras |
 | `cron` | 5/min | Sync/cron |
 
-> In-memory (no distribuido). Para producción multi-instancia, usar Redis (Upstash).
+> Soporta Redis distribuido (Upstash) si `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` están configurados. Sin Redis, usa store in-memory (funcional para single-instance).
 
 ---
 

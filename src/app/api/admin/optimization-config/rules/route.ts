@@ -18,7 +18,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
  * Validates: Requirements 7.4, 8.2
  */
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'admin-routing-rules-create', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-routing-rules-create', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

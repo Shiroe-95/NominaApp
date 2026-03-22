@@ -23,7 +23,7 @@ function getGroq() {
 }
 
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'ai/corrections', RATE_LIMITS.ai);
+    const rl = await applyRateLimit(req, 'ai/corrections', RATE_LIMITS.ai);
     if (rl) return rl;
 
     const auth = await requireAuth();

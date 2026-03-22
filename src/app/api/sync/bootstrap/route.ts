@@ -16,7 +16,7 @@ import { runSync } from '@/lib/sync/sync-service';
 import { applyRateLimit, requireAdmin, RATE_LIMITS } from '@/lib/api/guard';
 
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'sync-bootstrap', RATE_LIMITS.cron);
+  const rl = await applyRateLimit(req, 'sync-bootstrap', RATE_LIMITS.cron);
   if (rl) return rl;
 
   // Allow both admin users and CRON_SECRET

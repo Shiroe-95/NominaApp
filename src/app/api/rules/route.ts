@@ -148,7 +148,7 @@ const DEFAULT_RULES = [
  * @returns JSON con `{ rules: Array }`.
  */
 export async function GET(req: Request) {
-    const rl = applyRateLimit(req, 'rules', RATE_LIMITS.read);
+    const rl = await applyRateLimit(req, 'rules', RATE_LIMITS.read);
     if (rl) return rl;
 
     const auth = await requireAuth();
@@ -222,7 +222,7 @@ export async function GET(req: Request) {
  * @returns JSON `{ ok: true }` o error 400/500.
  */
 export async function DELETE(req: Request) {
-    const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAdmin();
@@ -267,7 +267,7 @@ export async function DELETE(req: Request) {
  * @returns JSON `{ rule: RuleResponse | null }` o error 400/500.
  */
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAdmin();

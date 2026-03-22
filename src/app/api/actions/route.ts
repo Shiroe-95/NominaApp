@@ -10,7 +10,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export async function GET(req: Request) {
-    const rl = applyRateLimit(req, 'actions', RATE_LIMITS.read);
+    const rl = await applyRateLimit(req, 'actions', RATE_LIMITS.read);
     if (rl) return rl;
 
     const auth = await requireAuth();
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'actions-write', RATE_LIMITS.write);
+    const rl = await applyRateLimit(req, 'actions-write', RATE_LIMITS.write);
     if (rl) return rl;
 
     const auth = await requireAuth();

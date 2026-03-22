@@ -27,7 +27,7 @@ import { applyRateLimit, requireAuth, RATE_LIMITS } from '@/lib/api/guard';
 // ── POST /api/ai/orchestrate ────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'ai-orchestrate', RATE_LIMITS.ai);
+  const rl = await applyRateLimit(req, 'ai-orchestrate', RATE_LIMITS.ai);
   if (rl) return rl;
 
   const auth = await requireAuth();

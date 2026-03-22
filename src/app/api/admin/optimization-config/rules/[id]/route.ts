@@ -18,7 +18,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Validates: Requirements 7.4, 8.2
  */
 export async function DELETE(req: Request, context: RouteContext) {
-  const rl = applyRateLimit(req, 'admin-routing-rules-delete', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-routing-rules-delete', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

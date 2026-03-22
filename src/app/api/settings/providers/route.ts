@@ -32,7 +32,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 /** GET /api/settings/providers — list all providers (API keys masked) */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'settings-providers', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'settings-providers', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
 
 /** POST /api/settings/providers — create a new provider + validate connectivity */
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'settings-providers-write', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

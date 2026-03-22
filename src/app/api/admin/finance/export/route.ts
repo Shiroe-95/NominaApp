@@ -21,7 +21,7 @@ function escapeCsv(value: string | number): string {
 
 /** GET /api/admin/finance/export — Download CSV with full financial breakdown */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'admin-finance-export', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'admin-finance-export', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();

@@ -141,7 +141,7 @@ function getRuleSet(countryCode: string, year: number) {
 }
 
 export async function POST(req: Request) {
-    const rl = applyRateLimit(req, 'ai/mapping', RATE_LIMITS.ai);
+    const rl = await applyRateLimit(req, 'ai/mapping', RATE_LIMITS.ai);
     if (rl) return rl;
 
     const auth = await requireAuth();

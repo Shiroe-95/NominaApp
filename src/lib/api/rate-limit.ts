@@ -1,7 +1,10 @@
 /**
- * Rate limiter in-memory para API routes de Next.js.
+ * Rate limiter con soporte distribuido (Upstash Redis) y fallback in-memory.
  *
- * Implementa un sliding window por IP con limpieza periódica de entradas expiradas.
+ * ## Comportamiento:
+ * - Si `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` están configurados,
+ *   usa Redis para rate limiting distribuido (compatible con Vercel serverless).
+ * - Si no, usa un store in-memory (funcional para single-instance).
  *
  * ## Presets disponibles (`RATE_LIMITS`):
  * | Preset       | Límite | Ventana | Uso                          |
@@ -14,11 +17,6 @@
  * | `write`     | 40/min | 60s     | Escrituras generales         |
  * | `cron`      | 5/min  | 60s     | Sync/cron (muy restrictivo)  |
  *
- * ## Nota de producción:
- * En producción con múltiples instancias (Vercel serverless), este rate limiter
- * in-memory no comparte estado entre instancias. Para rate limiting distribuido,
- * reemplazar por Redis (Upstash) o similar.
- *
  * @module lib/api/rate-limit
  */
 
@@ -27,21 +25,55 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-const store = new Map<string, RateLimitEntry>();
+// ─── In-memory store (fallback) ─────────────────────────────────────────────
 
-// Limpieza periódica de entradas expiradas (cada 60s)
+const memoryStore = new Map<string, RateLimitEntry>();
+
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of store) {
-      if (now > entry.resetAt) store.delete(key);
+    for (const [key, entry] of memoryStore) {
+      if (now > entry.resetAt) memoryStore.delete(key);
     }
   }, 60_000);
 }
 
+// ─── Upstash Redis client (lazy init) ───────────────────────────────────────
+
+interface UpstashConfig {
+  url: string;
+  token: string;
+}
+
+function getUpstashConfig(): UpstashConfig | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) return { url, token };
+  return null;
+}
+
 /**
- * Configuración de rate limiting para un endpoint.
+ * Execute an Upstash Redis REST command.
+ * Uses the HTTP REST API so no npm dependency is needed.
  */
+async function upstashCommand(
+  config: UpstashConfig,
+  command: string[],
+): Promise<{ result: unknown }> {
+  const res = await fetch(`${config.url}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(command),
+  });
+  if (!res.ok) throw new Error(`Upstash error: ${res.status}`);
+  return res.json() as Promise<{ result: unknown }>;
+}
+
+// ─── Config & presets ───────────────────────────────────────────────────────
+
 export interface RateLimitConfig {
   /** Máximo de requests permitidos en la ventana */
   limit: number;
@@ -51,29 +83,23 @@ export interface RateLimitConfig {
 
 /** Presets por tipo de endpoint */
 export const RATE_LIMITS = {
-  /** Login, auth callback */
   auth: { limit: 10, windowSeconds: 60 },
-  /** Endpoints de AI (costosos) */
   ai: { limit: 20, windowSeconds: 60 },
-  /** Chat AI */
   aiChat: { limit: 30, windowSeconds: 60 },
-  /** Escrituras admin */
   adminWrite: { limit: 30, windowSeconds: 60 },
-  /** Lecturas generales */
   read: { limit: 60, windowSeconds: 60 },
-  /** Escrituras generales */
   write: { limit: 40, windowSeconds: 60 },
-  /** Sync/cron (muy restrictivo) */
   cron: { limit: 5, windowSeconds: 60 },
 } as const;
 
+// ─── IP extraction ──────────────────────────────────────────────────────────
+
 /**
  * Extrae la IP del cliente desde los headers del request.
- * Prioriza `x-forwarded-for` (Vercel/proxy), luego `x-real-ip`,
- * y usa `'unknown'` como fallback.
+ * Prioriza `x-forwarded-for` (proxies/load balancers), luego `x-real-ip`.
  *
- * @param req - Objeto Request de la API route.
- * @returns La dirección IP del cliente como string.
+ * @param req - Request HTTP entrante
+ * @returns Dirección IP del cliente, o `'unknown'` si no se puede determinar
  */
 export function getClientIp(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -81,26 +107,22 @@ export function getClientIp(req: Request): string {
   return req.headers.get('x-real-ip') ?? 'unknown';
 }
 
+// ─── Rate limit result ──────────────────────────────────────────────────────
+
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetAt: number;
 }
 
-/**
- * Verifica si un request está dentro del rate limit.
- *
- * @param key - Identificador único (normalmente `${ip}:${routePrefix}`)
- * @param config - Configuración de límite
- * @returns Resultado con allowed, remaining y resetAt
- */
-export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitResult {
+// ─── In-memory check ────────────────────────────────────────────────────────
+
+function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
-  const entry = store.get(key);
+  const entry = memoryStore.get(key);
 
   if (!entry || now > entry.resetAt) {
-    // Nueva ventana
-    store.set(key, { count: 1, resetAt: now + config.windowSeconds * 1000 });
+    memoryStore.set(key, { count: 1, resetAt: now + config.windowSeconds * 1000 });
     return { allowed: true, remaining: config.limit - 1, resetAt: now + config.windowSeconds * 1000 };
   }
 
@@ -111,4 +133,72 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
   }
 
   return { allowed: true, remaining: config.limit - entry.count, resetAt: entry.resetAt };
+}
+
+// ─── Redis check (sliding window via INCR + EXPIRE) ─────────────────────────
+
+async function checkRateLimitRedis(
+  key: string,
+  config: RateLimitConfig,
+  upstash: UpstashConfig,
+): Promise<RateLimitResult> {
+  const redisKey = `rl:${key}`;
+  const now = Date.now();
+
+  try {
+    // INCR atomically increments and returns the new count
+    const incrRes = await upstashCommand(upstash, ['INCR', redisKey]);
+    const count = Number(incrRes.result);
+
+    // If this is the first request in the window, set expiry
+    if (count === 1) {
+      await upstashCommand(upstash, ['EXPIRE', redisKey, String(config.windowSeconds)]);
+    }
+
+    if (count > config.limit) {
+      // Get TTL to calculate resetAt
+      const ttlRes = await upstashCommand(upstash, ['TTL', redisKey]);
+      const ttl = Number(ttlRes.result);
+      return { allowed: false, remaining: 0, resetAt: now + ttl * 1000 };
+    }
+
+    return {
+      allowed: true,
+      remaining: config.limit - count,
+      resetAt: now + config.windowSeconds * 1000,
+    };
+  } catch {
+    // Redis unavailable — fallback to in-memory
+    return checkRateLimitMemory(key, config);
+  }
+}
+
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+/**
+ * Verifica si un request está dentro del rate limit.
+ * Usa Redis (Upstash) si está configurado, in-memory como fallback.
+ *
+ * @param key - Identificador único del rate limit (ej: `"ai:192.168.1.1"`)
+ * @param config - Configuración con `limit` y `windowSeconds`
+ * @returns Resultado con `allowed`, `remaining` y `resetAt` (timestamp ms)
+ */
+export async function checkRateLimit(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+  const upstash = getUpstashConfig();
+  if (upstash) {
+    return checkRateLimitRedis(key, config, upstash);
+  }
+  return checkRateLimitMemory(key, config);
+}
+
+/**
+ * Versión síncrona para compatibilidad con código existente.
+ * Solo usa in-memory store (no Redis).
+ *
+ * @param key - Identificador único del rate limit
+ * @param config - Configuración con `limit` y `windowSeconds`
+ * @returns Resultado con `allowed`, `remaining` y `resetAt` (timestamp ms)
+ */
+export function checkRateLimitSync(key: string, config: RateLimitConfig): RateLimitResult {
+  return checkRateLimitMemory(key, config);
 }

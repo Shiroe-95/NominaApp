@@ -40,7 +40,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
  *          o `{ error: string }` con status 401/403/429/500.
  */
 export async function GET(req: Request) {
-  const rl = applyRateLimit(req, 'admin-users', RATE_LIMITS.read);
+  const rl = await applyRateLimit(req, 'admin-users', RATE_LIMITS.read);
   if (rl) return rl;
 
   const auth = await requireAdmin();
@@ -134,7 +134,7 @@ export async function GET(req: Request) {
  *          o `{ error: string }` con status 400/401/403/429/500.
  */
 export async function POST(req: Request) {
-  const rl = applyRateLimit(req, 'admin-users-create', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-users-create', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();

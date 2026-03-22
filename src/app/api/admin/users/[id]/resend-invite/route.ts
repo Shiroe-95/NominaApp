@@ -26,7 +26,7 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const rl = applyRateLimit(req, 'admin-users-resend-invite', RATE_LIMITS.adminWrite);
+  const rl = await applyRateLimit(req, 'admin-users-resend-invite', RATE_LIMITS.adminWrite);
   if (rl) return rl;
 
   const auth = await requireAdmin();
