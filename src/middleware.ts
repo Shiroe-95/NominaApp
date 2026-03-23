@@ -4,12 +4,10 @@
  * Responsabilidades:
  * 1. Detectar/redirigir el locale del usuario (next-intl).
  * 2. Permitir acceso libre a rutas públicas (landing, pricing, login, etc.).
- * 3. Validar sesión de Supabase para rutas protegidas.
+ * 3. Refrescar sesión de Supabase para rutas protegidas.
  * 4. Verificar permisos basados en rol (admin, analyst, client).
  *
- * Las constantes ADMIN_ONLY y ANALYST_ONLY definen las restricciones de acceso
- * por rol. Consultar `src/lib/auth/user-profile.ts` para la lógica completa
- * de permisos reutilizable fuera del middleware.
+ * La lógica de permisos se centraliza en `src/lib/auth/user-profile.ts`.
  *
  * @module middleware
  */
@@ -17,20 +15,17 @@ import { type NextRequest, NextResponse } from 'next/server';
 import createIntlMiddleware from 'next-intl/middleware';
 import { createServerClient } from '@supabase/ssr';
 import { routing } from './i18n/routing';
+import {
+  isPublicRoute,
+  hasPermission,
+  fetchUserRoleEdge,
+  type UserRole,
+} from './lib/auth/user-profile';
 
 // ─── Configuración ──────────────────────────────────────────────────────────
 
 const LOCALES = routing.locales as readonly string[];
 const DEFAULT_LOCALE = routing.defaultLocale;
-
-/** Rutas públicas (sin locale) que no requieren autenticación */
-const PUBLIC_PATHS = new Set(['/', '/pricing', '/contact', '/about', '/login']);
-const PUBLIC_PREFIXES = ['/login', '/auth'];
-
-/** Rutas restringidas a admin — solo usuarios con rol 'admin' */
-const ADMIN_ONLY = ['/admin', '/settings/providers', '/settings/users'];
-/** Rutas restringidas a analyst+ — accesibles por 'admin' y 'analyst', no por 'client' */
-const ANALYST_ONLY = ['/upload', '/reconcile', '/rules'];
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -38,9 +33,6 @@ const intlMiddleware = createIntlMiddleware(routing);
 
 /**
  * Elimina el prefijo de locale de un pathname.
- *
- * @param pathname - Ruta completa (ej: `/es/upload`)
- * @returns Ruta sin locale (ej: `/upload`). Devuelve `/` si solo queda el prefijo.
  */
 function stripLocale(pathname: string): string {
   for (const locale of LOCALES) {
@@ -54,9 +46,6 @@ function stripLocale(pathname: string): string {
 
 /**
  * Detecta el locale desde el pathname, con fallback al locale por defecto.
- *
- * @param pathname - Ruta completa (ej: `/en/dashboard`)
- * @returns Código de locale (ej: `en`, `es`, `pt`)
  */
 function getLocale(pathname: string): string {
   for (const locale of LOCALES) {
@@ -65,30 +54,6 @@ function getLocale(pathname: string): string {
     }
   }
   return DEFAULT_LOCALE;
-}
-
-/**
- * Determina si una ruta (sin prefijo de locale) es pública.
- *
- * Se consideran públicas las rutas en PUBLIC_PATHS y las que comienzan
- * con alguno de los PUBLIC_PREFIXES (`/login`, `/auth`).
- *
- * @param pathWithoutLocale - Ruta sin locale (ej: `/pricing`)
- * @returns `true` si la ruta no requiere autenticación
- */
-function isPublic(pathWithoutLocale: string): boolean {
-  if (PUBLIC_PATHS.has(pathWithoutLocale)) return true;
-  return PUBLIC_PREFIXES.some((p) => pathWithoutLocale.startsWith(p));
-}
-
-type Role = 'admin' | 'analyst' | 'client';
-
-function checkPermission(role: Role, path: string): boolean {
-  if (role === 'admin') return true;
-  if (ADMIN_ONLY.some((p) => path.startsWith(p))) return false;
-  if (role === 'analyst') return true;
-  if (ANALYST_ONLY.some((p) => path.startsWith(p))) return false;
-  return true;
 }
 
 // ─── Auth: crear cliente Supabase en Edge ───────────────────────────────────
@@ -122,28 +87,6 @@ function createSupabaseMiddlewareClient(request: NextRequest) {
   return { supabase, getResponse: () => response };
 }
 
-// ─── Role fetch via REST (Edge-compatible, no Node imports) ─────────────────
-
-async function fetchUserRole(userId: string): Promise<Role> {
-  try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    const res = await fetch(
-      `${url}/rest/v1/user_profiles?id=eq.${userId}&select=role`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-    );
-
-    if (res.ok) {
-      const rows = await res.json();
-      if (rows.length > 0 && rows[0].role) return rows[0].role as Role;
-    }
-  } catch {
-    // fallback silencioso
-  }
-  return 'client';
-}
-
 // ─── Intl + cookies merge ───────────────────────────────────────────────────
 
 function applyIntl(request: NextRequest, authResponse?: NextResponse): NextResponse {
@@ -166,27 +109,23 @@ export async function middleware(request: NextRequest) {
   const pathWithoutLocale = stripLocale(pathname);
 
   // 1. Rutas públicas → solo intl, sin auth
-  if (isPublic(pathWithoutLocale)) {
+  if (isPublicRoute(pathWithoutLocale)) {
     return applyIntl(request);
   }
 
-  // 2. Validar sesión Supabase
+  // 2. Crear cliente Supabase y refrescar sesión
+  //    getUser() valida el token con el servidor de Supabase y refresca
+  //    automáticamente si el access token expiró (setAll actualiza las cookies).
   const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
 
-  let userId: string | null = null;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id ?? null;
-  } catch {
-    // sin sesión
-  }
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  // 3. Sin sesión → redirect a login con redirectTo
-  if (!userId) {
+  // 3. Sin sesión válida → redirect a login con redirectTo
+  if (error || !user) {
     const locale = getLocale(pathname);
     const loginUrl = new URL(`/${locale}/login`, request.url);
     loginUrl.searchParams.set('redirectTo', pathname);
-    // Copiar cookies de auth refresh al redirect
+    // Copiar cookies de auth refresh al redirect (importante para limpiar tokens expirados)
     const redirectResponse = NextResponse.redirect(loginUrl);
     for (const cookie of getResponse().cookies.getAll()) {
       redirectResponse.cookies.set(cookie.name, cookie.value);
@@ -194,10 +133,10 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // 4. Verificar permisos por rol
-  const role = await fetchUserRole(userId);
+  // 4. Verificar permisos por rol (usa fuente única de verdad)
+  const role = await fetchUserRoleEdge(user.id);
 
-  if (!checkPermission(role, pathWithoutLocale)) {
+  if (!hasPermission(role, pathWithoutLocale)) {
     const locale = getLocale(pathname);
     return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
   }

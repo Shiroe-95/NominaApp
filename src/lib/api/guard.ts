@@ -25,7 +25,7 @@
  *
  * ## Funciones de sanitización:
  * - `sanitizeString(value, maxLength)` — Trim, limita longitud, elimina caracteres de control.
- * - `sanitizeEmail(value)` — Lowercase, trim, validación básica de formato.
+ * - `sanitizeEmail(value)` — Lowercase, trim, validación de formato con TLD mínimo 2 chars.
  * - `sanitizeNumber(value, min, max)` — Parsea y valida rango numérico.
  * - `sanitizeStringArray(value, maxItems, maxItemLength)` — Sanitiza array de strings.
  * - `isValidUuid(value)` — Valida formato UUID v4.
@@ -36,6 +36,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { type UserRole } from '@/lib/auth/user-profile';
 import {
   checkRateLimit,
   checkRateLimitSync,
@@ -44,7 +45,7 @@ import {
   type RateLimitConfig,
 } from './rate-limit';
 
-type Role = 'admin' | 'analyst' | 'client';
+type Role = UserRole;
 
 export interface AuthContext {
   userId: string;
@@ -215,16 +216,19 @@ export function sanitizeString(value: unknown, maxLength = 500): string {
 }
 
 /**
- * Sanitiza un email: lowercase, trim, validación básica de formato.
+ * Sanitiza un email: lowercase, trim, validación de formato con TLD mínimo de 2 caracteres.
+ *
+ * La validación exige el patrón `usuario@dominio.tld` donde el TLD debe ser
+ * al menos 2 caracteres alfabéticos (rechaza TLDs de un solo carácter).
  *
  * @param value - Valor a sanitizar.
- * @returns Email sanitizado o `null` si no es válido.
+ * @returns Email sanitizado o `null` si el formato no es válido.
  */
 export function sanitizeEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const email = value.trim().toLowerCase().slice(0, 254);
-  // Validación básica de formato
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  // Validación de formato: usuario@dominio.tld (TLD mínimo 2 chars)
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email)) return null;
   return email;
 }
 

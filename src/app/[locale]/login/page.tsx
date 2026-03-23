@@ -19,24 +19,30 @@ export default function LoginPage() {
         setIsLoading(true);
         setError(null);
 
-        const supabase = createClient();
-        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        try {
+            const supabase = createClient();
+            const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (authError) {
-            setError('Correo o contraseña incorrectos. Por favor verifica tus credenciales.');
+            if (authError) {
+                setError('Correo o contraseña incorrectos. Por favor verifica tus credenciales.');
+                setIsLoading(false);
+                return;
+            }
+
+            // Respetar redirectTo si el middleware lo puso, sino ir al dashboard.
+            // Validar que sea una ruta relativa interna para evitar open redirect.
+            const redirectTo = searchParams.get('redirectTo');
+            if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.includes('/login')) {
+                // redirectTo ya tiene locale (ej: /es/dashboard), usar window.location
+                // para forzar un full navigation que pase por el middleware
+                window.location.href = redirectTo;
+            } else {
+                router.push('/dashboard');
+                router.refresh();
+            }
+        } catch {
+            setError('Error de conexión. Intenta de nuevo.');
             setIsLoading(false);
-            return;
-        }
-
-        // Respetar redirectTo si el middleware lo puso, sino ir al dashboard
-        const redirectTo = searchParams.get('redirectTo');
-        if (redirectTo && !redirectTo.includes('/login')) {
-            // redirectTo ya tiene locale (ej: /es/dashboard), usar window.location
-            // para forzar un full navigation que pase por el middleware
-            window.location.href = redirectTo;
-        } else {
-            router.push('/dashboard');
-            router.refresh();
         }
     };
 

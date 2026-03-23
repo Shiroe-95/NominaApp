@@ -82,8 +82,8 @@ export default function Header() {
         setProfileOpen(false);
         const supabase = createClient();
         supabase.auth.signOut().finally(() => {
-            router.push('/login');
-            router.refresh();
+            // Full navigation para limpiar estado del cliente y pasar por middleware
+            window.location.href = '/login';
         });
     }
 

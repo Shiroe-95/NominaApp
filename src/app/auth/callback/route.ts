@@ -20,12 +20,8 @@ const DEFAULT_LOCALE = 'es'
  *
  * Flujo:
  *  1. Intercambia el código OAuth por una sesión válida.
- *  2. Si el usuario no tiene perfil en `user_profiles`, crea uno con rol 'client'.
- *  3. Redirige al destino asegurando que la URL incluya un prefijo de locale
- *     válido (en, es, pt). Si no lo tiene, antepone el locale por defecto ('es').
- *
- * @param request - Objeto NextRequest con los query params del callback.
- * @returns Redirección HTTP al destino con locale garantizado.
+ *  2. Si el usuario no tiene perfil en `user_profiles`, crea uno con rol 'client' (upsert).
+ *  3. Redirige al destino asegurando que la URL incluya un prefijo de locale válido.
  */
 export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url)
@@ -48,38 +44,48 @@ export async function GET(request: NextRequest) {
                 },
             }
         )
-        const { data } = await supabase.auth.exchangeCodeForSession(code)
 
-        // Crea perfil de usuario con rol 'client' si no existe aún
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (exchangeError) {
+            // Si falla el intercambio, redirigir al login
+            return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/login`, requestUrl.origin))
+        }
+
+        // Crea perfil de usuario con rol 'client' si no existe aún.
+        // Usa upsert con onConflict para evitar race conditions si dos
+        // requests llegan simultáneamente.
         if (data?.user) {
             const admin = createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL!,
                 process.env.SUPABASE_SERVICE_ROLE_KEY!,
                 { auth: { persistSession: false } }
             )
-            const { data: profile } = await admin
-                .from('user_profiles')
-                .select('id')
-                .eq('id', data.user.id)
-                .single()
 
-            if (!profile) {
-                await admin.from('user_profiles').insert({
+            await admin.from('user_profiles').upsert(
+                {
                     id: data.user.id,
                     role: 'client',
                     display_name: data.user.user_metadata?.display_name
                         ?? data.user.email?.split('@')[0]
                         ?? '',
-                })
-            }
+                },
+                {
+                    onConflict: 'id',
+                    // No sobreescribir si ya existe — preservar rol y nombre actualizados
+                    ignoreDuplicates: true,
+                }
+            )
         }
     }
 
     // Garantiza que la URL de destino incluya un prefijo de locale válido
     const hasLocale = SUPPORTED_LOCALES.some(
         (l) => next === `/${l}` || next.startsWith(`/${l}/`)
-    );
-    const destination = hasLocale ? next : `/${DEFAULT_LOCALE}${next === '/' ? '' : next}`;
+    )
+    const destination = hasLocale ? next : `/${DEFAULT_LOCALE}${next === '/' ? '' : next}`
 
-    return NextResponse.redirect(new URL(destination || `/${DEFAULT_LOCALE}/dashboard`, requestUrl.origin))
+    return NextResponse.redirect(
+        new URL(destination || `/${DEFAULT_LOCALE}/dashboard`, requestUrl.origin)
+    )
 }
