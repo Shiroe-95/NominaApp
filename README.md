@@ -265,7 +265,7 @@ sequenceDiagram
 flowchart TD
     REQ[📨 Request entrante] --> MW{Middleware Edge}
     MW --> STRIP[Extraer locale del path<br/>stripLocale]
-    STRIP --> PUB{¿Ruta pública?<br/>/, /pricing, /login,<br/>/contact, /about}
+    STRIP --> PUB{¿Ruta pública?<br/>/, /pricing, /login,<br/>/contact, /about, /manual}
     
     PUB -->|Sí| INTL[Aplicar i18n<br/>next-intl middleware]
     INTL --> RES_OK[✅ Response OK]
@@ -618,7 +618,7 @@ nomina-smart/
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/             # Rutas multilenguaje (es/en/pt)
-│   │   │   ├── (public)/         #   Landing, about, contact, pricing (sin auth) — incluye página de planes y precios con tabla comparativa
+│   │   │   ├── (public)/         #   Landing, about, contact, pricing, manual (sin auth) — incluye página de planes/precios y manual de usuario completo con navegación lateral
 │   │   │   ├── login/            #   Autenticación
 │   │   │   ├── admin/            #   Paneles admin (finanzas, países, uso, optimización)
 │   │   │   ├── dashboard/        #   Dashboard ejecutivo con métricas
@@ -768,11 +768,11 @@ Se configuran desde `/settings/providers` (requiere rol admin). Tipos soportados
 
 | Proveedor | Tipo | Modelos Ejemplo |
 |-----------|------|-----------------|
-| OpenAI | `openai` | gpt-4o, gpt-4o-mini, gpt-3.5-turbo |
-| Anthropic | `anthropic` | claude-sonnet-4-20250514, claude-3-haiku |
-| Groq | `groq` | llama-3.1-70b, mixtral-8x7b |
-| Google | `google` | gemini-2.0-flash, gemini-1.5-pro |
-| OpenRouter | `openrouter` | Cualquier modelo disponible en OpenRouter |
+| OpenAI | `openai` | gpt-4.1, gpt-4.1-mini, o4-mini, gpt-4o-mini |
+| Anthropic | `anthropic` | claude-sonnet-4-20250514, claude-opus-4-20250514, claude-3-5-haiku |
+| Groq | `groq` | llama-3.3-70b, llama-3.1-8b, deepseek-r1-distill-llama-70b |
+| Google | `google` | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash |
+| OpenRouter | `openrouter` | Cualquier modelo disponible en OpenRouter (incluye modelos gratuitos de Gemini, DeepSeek, Llama, Qwen) |
 
 Cada proveedor tiene: `api_key` (cifrada con AES-256-GCM), `model_id`, `priority` (orden de fallback), `is_active`.
 

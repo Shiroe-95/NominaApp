@@ -9,9 +9,7 @@ vi.mock('ai', () => ({
 
 const { generateText } = await import('ai');
 const { createAuditorAgent } = await import('./auditor');
-type AuditReport = Awaited<ReturnType<typeof import('./auditor')>>['AuditReport'] extends never
-  ? { findings: any[]; summary: any; validationReport: any; aiInterpretation?: string }
-  : any;
+type AuditReport = import('./auditor').AuditReport;
 
 // Minimal mock model
 function createMockModel(): LanguageModel {
@@ -97,10 +95,10 @@ describe('Auditor Agent', () => {
     expect(report.summary.totalFindings).toBe(report.findings.length);
 
     // Verify summary counts are consistent
-    const severitySum = Object.values(report.summary.bySeverity).reduce((a: number, b: number) => a + b, 0);
+    const severitySum = (Object.values(report.summary.bySeverity) as number[]).reduce((a, b) => a + b, 0);
     expect(severitySum).toBe(report.summary.totalFindings);
 
-    const categorySum = Object.values(report.summary.byCategory).reduce((a: number, b: number) => a + b, 0);
+    const categorySum = (Object.values(report.summary.byCategory) as number[]).reduce((a, b) => a + b, 0);
     expect(categorySum).toBe(report.summary.totalFindings);
 
     // Every finding should have required fields

@@ -75,50 +75,48 @@ interface ModelOption {
 const MODEL_CATALOG: Record<ProviderType, { label: string; icon: string; hint: string; models: ModelOption[] }> = {
   openrouter: {
     label: 'OpenRouter', icon: '\uD83C\uDF10',
-    hint: 'Acceso a m\u00FAltiples modelos con una sola API key. Incluye modelos gratuitos.',
+    hint: 'Acceso a múltiples modelos con una sola API key. Incluye modelos gratuitos.',
     models: [
-      { id: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (gratis)', free: true, context: '1M tokens', recommended: true },
-      { id: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (gratis)', free: true, context: '96K tokens' },
+      { id: 'google/gemini-2.5-flash:free', label: 'Gemini 2.5 Flash (gratis)', free: true, context: '1M tokens', recommended: true },
       { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (gratis)', free: true, context: '64K tokens', recommended: true },
-      { id: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 Reasoning (gratis)', free: true, context: '64K tokens' },
-      { id: 'meta-llama/llama-4-maverick:free', label: 'Llama 4 Maverick (gratis)', free: true, context: '128K tokens' },
-      { id: 'meta-llama/llama-4-scout:free', label: 'Llama 4 Scout (gratis)', free: true, context: '512K tokens' },
+      { id: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (gratis)', free: true, context: '64K tokens' },
+      { id: 'meta-llama/llama-4-maverick:free', label: 'Llama 4 Maverick (gratis)', free: true, context: '1M tokens' },
       { id: 'qwen/qwen3-235b-a22b:free', label: 'Qwen 3 235B (gratis)', free: true, context: '40K tokens' },
-      { id: 'microsoft/mai-ds-r1:free', label: 'MAI DS R1 (gratis)', free: true, context: '64K tokens' },
-      { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', free: false, context: '128K tokens' },
+      { id: 'openai/gpt-4.1-mini', label: 'GPT-4.1 Mini', free: false, context: '1M tokens' },
       { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', free: false, context: '200K tokens' },
     ],
   },
   openai: {
     label: 'OpenAI', icon: '\uD83E\uDD16', hint: 'Modelos GPT directamente desde OpenAI.',
     models: [
-      { id: 'gpt-4o-mini', label: 'GPT-4o Mini', free: false, context: '128K tokens', recommended: true },
-      { id: 'gpt-4o', label: 'GPT-4o', free: false, context: '128K tokens' },
-      { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', free: false, context: '128K tokens' },
-      { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', free: false, context: '16K tokens' },
+      { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', free: false, context: '1M tokens', recommended: true },
+      { id: 'gpt-4.1', label: 'GPT-4.1', free: false, context: '1M tokens' },
+      { id: 'gpt-4o-mini', label: 'GPT-4o Mini', free: false, context: '128K tokens' },
+      { id: 'o4-mini', label: 'o4-mini (reasoning)', free: false, context: '200K tokens' },
     ],
   },
   anthropic: {
     label: 'Anthropic', icon: '\uD83E\uDDE0', hint: 'Modelos Claude de Anthropic.',
     models: [
       { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', free: false, context: '200K tokens', recommended: true },
+      { id: 'claude-opus-4-20250514', label: 'Claude Opus 4', free: false, context: '200K tokens' },
       { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', free: false, context: '200K tokens' },
     ],
   },
   groq: {
-    label: 'Groq', icon: '\u26A1', hint: 'Inferencia ultra-r\u00E1pida. Modelos open-source acelerados.',
+    label: 'Groq', icon: '\u26A1', hint: 'Inferencia ultra-rápida. Modelos open-source acelerados.',
     models: [
       { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', free: false, context: '128K tokens', recommended: true },
       { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant', free: false, context: '128K tokens' },
-      { id: 'gemma2-9b-it', label: 'Gemma 2 9B', free: false, context: '8K tokens' },
+      { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill 70B', free: false, context: '128K tokens' },
     ],
   },
   google: {
     label: 'Google AI', icon: '\uD83D\uDD2E', hint: 'Modelos Gemini directamente desde Google.',
     models: [
-      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', free: false, context: '1M tokens', recommended: true },
-      { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', free: false, context: '2M tokens' },
-      { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', free: false, context: '1M tokens' },
+      { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', free: false, context: '1M tokens', recommended: true },
+      { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', free: false, context: '1M tokens' },
+      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', free: false, context: '1M tokens' },
     ],
   },
 };
@@ -241,7 +239,7 @@ export default function ProvidersPage() {
           <Shield className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-white">Modelos gratuitos recomendados</p>
-            <p className="text-xs text-slate-400 mt-1">OpenRouter ofrece modelos gratuitos de alta calidad. Recomendamos Gemini 2.0 Flash o DeepSeek V3 para empezar sin costo. Tus API keys se cifran con AES-256-GCM.</p>
+            <p className="text-xs text-slate-400 mt-1">OpenRouter ofrece modelos gratuitos de alta calidad. Recomendamos Gemini 2.5 Flash o DeepSeek V3 para empezar sin costo. Tus API keys se cifran con AES-256-GCM.</p>
           </div>
         </div>
       </div>

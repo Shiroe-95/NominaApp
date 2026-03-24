@@ -23,6 +23,7 @@ const navLinks = [
   { href: '/' as const, label: 'Inicio' },
   { href: '/about' as const, label: 'Nosotros' },
   { href: '/pricing' as const, label: 'Precios' },
+  { href: '/manual' as const, label: 'Manual' },
   { href: '/contact' as const, label: 'Contacto' },
 ];
 
