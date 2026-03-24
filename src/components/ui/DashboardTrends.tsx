@@ -11,18 +11,37 @@ import {
 } from 'recharts';
 import { colors, elevation } from '@/lib/design-tokens';
 
+/**
+ * Datos de un punto en la tendencia de certificación.
+ * Cada entrada representa un período (mes, semana, etc.) con sus totales y métricas.
+ */
 export interface TrendData {
+    /** Identificador único del período */
     key: string;
+    /** Etiqueta visible en el eje X del gráfico */
     label: string;
+    /** Total de registros en el período */
     total: number;
+    /** Registros certificables en el período */
     certifiable: number;
+    /** Registros con errores críticos en el período */
     critical: number;
 }
 
+/** Props del componente DashboardTrends */
 interface DashboardTrendsProps {
+    /** Arreglo de datos de tendencia a graficar */
     data: TrendData[];
 }
 
+/**
+ * Gráfico de área que muestra la tendencia del porcentaje de certificación a lo largo del tiempo.
+ * Calcula `certPct` (certificable/total × 100) por cada período y lo renderiza
+ * usando Recharts con gradiente. Muestra un estado vacío si no hay datos.
+ *
+ * @param props - {@link DashboardTrendsProps}
+ * @returns Tarjeta con gráfico de área o mensaje de estado vacío
+ */
 export function DashboardTrends({ data }: DashboardTrendsProps) {
     const chartData = data.map(item => ({
         ...item,
@@ -66,7 +85,7 @@ export function DashboardTrends({ data }: DashboardTrendsProps) {
                                         color: colors.onSurface,
                                     }}
                                     itemStyle={{ color: colors.onSurface }}
-                                    formatter={(value: number | string) => [`${Number(value).toFixed(1)}%`, 'Certificable']}
+                                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Certificable']}
                                     labelStyle={{ color: colors.onSurface, opacity: 0.7, marginBottom: '4px' }}
                                 />
                                 <Area type="monotone" dataKey="certPct" stroke={colors.success} strokeWidth={2} fillOpacity={1} fill="url(#colorCert)" animationDuration={400} />
