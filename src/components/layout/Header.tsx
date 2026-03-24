@@ -12,7 +12,7 @@
  */
 'use client';
 
-import { Menu, ChevronDown, Settings, LogOut, User, ArrowRight } from 'lucide-react';
+import { Menu, ChevronDown, Settings, LogOut, ArrowRight } from 'lucide-react';
 import LanguageToggle from '../ui/LanguageToggle';
 import NotificationBell from '../ui/NotificationBell';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -164,14 +164,7 @@ export default function Header() {
                                         className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
                                     >
                                         <Settings className="h-4 w-4 text-slate-400" />
-                                        Configuracion
-                                    </button>
-                                    <button
-                                        onClick={() => setProfileOpen(false)}
-                                        className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
-                                    >
-                                        <User className="h-4 w-4 text-slate-400" />
-                                        Mi perfil
+                                        Configuración
                                     </button>
                                 </div>
                                 <div className="border-t border-white/10 py-1.5">

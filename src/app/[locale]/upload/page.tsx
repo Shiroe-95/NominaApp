@@ -757,26 +757,26 @@ export default function UploadPage() {
         <div className="space-y-5">
             {/* Page header */}
             <div>
-                <h1 className="text-xl font-bold text-slate-900">Cargar Nómina</h1>
+                <h1 className="text-xl font-bold text-white leading-tight drop-shadow-sm">Cargar Nómina</h1>
                 <p className="text-sm text-slate-400 mt-0.5">Sube y valida tu archivo de nómina según país y periodo para certificar</p>
             </div>
 
             {/* Company & context selector */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-white/10 glass-panel p-5 shadow-lg shadow-black/20">
                 <div className="flex items-center gap-3 mb-5">
                     <div className="w-9 h-9 rounded-xl bg-violet/10 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="w-4.5 h-4.5 text-violet" />
+                        <Building2 className="w-4.5 h-4.5 text-violet-light" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-800">Empresa y contexto normativo</h2>
+                        <h2 className="text-sm font-semibold text-white">Empresa y contexto normativo</h2>
                         <p className="text-xs text-slate-400">Asocia esta nómina a una empresa y define el país y período</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
                     <div className="lg:col-span-2 space-y-1">
-                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa *</label>
-                        <select className="w-full h-10 px-3" value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)}>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Empresa *</label>
+                        <select className="w-full h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm focus:ring-2 focus:ring-violet/30 focus:border-violet outline-none" value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)}>
                             <option value="">Seleccione una empresa</option>
                             {companies.map((company) => (
                                 <option key={company.id} value={company.id}>
@@ -792,9 +792,9 @@ export default function UploadPage() {
 
                 {showCreateCompany && (
                     <div className="mt-4 grid grid-cols-1 lg:grid-cols-4 gap-3 p-4 rounded-xl border border-violet/20 bg-violet/5">
-                        <input placeholder="Nombre empresa" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="h-10 px-3 placeholder:text-slate-500" />
-                        <input placeholder="NIT" value={newCompanyNit} onChange={(e) => setNewCompanyNit(e.target.value)} className="h-10 px-3 placeholder:text-slate-500" />
-                        <input placeholder="Industria (opcional)" value={newCompanyIndustry} onChange={(e) => setNewCompanyIndustry(e.target.value)} className="h-10 px-3 placeholder:text-slate-500" />
+                        <input placeholder="Nombre empresa" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-violet/30" />
+                        <input placeholder="NIT" value={newCompanyNit} onChange={(e) => setNewCompanyNit(e.target.value)} className="h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-violet/30" />
+                        <input placeholder="Industria (opcional)" value={newCompanyIndustry} onChange={(e) => setNewCompanyIndustry(e.target.value)} className="h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-violet/30" />
                         <Button type="button" onClick={handleCreateCompany}>
                             Guardar
                         </Button>
@@ -803,27 +803,27 @@ export default function UploadPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
                             <Globe2 className="w-3.5 h-3.5" /> País
                         </label>
-                        <select value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value as 'CO' | 'MX')} className="w-full h-10 px-3">
+                        <select value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value as 'CO' | 'MX')} className="w-full h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm outline-none focus:ring-2 focus:ring-violet/30">
                             <option value="CO">Colombia</option>
                             <option value="MX">México</option>
                         </select>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
                             <CalendarClock className="w-3.5 h-3.5" /> Año de validación
                         </label>
-                        <select value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))} className="w-full h-10 px-3" disabled={isLoadingRules || availableYears.length === 0}>
+                        <select value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm outline-none focus:ring-2 focus:ring-violet/30" disabled={isLoadingRules || availableYears.length === 0}>
                             {availableYears.map((year) => (
                                 <option key={year} value={year}>{year}</option>
                             ))}
                         </select>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Mes de planilla</label>
-                        <select value={periodMonth} onChange={(e) => setPeriodMonth(Number(e.target.value))} className="w-full h-10 px-3">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Mes de planilla</label>
+                        <select value={periodMonth} onChange={(e) => setPeriodMonth(Number(e.target.value))} className="w-full h-10 px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm outline-none focus:ring-2 focus:ring-violet/30">
                             {Array.from({ length: 12 }).map((_, idx) => (
                                 <option key={idx + 1} value={idx + 1}>{idx + 1}</option>
                             ))}
@@ -832,27 +832,27 @@ export default function UploadPage() {
                 </div>
 
                 {selectedCompany && (
-                    <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                    <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-400 bg-black/20 px-3 py-1.5 rounded-lg border border-white/10">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald flex-shrink-0" />
-                        <span className="font-semibold text-slate-700">{selectedCompany.name}</span>
-                        <span className="text-slate-300">·</span>
+                        <span className="font-semibold text-white">{selectedCompany.name}</span>
+                        <span className="text-slate-500">·</span>
                         {selectedCountry} {periodYear}
                     </div>
                 )}
             </div>
 
             {/* ── Planillas cargadas ───────────────────────── */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-white/10 glass-panel shadow-lg shadow-black/20 overflow-hidden">
                 <button
                     onClick={() => setShowRecent((prev) => !prev)}
-                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition-colors"
                 >
                     <div className="flex items-center gap-2">
                         <Database className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-semibold text-slate-700">
+                        <span className="text-sm font-semibold text-white">
                             Planillas guardadas
                         </span>
-                        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-slate-400 bg-white/10 px-2 py-0.5 rounded-full">
                             {recentPayrolls.length}
                         </span>
                     </div>
@@ -860,11 +860,11 @@ export default function UploadPage() {
                 </button>
 
                 {showRecent && (
-                    <div className="border-t border-slate-100">
+                    <div className="border-t border-white/10">
                         {recentPayrolls.length === 0 ? (
                             <p className="text-sm text-slate-400 text-center py-6">No hay planillas guardadas aún.</p>
                         ) : (
-                            <ul className="divide-y divide-slate-100">
+                            <ul className="divide-y divide-white/10">
                                 {recentPayrolls.map((p) => {
                                     const isDeleting = deletingPayrollId === p.id;
                                     return (
@@ -872,7 +872,7 @@ export default function UploadPage() {
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <span className={cn('w-2 h-2 rounded-full flex-shrink-0', p.certification_ready ? 'bg-emerald' : 'bg-rose-400')} />
                                                 <div className="min-w-0">
-                                                    <p className="font-medium text-slate-700 truncate">{p.company_name ?? 'Sin empresa'}</p>
+                                                    <p className="font-medium text-white truncate">{p.company_name ?? 'Sin empresa'}</p>
                                                     <p className="text-xs text-slate-400">
                                                         {p.country_code} · {p.period_month}/{p.period_year} · {p.rule_label ?? 'Sin regla'}
                                                     </p>
@@ -882,14 +882,14 @@ export default function UploadPage() {
                                                 <span className="text-xs text-slate-400 hidden sm:block">
                                                     {new Date(p.created_at).toLocaleDateString('es-CO')}
                                                 </span>
-                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium hidden sm:inline-flex', p.certification_ready ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600')}>
+                                                <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium hidden sm:inline-flex', p.certification_ready ? 'bg-emerald/20 text-emerald-light border border-emerald/30' : 'bg-rose/20 text-rose-light border border-rose/30')}>
                                                     {p.certification_ready ? 'Certificable' : 'No certificable'}
                                                 </span>
                                                 <button
                                                     onClick={() => void handleDeleteRecentPayroll(p.id)}
                                                     disabled={isDeleting}
                                                     title="Eliminar planilla"
-                                                    className="p-1.5 rounded hover:bg-rose-50 text-slate-300 hover:text-rose-500 transition-colors disabled:opacity-40"
+                                                    className="p-1.5 rounded hover:bg-white/5 text-slate-400 hover:text-rose-light transition-colors disabled:opacity-40"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -946,19 +946,19 @@ export default function UploadPage() {
             </div>
 
             {/* Step trace */}
-            <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Progreso</h3>
+            <div className="rounded-xl border border-white/10 glass-panel p-4 shadow-lg shadow-black/20">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Progreso</h3>
                 <div className="space-y-2.5">
                     {stepResults.map((item, idx) => (
                         <div key={item.title} className="flex items-start gap-3">
                             <span className={cn(
                                 'mt-0.5 h-5 w-5 rounded-full text-[10px] flex items-center justify-center font-bold flex-shrink-0',
-                                currentStep > idx ? 'bg-emerald text-white' : 'bg-slate-100 text-slate-500'
+                                currentStep > idx ? 'bg-emerald/20 text-emerald-light' : 'bg-white/10 text-slate-500'
                             )}>
                                 {idx + 1}
                             </span>
                             <div>
-                                <p className="text-xs font-semibold text-slate-700">{item.title}</p>
+                                <p className="text-xs font-semibold text-white">{item.title}</p>
                                 <p className="text-xs text-slate-400 mt-0.5">{item.result}</p>
                             </div>
                         </div>
@@ -967,13 +967,13 @@ export default function UploadPage() {
             </div>
 
             {/* Step content */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+            <div className="rounded-2xl border border-white/10 glass-panel p-6 shadow-lg shadow-black/20">
                 {currentStep === 1 && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
                             <AgentAvatar agentId="master" size={36} animate />
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">
+                                <p className="text-sm font-semibold text-white">
                                     {getPersona('master').emoji} {getPersona('master').name}: Archivos de nómina
                                 </p>
                                 <p className="text-xs text-slate-400 mt-0.5">Carga hojas de nómina y base de cálculo. Gyoru 🐈‍⬛ mapeará tus columnas en el siguiente paso.</p>
@@ -986,10 +986,10 @@ export default function UploadPage() {
 
                 {currentStep === 2 && (
                     <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-                        <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+                        <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
                             <AgentAvatar agentId="mapper" size={36} animate />
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">
+                                <p className="text-sm font-semibold text-white">
                                     {getPersona('mapper').emoji} {getPersona('mapper').name}: Mapeo inteligente
                                 </p>
                                 <p className="text-xs text-slate-400 mt-0.5">Conecto tus columnas con el sistema normativo usando IA.</p>
@@ -1009,26 +1009,26 @@ export default function UploadPage() {
 
                 {currentStep === 3 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <AgentAvatar agentId="auditor" size={36} animate />
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">
+                                <p className="text-sm font-semibold text-white">
                                     {getPersona('auditor').emoji} {getPersona('auditor').name}: Auditoría y verificación
                                 </p>
                                 <p className="text-xs text-slate-400 mt-0.5">Reviso cada número contra la normativa vigente. Ningún error se me escapa.</p>
                             </div>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <h3 className="font-semibold text-slate-900">Resumen de validación</h3>
-                            <p className="text-sm text-slate-600 mt-1">
+                        <div className="rounded-xl border border-white/10 glass-panel p-4">
+                            <h3 className="font-semibold text-white">Resumen de validación</h3>
+                            <p className="text-sm text-slate-300 mt-1">
                                 Empresa: <span className="font-semibold">{selectedCompany?.name ?? 'Sin empresa'}</span> | País: {selectedCountry} | Periodo: {periodMonth}/{periodYear} | Registros estimados: {fileStats.rows}
                             </p>
                         </div>
 
-                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-                            <h4 className="font-semibold text-indigo-900 mb-2">Regla activa: {activeRule.label}</h4>
-                            <ul className="text-sm text-indigo-800 space-y-1">
+                        <div className="rounded-xl border border-violet/20 bg-violet/10 p-4">
+                            <h4 className="font-semibold text-white mb-2">Regla activa: {activeRule.label}</h4>
+                            <ul className="text-sm text-violet-light space-y-1">
                                 {activeRule.checks.map((check) => (
                                     <li key={check} className="flex items-center gap-2">
                                         <CheckCircle2 className="w-4 h-4" /> {check}
@@ -1037,72 +1037,72 @@ export default function UploadPage() {
                             </ul>
                         </div>
 
-                        <div className={cn('rounded-xl border p-4', missingRequiredFields.length > 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50')}>
-                            <h4 className="font-semibold text-slate-900 mb-2">Campos requeridos de la regla</h4>
+                        <div className={cn('rounded-xl border p-4', missingRequiredFields.length > 0 ? 'border-amber/30 bg-amber/10' : 'border-emerald/30 bg-emerald/10')}>
+                            <h4 className="font-semibold text-white mb-2">Campos requeridos de la regla</h4>
                             {missingRequiredFields.length > 0 ? (
                                 <div>
-                                    <p className="text-sm text-amber-700 flex items-center gap-2 mb-2">
+                                    <p className="text-sm text-amber-light flex items-center gap-2 mb-2">
                                         <AlertTriangle className="w-4 h-4" /> Faltan campos estructurales para certificar
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {missingRequiredFields.map((field) => (
-                                            <span key={field} className="px-2 py-1 text-xs rounded-full bg-white border border-amber-300 text-amber-800">{field}</span>
+                                            <span key={field} className="px-2 py-1 text-xs rounded-full bg-amber/20 border border-amber/30 text-amber-light">{field}</span>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-sm text-emerald-700">Todos los campos requeridos están mapeados.</p>
+                                <p className="text-sm text-emerald-light">Todos los campos requeridos están mapeados.</p>
                             )}
                         </div>
 
-                        <div className={cn('rounded-xl border p-4', missingRequiredCalculations.length > 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50')}>
-                            <h4 className="font-semibold text-slate-900 mb-2">Cálculos requeridos para certificación</h4>
+                        <div className={cn('rounded-xl border p-4', missingRequiredCalculations.length > 0 ? 'border-amber/30 bg-amber/10' : 'border-emerald/30 bg-emerald/10')}>
+                            <h4 className="font-semibold text-white mb-2">Cálculos requeridos para certificación</h4>
                             {missingRequiredCalculations.length > 0 ? (
                                 <div>
-                                    <p className="text-sm text-amber-700 flex items-center gap-2 mb-2">
+                                    <p className="text-sm text-amber-light flex items-center gap-2 mb-2">
                                         <AlertTriangle className="w-4 h-4" /> Faltan cálculos requeridos para {selectedCountry} {periodYear}
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {missingRequiredCalculations.map((calc) => (
-                                            <span key={calc} className="px-2 py-1 text-xs rounded-full bg-white border border-amber-300 text-amber-800">{calc}</span>
+                                            <span key={calc} className="px-2 py-1 text-xs rounded-full bg-amber/20 border border-amber/30 text-amber-light">{calc}</span>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-sm text-emerald-700">Cálculos obligatorios completos para certificar.</p>
+                                <p className="text-sm text-emerald-light">Cálculos obligatorios completos para certificar.</p>
                             )}
                         </div>
 
-                        <div className={cn('rounded-xl border p-4', certificationReady ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300 bg-rose-50')}>
-                            <h4 className="font-semibold text-slate-900 mb-1">Estado de certificación</h4>
-                            <p className={cn('text-sm', certificationReady ? 'text-emerald-700' : 'text-rose-700')}>
+                        <div className={cn('rounded-xl border p-4', certificationReady ? 'border-emerald/30 bg-emerald/10' : 'border-rose/30 bg-rose/10')}>
+                            <h4 className="font-semibold text-white mb-1">Estado de certificación</h4>
+                            <p className={cn('text-sm', certificationReady ? 'text-emerald-light' : 'text-rose-light')}>
                                 {certificationReady
                                     ? `Estructura completa para ${selectedCountry} - ${activeRule.label}. La certificacion final incluye validacion de calculos al guardar.`
                                     : `No certificable aun: completa campos y calculos requeridos para ${selectedCountry} - ${activeRule.label}`}
                             </p>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <h4 className="font-semibold text-slate-900 mb-2">Cobertura de conceptos detectados</h4>
+                        <div className="rounded-xl border border-white/10 glass-panel p-4">
+                            <h4 className="font-semibold text-white mb-2">Cobertura de conceptos detectados</h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                                 {Object.entries(conceptSummaryPreview.byCategory).map(([key, value]) => (
-                                    <div key={key} className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
-                                        <span className="font-medium text-slate-700">{key}</span>: {value}
+                                    <div key={key} className="bg-white/5 border border-white/10 rounded-md px-2 py-1">
+                                        <span className="font-medium text-slate-300">{key}</span>: {value}
                                     </div>
                                 ))}
                             </div>
-                            <p className="text-sm mt-3 text-slate-600">
-                                Riesgo preliminar: <span className={cn('font-semibold', riskPreview.level === 'high' ? 'text-rose-700' : riskPreview.level === 'medium' ? 'text-amber-700' : 'text-emerald-700')}>{riskPreview.score}/100 ({riskPreview.level})</span>
+                            <p className="text-sm mt-3 text-slate-300">
+                                Riesgo preliminar: <span className={cn('font-semibold', riskPreview.level === 'high' ? 'text-rose-light' : riskPreview.level === 'medium' ? 'text-amber-light' : 'text-emerald-light')}>{riskPreview.score}/100 ({riskPreview.level})</span>
                             </p>
                         </div>
 
                         {mappingResult.mappingDetails.length > 0 && (
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                <h4 className="font-semibold text-slate-900 mb-2">Relacion de campos para analisis</h4>
+                            <div className="rounded-xl border border-white/10 glass-panel p-4">
+                                <h4 className="font-semibold text-white mb-2">Relacion de campos para analisis</h4>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                                     {Object.entries(mappingCoverageByCategory).map(([key, value]) => (
-                                        <div key={key} className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
-                                            <span className="font-medium text-slate-700">{key}</span>: {value}
+                                        <div key={key} className="bg-white/5 border border-white/10 rounded-md px-2 py-1">
+                                            <span className="font-medium text-slate-300">{key}</span>: {value}
                                         </div>
                                     ))}
                                 </div>
@@ -1110,23 +1110,23 @@ export default function UploadPage() {
                         )}
 
                         {mappingResult.createdTargets.length > 0 && (
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                <h4 className="font-semibold text-slate-900 mb-2">Campos creados automaticamente</h4>
+                            <div className="rounded-xl border border-white/10 glass-panel p-4">
+                                <h4 className="font-semibold text-white mb-2">Campos creados automaticamente</h4>
                                 <div className="flex flex-wrap gap-2">
                                     {mappingResult.createdTargets.map((field) => (
-                                        <span key={field} className="px-2 py-1 text-xs rounded-full bg-slate-100 border border-slate-200 text-slate-700">{field}</span>
+                                        <span key={field} className="px-2 py-1 text-xs rounded-full bg-white/10 border border-white/10 text-slate-300">{field}</span>
                                     ))}
                                 </div>
                             </div>
                         )}
 
                         {savedSuccess ? (
-                            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 flex items-center justify-between gap-4">
+                            <div className="rounded-xl border border-emerald/30 bg-emerald/10 p-4 flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-light flex-shrink-0" />
                                     <div>
-                                        <p className="text-sm font-semibold text-emerald-800">Planilla guardada correctamente</p>
-                                        <p className="text-xs text-emerald-600 mt-0.5">Puedes ver el reporte en la sección de Reportes, o corregir los datos ahora.</p>
+                                        <p className="text-sm font-semibold text-emerald-light">Planilla guardada correctamente</p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Puedes ver el reporte en la sección de Reportes, o corregir los datos ahora.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1140,12 +1140,12 @@ export default function UploadPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-violet/20 bg-violet/5 p-4">
+                            <div className="rounded-xl border border-violet/20 bg-violet/10 p-4">
                                 <div className="flex items-start gap-3 mb-4">
-                                    <PenLine className="w-5 h-5 text-violet flex-shrink-0 mt-0.5" />
+                                    <PenLine className="w-5 h-5 text-violet-light flex-shrink-0 mt-0.5" />
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-800">¿Quieres corregir los datos antes de guardar?</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">Tendrás dos modos: manual celda por celda y asistido por IA para sugerencias rápidas por fila.</p>
+                                        <p className="text-sm font-semibold text-white">¿Quieres corregir los datos antes de guardar?</p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Tendrás dos modos: manual celda por celda y asistido por IA para sugerencias rápidas por fila.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
@@ -1168,19 +1168,19 @@ export default function UploadPage() {
 
                 {currentStep === 4 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                             <AgentAvatar agentId="corrector" size={36} animate />
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">
+                                <p className="text-sm font-semibold text-white">
                                     {getPersona('corrector').emoji} {getPersona('corrector').name}: Corrección de nómina
                                 </p>
                                 <p className="text-xs text-slate-400 mt-0.5">Calculo las correcciones exactas con precisión de ingeniero.</p>
                             </div>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <h3 className="font-semibold text-slate-900">Corrección de nómina</h3>
-                            <p className="text-sm text-slate-600 mt-1">
+                        <div className="rounded-xl border border-white/10 glass-panel p-4">
+                            <h3 className="font-semibold text-white">Corrección de nómina</h3>
+                            <p className="text-sm text-slate-300 mt-1">
                                 Empresa: <span className="font-semibold">{selectedCompany?.name ?? 'Sin empresa'}</span> | País: {selectedCountry} | Periodo: {periodMonth}/{periodYear}
                                 {mathValidationForEditor && mathValidationForEditor.rowsWithFindings > 0 && (
                                     <span className="ml-2 text-amber-600 font-medium">· {mathValidationForEditor.rowsWithFindings} fila(s) con hallazgos del motor</span>
@@ -1192,15 +1192,15 @@ export default function UploadPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Modo manual</p>
-                                <p className="mt-1 text-sm text-slate-700">
+                            <div className="rounded-xl border border-white/10 glass-panel p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modo manual</p>
+                                <p className="mt-1 text-sm text-slate-300">
                                     Edita cualquier celda directamente y deja trazabilidad de cambios.
                                 </p>
                             </div>
-                            <div className="rounded-xl border border-violet/20 bg-violet/5 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-violet-dark">Modo asistido por IA</p>
-                                <p className="mt-1 text-sm text-slate-700">
+                            <div className="rounded-xl border border-violet/20 bg-violet/10 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-violet-light">Modo asistido por IA</p>
+                                <p className="mt-1 text-sm text-slate-300">
                                     Usa sugerencias IA en filas con hallazgos para acelerar correcciones repetitivas.
                                 </p>
                             </div>
@@ -1225,7 +1225,7 @@ export default function UploadPage() {
                         )}
 
                         {!savedSuccess && (
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                            <div className="flex justify-between items-center pt-2 border-t border-white/10">
                                 <Button variant="outline" onClick={() => setCurrentStep(3)}>
                                     ← Volver a verificación
                                 </Button>
@@ -1239,14 +1239,14 @@ export default function UploadPage() {
                         )}
 
                         {savedSuccess && (
-                            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 flex items-center justify-between gap-4">
+                            <div className="rounded-xl border border-emerald/30 bg-emerald/10 p-4 flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-light flex-shrink-0" />
                                     <div>
-                                        <p className="text-sm font-semibold text-emerald-800">
+                                        <p className="text-sm font-semibold text-emerald-light">
                                             Planilla guardada{corrections.length > 0 ? ` con ${corrections.length} corrección(es)` : ''} correctamente
                                         </p>
-                                        <p className="text-xs text-emerald-600 mt-0.5">Puedes ver el reporte antes/después en la sección de Reportes.</p>
+                                        <p className="text-xs text-slate-400 mt-0.5">Puedes ver el reporte antes/después en la sección de Reportes.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">

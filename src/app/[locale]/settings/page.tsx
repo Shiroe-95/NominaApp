@@ -64,20 +64,20 @@ export default function SettingsPage() {
     return (
         <div className="space-y-5 max-w-2xl">
             <div>
-                <h1 className="text-xl font-bold text-slate-900">Configuración</h1>
+                <h1 className="text-xl font-bold text-white leading-tight drop-shadow-sm">Configuración</h1>
                 <p className="text-sm text-slate-400 mt-0.5">Preferencias de tu cuenta y notificaciones.</p>
             </div>
 
             {/* AI Providers — Prominent CTA */}
-            <div className="rounded-2xl border-2 border-violet/30 bg-gradient-to-r from-violet/5 to-transparent p-5 shadow-sm space-y-3">
+            <div className="rounded-2xl border-2 border-violet/30 bg-violet/10 p-5 shadow-lg shadow-black/20 space-y-3">
                 <div className="flex items-center gap-3 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-violet/10 flex items-center justify-center flex-shrink-0">
-                        <Key className="w-4 h-4 text-violet" />
+                    <div className="w-9 h-9 rounded-xl bg-violet/20 flex items-center justify-center flex-shrink-0">
+                        <Key className="w-4 h-4 text-violet-light" />
                     </div>
                     <div className="flex-1">
-                        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                             Proveedores de IA
-                            <Sparkles className="w-3.5 h-3.5 text-violet" />
+                            <Sparkles className="w-3.5 h-3.5 text-violet-light" />
                         </h2>
                         <p className="text-xs text-slate-400">Configura tus API keys para activar los agentes de IA. Se cifran con AES-256-GCM.</p>
                     </div>
@@ -85,7 +85,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3 pl-12">
                     <div className="flex gap-1.5">
                         {['OpenRouter', 'OpenAI', 'Anthropic', 'Groq', 'Google'].map((p) => (
-                            <span key={p} className="px-2 py-1 rounded-md bg-slate-100 text-[10px] font-medium text-slate-500">{p}</span>
+                            <span key={p} className="px-2 py-1 rounded-md bg-white/10 text-[10px] font-medium text-slate-300">{p}</span>
                         ))}
                     </div>
                 </div>
@@ -101,30 +101,30 @@ export default function SettingsPage() {
             </div>
 
             {/* Account */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+            <div className="rounded-2xl border border-white/10 glass-panel p-5 shadow-lg shadow-black/20 space-y-4">
                 <div className="flex items-center gap-3 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-violet/10 flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-violet" />
+                    <div className="w-9 h-9 rounded-xl bg-violet/20 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-violet-light" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-800">Mi cuenta</h2>
+                        <h2 className="text-sm font-semibold text-white">Mi cuenta</h2>
                         <p className="text-xs text-slate-400">Información de acceso y rol activo</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</label>
-                            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-10 w-full px-3" />
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Nombre</label>
+                            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="h-10 w-full px-3 rounded-lg border border-white/10 bg-black/20 text-white text-sm outline-none focus:ring-2 focus:ring-violet/30" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Correo</label>
-                            <input value={userEmail} type="email" className="h-10 w-full px-3" readOnly />
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Correo</label>
+                            <input value={userEmail} type="email" className="h-10 w-full px-3 rounded-lg border border-white/10 bg-black/20 text-slate-400 text-sm outline-none" readOnly />
                         </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5" /> Rol activo
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -135,12 +135,12 @@ export default function SettingsPage() {
                                 className={cn(
                                     'text-left p-3 rounded-xl border text-xs transition-all',
                                     activeRole === role.id
-                                        ? 'border-violet bg-violet/5 text-violet'
-                                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                                        ? 'border-violet bg-violet/10 text-violet-light'
+                                        : 'border-white/10 text-slate-400 hover:border-white/20 hover:bg-white/5'
                                 )}
                             >
                                 <p className="font-semibold mb-0.5">{role.label}</p>
-                                <p className="text-slate-400 leading-snug">{role.desc}</p>
+                                <p className="text-slate-500 leading-snug">{role.desc}</p>
                             </button>
                         ))}
                     </div>
@@ -148,13 +148,13 @@ export default function SettingsPage() {
             </div>
 
             {/* Language */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="rounded-2xl border border-white/10 glass-panel p-5 shadow-lg shadow-black/20 space-y-3">
                 <div className="flex items-center gap-3 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-emerald/10 flex items-center justify-center flex-shrink-0">
-                        <Globe2 className="w-4 h-4 text-emerald" />
+                    <div className="w-9 h-9 rounded-xl bg-emerald/20 flex items-center justify-center flex-shrink-0">
+                        <Globe2 className="w-4 h-4 text-emerald-light" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-800">Idioma</h2>
+                        <h2 className="text-sm font-semibold text-white">Idioma</h2>
                         <p className="text-xs text-slate-400">Cambia el idioma de la interfaz</p>
                     </div>
                 </div>
@@ -169,7 +169,7 @@ export default function SettingsPage() {
                             onClick={() => router.replace(pathname, { locale: lang.code })}
                             className={cn(
                                 'px-4 py-2 rounded-lg text-sm font-medium border transition-all',
-                                'border-slate-200 text-slate-600 hover:border-emerald hover:bg-emerald/5 hover:text-emerald'
+                                'border-white/10 text-slate-300 hover:border-emerald/30 hover:bg-emerald/10 hover:text-emerald-light'
                             )}
                         >
                             {lang.label}
@@ -179,27 +179,27 @@ export default function SettingsPage() {
             </div>
 
             {/* Notifications */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="rounded-2xl border border-white/10 glass-panel p-5 shadow-lg shadow-black/20 space-y-3">
                 <div className="flex items-center gap-3 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                        <Bell className="w-4 h-4 text-amber-500" />
+                    <div className="w-9 h-9 rounded-xl bg-amber/20 flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-4 h-4 text-amber-light" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-semibold text-slate-800">Notificaciones</h2>
+                        <h2 className="text-sm font-semibold text-white">Notificaciones</h2>
                         <p className="text-xs text-slate-400">Elige qué alertas quieres recibir</p>
                     </div>
                 </div>
                 <div className="space-y-2">
                     {NOTIFICATIONS.map((n) => (
-                        <label key={n.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
-                            <span className="text-sm text-slate-700">{n.label}</span>
+                        <label key={n.id} className="flex items-center justify-between p-3 rounded-xl border border-white/10 hover:bg-white/5 cursor-pointer transition-colors">
+                            <span className="text-sm text-slate-300">{n.label}</span>
                             <button
                                 role="switch"
                                 aria-checked={notifs[n.id]}
                                 onClick={() => setNotifs((prev) => ({ ...prev, [n.id]: !prev[n.id] }))}
                                 className={cn(
                                     'relative w-10 h-5 rounded-full transition-colors flex-shrink-0',
-                                    notifs[n.id] ? 'bg-violet' : 'bg-slate-200'
+                                    notifs[n.id] ? 'bg-violet' : 'bg-white/20'
                                 )}
                             >
                                 <span className={cn(
@@ -213,14 +213,14 @@ export default function SettingsPage() {
             </div>
 
             {/* Rules admin tip */}
-            <div className="flex items-start gap-3 p-4 rounded-xl border border-blue-100 bg-blue-50 text-xs text-blue-700">
+            <div className="flex items-start gap-3 p-4 rounded-xl border border-violet/20 bg-violet/10 text-xs text-violet-light">
                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>Para administrar reglas normativas (campos requeridos, cálculos, verificaciones) ve a la sección <strong>Reglas</strong> en el menú lateral.</p>
+                <p>Para administrar reglas normativas (campos requeridos, cálculos, verificaciones) ve a la sección <strong>Reglas Normativas</strong> en el menú lateral.</p>
             </div>
 
             <div className="flex items-center justify-end gap-3">
                 {saved && (
-                    <span className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
+                    <span className="flex items-center gap-1.5 text-sm text-emerald-light font-medium">
                         <CheckCircle2 className="w-4 h-4" /> Guardado
                     </span>
                 )}
