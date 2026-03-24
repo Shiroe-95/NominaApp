@@ -600,7 +600,7 @@ nomina-smart/
 ├── .kiro/
 │   ├── hooks/                    # Agent hooks (automatización de eventos del IDE)
 │   └── settings/
-│       └── mcp.json              # Servidor MCP (Supabase) — excluido de git
+│       └── mcp.json              # Servidores MCP (Supabase + Vercel) — excluido de git
 ├── messages/                     # Diccionarios i18n
 │   ├── en.json                   #   Inglés
 │   ├── es.json                   #   Español (default)
@@ -1156,17 +1156,19 @@ Después del deploy, verifica que el cron job esté activo en Vercel Dashboard �
 
 El proyecto incluye configuración de servidores MCP en `.kiro/settings/mcp.json` para integración con el IDE Kiro. Estos servidores permiten interactuar con servicios externos directamente desde el asistente IA del IDE.
 
-### Servidor Configurado
+### Servidores Configurados
 
 | Servidor | Tipo | Propósito |
 |----------|------|-----------|
 | **Supabase** | CLI (`npx`) | Gestión de base de datos, migraciones, tablas y funciones Edge directamente desde el IDE. Requiere un Personal Access Token de Supabase |
+| **Vercel** | URL remota | Gestión de despliegues, proyectos, equipos y logs de build. Conecta al MCP oficial de Vercel |
 
 ### Configuración
 
-El archivo `.kiro/settings/mcp.json` define el servidor MCP del workspace:
+El archivo `.kiro/settings/mcp.json` define los servidores MCP del workspace:
 
-- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere un Personal Access Token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). Las herramientas `list_tables` y `list_projects` están configuradas para auto-aprobación.
+- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere un Personal Access Token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). Herramientas auto-aprobadas: `list_tables`, `list_projects`, `apply_migration`, `execute_sql`.
+- **vercel**: Conecta vía URL remota a `https://mcp.vercel.com`. La autenticación se maneja automáticamente a través de la sesión de Vercel del usuario. Herramientas auto-aprobadas: `list_teams`, `list_projects`, `list_deployments`, `get_deployment_build_logs`.
 
 > **Nota**: El archivo `mcp.json` contiene tokens de acceso personal. Está excluido de git via `.gitignore` (entrada `.kiro/settings/mcp.json`). Nunca commitear este archivo.
 
