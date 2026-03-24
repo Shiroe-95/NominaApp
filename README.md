@@ -600,7 +600,7 @@ nomina-smart/
 ├── .kiro/
 │   ├── hooks/                    # Agent hooks (automatización de eventos del IDE)
 │   └── settings/
-│       └── mcp.json              # Servidores MCP (Supabase + Vercel + PostgreSQL + Stitch) — excluido de git
+│       └── mcp.json              # Servidor MCP (Supabase) — excluido de git
 ├── messages/                     # Diccionarios i18n
 │   ├── en.json                   #   Inglés
 │   ├── es.json                   #   Español (default)
@@ -1156,25 +1156,19 @@ Después del deploy, verifica que el cron job esté activo en Vercel Dashboard �
 
 El proyecto incluye configuración de servidores MCP en `.kiro/settings/mcp.json` para integración con el IDE Kiro. Estos servidores permiten interactuar con servicios externos directamente desde el asistente IA del IDE.
 
-### Servidores Configurados
+### Servidor Configurado
 
 | Servidor | Tipo | Propósito |
 |----------|------|-----------|
 | **Supabase** | CLI (`npx`) | Gestión de base de datos, migraciones, tablas y funciones Edge directamente desde el IDE. Requiere un Personal Access Token de Supabase |
-| **Vercel** | URL remota | Gestión de despliegues, dominios y configuración de proyecto Vercel desde el IDE |
-| **PostgreSQL** | CLI (`npx`) | Acceso directo de lectura/escritura a la base de datos Supabase PostgreSQL. Permite ejecutar consultas SQL, inspeccionar esquemas y depurar datos desde el IDE |
-| **Stitch** | URL remota | Generación y edición de diseños UI desde prompts de texto (Google Stitch API). Permite crear pantallas, generar variantes y exportar código frontend |
 
 ### Configuración
 
-El archivo `.kiro/settings/mcp.json` define los servidores MCP del workspace:
+El archivo `.kiro/settings/mcp.json` define el servidor MCP del workspace:
 
-- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere reemplazar `<SUPABASE_PERSONAL_ACCESS_TOKEN>` con un token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens).
-- **vercel**: Conecta al endpoint remoto `https://mcp.vercel.com`. No requiere configuración adicional si ya estás autenticado en Vercel.
-- **postgresql**: Ejecuta `@modelcontextprotocol/server-postgres@latest` vía `npx` con la cadena de conexión de Supabase PostgreSQL. Permite consultas SQL directas sin pasar por la API de Supabase.
-- **stitch**: Conecta al endpoint remoto `https://stitch.googleapis.com/mcp`. Requiere una API Key de Google Cloud con acceso a la Stitch API.
+- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere un Personal Access Token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). Las herramientas `list_tables` y `list_projects` están configuradas para auto-aprobación.
 
-> **Nota**: El archivo `mcp.json` contiene tokens de acceso personal y cadenas de conexión con credenciales. Asegúrate de que `.kiro/` esté incluido en `.gitignore` para no exponer credenciales.
+> **Nota**: El archivo `mcp.json` contiene tokens de acceso personal. Está excluido de git via `.gitignore` (entrada `.kiro/settings/mcp.json`). Nunca commitear este archivo.
 
 ---
 
