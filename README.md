@@ -1100,6 +1100,14 @@ npm run test:watch
 | `src/lib/notifications/notification-service.test.ts` | Servicio de notificaciones |
 | `src/lib/payroll/format-detector.test.ts` | Detección automática de formato de archivo (CSV, XLSX, JSON) |
 | `src/lib/sync/sync-service.test.ts` | Servicio de sincronización regulatoria |
+| `src/hooks/usePipelineStream.test.ts` | Hook SSE centralizado: backoff, mapeo de eventos, síntesis, parser SSE |
+| `src/hooks/usePipelineStream.property.test.ts` | PBT: mapeo SSE→LogEntry, backoff exponencial, síntesis completa, acumulación incremental (Properties 5, 6, 7, 12) |
+| `src/components/ui/ProviderStatusPanel.property.test.tsx` | PBT: conteo de proveedores, renderizado completo, alertas de test fallido (Properties 1, 2, 3) |
+| `src/components/ui/ProcessFlowPanel.property.test.tsx` | PBT: agentes visibles en cada paso del flujo de proceso (Property 4) |
+| `src/components/ui/AiSidebar.property.test.tsx` | PBT: ausencia de detalles técnicos en sidebar simplificado (Property 8) |
+| `src/components/ui/i18n-keys.property.test.ts` | PBT: claves de traducción existen en los 3 idiomas para componentes del dashboard (Property 11) |
+| `src/components/ui/LiveLogsPanel.test.tsx` | Panel de logs en tiempo real: estado vacío, renderizado de entradas, botón limpiar |
+| `src/components/ui/LiveSynthesisPanel.test.tsx` | Panel de síntesis IA: estado vacío, carga, renderizado completo con datos |
 
 ---
 

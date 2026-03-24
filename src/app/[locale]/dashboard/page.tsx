@@ -2,12 +2,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getUserProfile, type UserRole } from '@/lib/auth/user-profile';
 import { DashboardClient } from '@/components/ui/DashboardClient';
+import type { ProviderSummary } from '@/lib/types/pipeline';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
     let payrollData: any[] = [];
     let companiesData: any[] = [];
+    let providers: ProviderSummary[] = [];
     let role: UserRole = 'client';
     let companyId: string | null = null;
 
@@ -52,15 +54,33 @@ export default async function DashboardPage() {
             companiesQuery = companiesQuery.eq('id', companyId);
         }
 
-        const [payrollsRes, companiesRes] = await Promise.all([
+        // Query ai_providers for the authenticated user (uses auth client for RLS)
+        const providersQuery = user
+            ? supabaseAuth
+                .from('ai_providers')
+                .select('id, display_name, provider_type, is_active, last_test_success')
+                .order('priority', { ascending: true })
+            : null;
+
+        const [payrollsRes, companiesRes, providersRes] = await Promise.all([
             payrollQuery,
             companiesQuery,
+            providersQuery,
         ]);
 
         payrollData = payrollsRes.data ?? [];
         companiesData = companiesRes.data ?? [];
+
+        // Map snake_case DB rows to camelCase ProviderSummary
+        providers = (providersRes?.data ?? []).map((row: any) => ({
+            id: row.id,
+            displayName: row.display_name,
+            providerType: row.provider_type,
+            isActive: row.is_active,
+            lastTestSuccess: row.last_test_success,
+        }));
     } catch {
-        // Continue with empty data
+        // Continue with empty data — providers defaults to []
     }
 
     const formattedPayrolls = payrollData.map(({ companies, ...row }: any) => {
@@ -73,6 +93,7 @@ export default async function DashboardPage() {
             role={role}
             initialCompanies={companiesData}
             initialPayrolls={formattedPayrolls}
+            providers={providers}
         />
     );
 }

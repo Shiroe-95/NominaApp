@@ -6,7 +6,10 @@
  * el rol del usuario (admin / analyst / client).
  *
  * Sub-componentes internos esperados (definidos más abajo en el archivo o externamente):
- * - AgentTeamSection: sección destacada del equipo de agentes IA
+ * - ProviderStatusPanel: panel de estado de proveedores IA
+ * - ProcessFlowPanel: flujo de proceso con agentes IA (reemplaza AgentTeamSection)
+ * - LiveLogsPanel: panel de logs en tiempo real
+ * - LiveSynthesisPanel: panel de síntesis en tiempo real
  * - AdminMetrics / AnalystMetrics / ClientMetrics: tarjetas de métricas por rol
  * - RecentFindingsSummary: tabla resumen de hallazgos recientes
  * - CertificationStatusCard: estado de certificación (solo rol client)
@@ -19,16 +22,21 @@ import { Link } from '@/i18n/routing';
 import {
     ArrowRight, Shield, FileText, Users, Activity,
     AlertTriangle, CheckCircle, Clock, TrendingUp,
-    BarChart3, Sparkles,
+    BarChart3,
 } from 'lucide-react';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { DashboardTrends } from '@/components/ui/DashboardTrends';
 import { DashboardHealth } from '@/components/ui/DashboardHealth';
 import { TopCompanies } from '@/components/ui/TopCompanies';
 import { LatestPayrollCard } from '@/components/ui/LatestPayrollCard';
-import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { ProviderStatusPanel } from '@/components/ui/ProviderStatusPanel';
+import { ProcessFlowPanel } from '@/components/ui/ProcessFlowPanel';
+import { LiveLogsPanel } from '@/components/ui/LiveLogsPanel';
+import { LiveSynthesisPanel } from '@/components/ui/LiveSynthesisPanel';
 import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
+import { usePipelineStream } from '@/hooks/usePipelineStream';
 import type { UserRole } from '@/lib/auth/user-profile';
+import type { ProviderSummary, ProcessStep } from '@/lib/types/pipeline';
 
 /** Empresa disponible para filtrar en el dashboard. */
 interface Company {
@@ -71,6 +79,7 @@ interface DashboardClientProps {
     role: UserRole;
     initialCompanies: Company[];
     initialPayrolls: PayrollRow[];
+    providers?: ProviderSummary[];
 }
 
 /** Mapa de clases CSS por nivel de severidad de riesgo. */
@@ -91,7 +100,7 @@ function getSeverityFromScore(score: number): 'high' | 'medium' | 'low' {
     return 'low';
 }
 
-export function DashboardClient({ role, initialCompanies, initialPayrolls }: DashboardClientProps) {
+export function DashboardClient({ role, initialCompanies, initialPayrolls, providers = [] }: DashboardClientProps) {
     const t = useTranslations('Dashboard');
     const [companyId, setCompanyId] = useState('all');
     const [countryCode, setCountryCode] = useState<string>('all');
@@ -203,6 +212,49 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
         },
     }[role];
 
+    // ── Pipeline stream hook for logs and synthesis ──
+    const { logs, synthesis, isRunning, clearLogs, activeStep } = usePipelineStream();
+
+    // ── Process flow steps with assigned agents ──
+    const processSteps: ProcessStep[] = useMemo(() => [
+        {
+            id: 'upload',
+            title: t('processStepUpload'),
+            description: t('processStepUploadDesc'),
+            agents: [{ id: AGENT_PERSONAS.master.id, name: AGENT_PERSONAS.master.name, emoji: AGENT_PERSONAS.master.emoji, role: AGENT_PERSONAS.master.role }],
+            status: activeStep > 0 ? 'completed' : activeStep === 0 && isRunning ? 'active' : 'pending',
+            href: '/upload',
+        },
+        {
+            id: 'mapping',
+            title: t('processStepMapping'),
+            description: t('processStepMappingDesc'),
+            agents: [{ id: AGENT_PERSONAS.mapper.id, name: AGENT_PERSONAS.mapper.name, emoji: AGENT_PERSONAS.mapper.emoji, role: AGENT_PERSONAS.mapper.role }],
+            status: activeStep > 1 ? 'completed' : activeStep === 1 && isRunning ? 'active' : 'pending',
+            href: '/reconcile',
+        },
+        {
+            id: 'validation',
+            title: t('processStepValidation'),
+            description: t('processStepValidationDesc'),
+            agents: [
+                { id: AGENT_PERSONAS.auditor.id, name: AGENT_PERSONAS.auditor.name, emoji: AGENT_PERSONAS.auditor.emoji, role: AGENT_PERSONAS.auditor.role },
+                { id: AGENT_PERSONAS.corrector.id, name: AGENT_PERSONAS.corrector.name, emoji: AGENT_PERSONAS.corrector.emoji, role: AGENT_PERSONAS.corrector.role },
+                { id: AGENT_PERSONAS['payroll-expert'].id, name: AGENT_PERSONAS['payroll-expert'].name, emoji: AGENT_PERSONAS['payroll-expert'].emoji, role: AGENT_PERSONAS['payroll-expert'].role },
+            ],
+            status: activeStep > 2 ? 'completed' : activeStep === 2 && isRunning ? 'active' : 'pending',
+            href: '/reconcile',
+        },
+        {
+            id: 'report',
+            title: t('processStepReport'),
+            description: t('processStepReportDesc'),
+            agents: [{ id: AGENT_PERSONAS.writer.id, name: AGENT_PERSONAS.writer.name, emoji: AGENT_PERSONAS.writer.emoji, role: AGENT_PERSONAS.writer.role }],
+            status: activeStep > 3 ? 'completed' : activeStep === 3 && isRunning ? 'active' : 'pending',
+            href: '/reconcile',
+        },
+    ], [t, activeStep, isRunning]);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Hero */}
@@ -229,8 +281,11 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 </div>
             </section>
 
-            {/* AI Agent Team — PROMINENT */}
-            <AgentTeamSection />
+            {/* Provider Status + Process Flow — 2-column grid */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-700 ease-out">
+                <ProviderStatusPanel providers={providers} />
+                <ProcessFlowPanel currentStep={activeStep} steps={processSteps} />
+            </section>
 
             {/* Filters */}
             <section className="rounded-2xl border border-white/10 glass-panel p-4 shadow-xl shadow-black/20">
@@ -270,6 +325,12 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 {role === 'client' && <ClientMetrics metrics={metrics} t={t} />}
             </div>
 
+            {/* Live Logs + Synthesis — 2-column grid */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-150">
+                <LiveLogsPanel logs={logs} onClear={clearLogs} />
+                <LiveSynthesisPanel synthesis={synthesis} isRunning={isRunning} />
+            </section>
+
             {/* Charts and trends */}
             <div className="animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-200">
                 <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -305,48 +366,6 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 </section>
             </div>
         </div>
-    );
-}
-
-// ─── Agent Team Section — Prominent on Dashboard ───
-function AgentTeamSection() {
-    const agents = Object.values(AGENT_PERSONAS);
-    return (
-        <section className="rounded-2xl border border-white/10 glass-panel p-5 shadow-xl shadow-black/20 animate-in slide-in-from-bottom-4 duration-700 ease-out">
-            <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="h-4 w-4 text-violet-light" />
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                    Tu equipo de agentes IA
-                </h3>
-                <span className="ml-auto text-[10px] font-bold tracking-wider uppercase text-[#4edea3] bg-[#10B981]/15 px-2.5 py-1 rounded-full">
-                    {agents.length} agentes activos
-                </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                {agents.map((agent) => (
-                    <div
-                        key={agent.id}
-                        className="group flex flex-col items-center gap-2 rounded-xl bg-black/20 border border-white/5 p-3 hover:bg-white/5 hover:border-white/10 transition-all duration-200"
-                    >
-                        <div className="relative">
-                            <AgentAvatar agentId={agent.id} size={44} animate={false} />
-                            <div
-                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0a0e18]"
-                                style={{ backgroundColor: agent.hexColor }}
-                            />
-                        </div>
-                        <div className="text-center min-w-0 w-full">
-                            <p className="text-xs font-semibold text-white truncate">
-                                {agent.emoji} {agent.name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
-                                {agent.role}
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </section>
     );
 }
 

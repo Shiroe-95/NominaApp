@@ -77,7 +77,55 @@
         "certStatus_excellent": "Excellent",
         "certStatus_good": "Good",
         "certStatus_needsWork": "Needs improvement",
-        "certificationExplanation": "Percentage of payrolls ready for certification"
+        "certificationExplanation": "Percentage of payrolls ready for certification",
+        "processStepUpload": "Upload",
+        "processStepUploadDesc": "Upload and validate payroll files",
+        "processStepMapping": "Mapping",
+        "processStepMappingDesc": "Map columns to system fields",
+        "processStepValidation": "Validation",
+        "processStepValidationDesc": "Audit, correct, and verify data",
+        "processStepReport": "Report",
+        "processStepReportDesc": "Generate executive report",
+        "providers": {
+            "title": "AI Providers",
+            "configure": "Configure",
+            "count": "{total} providers ({active} active)",
+            "active": "Active",
+            "inactive": "Inactive",
+            "emptyTitle": "No providers configured",
+            "emptyDescription": "Set up your first AI provider to start using intelligent agents.",
+            "addProvider": "Configure Provider",
+            "testFailed": "Last connectivity test failed"
+        },
+        "processFlow": {
+            "title": "Process Flow",
+            "stepCounter": "Step {current}/{total}"
+        },
+        "synthesis": {
+            "title": "AI Synthesis",
+            "emptyTitle": "No synthesis available",
+            "emptyDescription": "Run an analysis to see the consolidated AI summary here.",
+            "loading": "Generating synthesis...",
+            "updating": "Updating synthesis...",
+            "findingsTitle": "Findings",
+            "recommendationsTitle": "Recommendations",
+            "agentsTitle": "Contributing Agents",
+            "risk_low": "Low Risk",
+            "risk_medium": "Medium Risk",
+            "risk_high": "High Risk"
+        },
+        "logs": {
+            "title": "Live Logs",
+            "clear": "Clear",
+            "emptyTitle": "No log entries",
+            "emptyDescription": "Logs will appear here when AI agents start processing.",
+            "type_agent-start": "Start",
+            "type_agent-complete": "Complete",
+            "type_agent-communication": "Comm",
+            "type_error": "Error",
+            "tokens": "{count} tokens",
+            "latency": "{ms}ms"
+        }
     },
     "Upload": {
         "title": "Smart Data Ingest",

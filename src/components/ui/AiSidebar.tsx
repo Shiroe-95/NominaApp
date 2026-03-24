@@ -1,11 +1,10 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2 } from 'lucide-react';
+import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AgentChip } from '@/components/ui/AgentChip';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
-import { getPersona, getAgentDisplayName } from '@/lib/ai/agent-personas';
+import { getPersona } from '@/lib/ai/agent-personas';
 import { colors } from '@/lib/design-tokens';
 import type { StreamEventType } from '@/lib/ai/streaming';
 
@@ -65,9 +64,6 @@ const SUGGESTIONS = [
   'Lista todas las reglas normativas configuradas',
   'Muestra las reglas de México 2025',
   'Crea una regla para Perú 2026',
-  '¿Cómo se calcula la base de cotización en Brasil?',
-  'Compara las prestaciones sociales entre Colombia y Chile',
-  '¿Qué verificaciones aplican para Argentina?',
 ];
 
 const WELCOME_MESSAGE: Message = {
@@ -153,7 +149,6 @@ export default function AiSidebar({ context }: AiSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
-  const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [streamingText, setStreamingText] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window === 'undefined') return [WELCOME_MESSAGE];
@@ -285,9 +280,6 @@ export default function AiSidebar({ context }: AiSidebarProps) {
               // Req 3.1: Show typing indicator with active agent name + avatar
               const agentName = event.data.agentName as string;
               setActiveAgent(agentName);
-              setActiveAgents((prev) =>
-                prev.includes(agentName) ? prev : [...prev, agentName],
-              );
               break;
             }
 
@@ -414,7 +406,6 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     setInput('');
     setIsLoading(true);
     setActiveAgent(null);
-    setActiveAgents([]);
     setStreamingText('');
 
     try {
@@ -426,13 +417,6 @@ export default function AiSidebar({ context }: AiSidebarProps) {
 
       const result = await executeSSEStream(apiMessages);
 
-      // Show which agents participated
-      setActiveAgents(result.results.map((r) => r.agentName));
-
-      // Brief flash of active state, then clear
-      setTimeout(() => setActiveAgents([]), 2000);
-
-      // Req 3.4: Show assistant message with agent result chips
       setMessages((prev) => [
         ...prev,
         {
@@ -453,7 +437,6 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     } finally {
       setIsLoading(false);
       setActiveAgent(null);
-      setActiveAgents([]);
       setStreamingText('');
       abortRef.current = null;
     }
@@ -555,41 +538,17 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                   {msg.text}
                 </div>
 
-                {/* Req 3.4: Agent result chips with tokens and latency */}
-                {msg.agentResults && msg.agentResults.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 w-full">
-                    {msg.agentResults.map((result, ri) => (
-                      <div key={ri} className="flex items-center gap-1.5">
-                        <AgentAvatar agentId={result.agentName} size={20} animate={false} />
-                        <AgentChip
-                          agentName={result.agentName}
-                          active={activeAgents.includes(result.agentName)}
-                        />
-                        <span className="text-[10px]" style={{ color: '#958ea0' }}>
-                          {result.tokensUsed}t · {result.latencyMs}ms
-                          {!result.success && ' · ⚠️'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Inter-agent communication */}
-                {msg.busHistory && msg.busHistory.length > 0 && (
-                  <div className="mt-1.5 ml-3 pl-3 border-l-2 space-y-1" style={{ borderColor: 'rgba(73,68,84,0.3)' }}>
-                    <span className="text-[9px] uppercase tracking-[0.05em] font-semibold" style={{ color: '#494454' }}>
-                      Comunicación del equipo
-                    </span>
-                    {msg.busHistory.map((bm, bi) => (
-                      <div key={bi} className="text-[10px] flex items-center gap-1" style={{ color: '#958ea0' }}>
-                        <span className="font-medium" style={{ color: '#cbc3d7' }}>{getAgentDisplayName(bm.fromAgent)}</span>
-                        <span style={{ color: '#494454' }}>→</span>
-                        <span className="font-medium" style={{ color: '#cbc3d7' }}>{getAgentDisplayName(bm.toAgent)}</span>
-                        <span style={{ color: '#494454' }}>·</span>
-                        <span>{bm.queryType}</span>
-                      </div>
-                    ))}
-                  </div>
+                {/* Req 6.6: Link to view details in logs panel */}
+                {msg.role === 'assistant' && i > 0 && (
+                  <a
+                    href="#live-logs-panel"
+                    data-testid="sidebar-log-link"
+                    className="mt-2 inline-flex items-center gap-1 text-xs transition-opacity hover:opacity-80"
+                    style={{ color: colors.primary }}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Ver detalles en logs
+                  </a>
                 )}
 
                 {/* Suggestions on welcome message */}
@@ -623,45 +582,20 @@ export default function AiSidebar({ context }: AiSidebarProps) {
               </div>
             ))}
 
-            {/* Req 3.1: Typing indicator with active agent name + avatar */}
+            {/* Req 6.5: Simplified typing indicator — avatar + agent name only */}
             {isLoading && (
-              <div className="flex flex-col gap-2 mr-auto">
+              <div className="flex items-center gap-2 mr-auto">
                 <div
                   className="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2"
                   style={{ backgroundColor: colors.surfaceContainer.default }}
                 >
                   <AgentAvatar agentId={activeAgent ?? 'master'} size={22} animate />
-                  <div className="flex gap-1">
-                    {[0, 150, 300].map((delay) => (
-                      <span
-                        key={delay}
-                        className="w-1.5 h-1.5 rounded-full animate-bounce"
-                        style={{ backgroundColor: colors.primary, animationDelay: `${delay}ms` }}
-                      />
-                    ))}
-                  </div>
                   <span className="text-xs" style={{ color: '#958ea0' }}>
                     {activeAgent
                       ? `${getPersona(activeAgent).emoji} ${getPersona(activeAgent).name} procesando...`
                       : 'Dianis coordinando...'}
                   </span>
                 </div>
-                {/* Req 3.2: Incremental streaming content */}
-                {streamingText && (
-                  <div
-                    className="rounded-2xl rounded-tl-sm px-4 py-3 text-xs whitespace-pre-line leading-relaxed"
-                    style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
-                  >
-                    {streamingText}
-                  </div>
-                )}
-                {activeAgents.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeAgents.map((name) => (
-                      <AgentChip key={name} agentName={name} active showAvatar />
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

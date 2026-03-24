@@ -78,7 +78,55 @@
         "certStatus_excellent": "Excelente",
         "certStatus_good": "Bom",
         "certStatus_needsWork": "Precisa melhorar",
-        "certificationExplanation": "Porcentagem de folhas prontas para certificação"
+        "certificationExplanation": "Porcentagem de folhas prontas para certificação",
+        "processStepUpload": "Upload",
+        "processStepUploadDesc": "Carregar e validar arquivos de folha",
+        "processStepMapping": "Mapeamento",
+        "processStepMappingDesc": "Mapear colunas para campos do sistema",
+        "processStepValidation": "Validação",
+        "processStepValidationDesc": "Auditar, corrigir e verificar dados",
+        "processStepReport": "Relatório",
+        "processStepReportDesc": "Gerar relatório executivo",
+        "providers": {
+            "title": "Provedores IA",
+            "configure": "Configurar",
+            "count": "{total} provedores ({active} ativos)",
+            "active": "Ativo",
+            "inactive": "Inativo",
+            "emptyTitle": "Nenhum provedor configurado",
+            "emptyDescription": "Configure seu primeiro provedor de IA para começar a usar os agentes inteligentes.",
+            "addProvider": "Configurar Provedor",
+            "testFailed": "Último teste de conectividade falhou"
+        },
+        "processFlow": {
+            "title": "Fluxo de Processo",
+            "stepCounter": "Passo {current}/{total}"
+        },
+        "synthesis": {
+            "title": "Síntese IA",
+            "emptyTitle": "Nenhuma síntese disponível",
+            "emptyDescription": "Execute uma análise para ver o resumo consolidado de IA aqui.",
+            "loading": "Gerando síntese...",
+            "updating": "Atualizando síntese...",
+            "findingsTitle": "Achados",
+            "recommendationsTitle": "Recomendações",
+            "agentsTitle": "Agentes Contribuintes",
+            "risk_low": "Risco Baixo",
+            "risk_medium": "Risco Médio",
+            "risk_high": "Risco Alto"
+        },
+        "logs": {
+            "title": "Logs em Tempo Real",
+            "clear": "Limpar",
+            "emptyTitle": "Sem entradas de log",
+            "emptyDescription": "Os logs aparecerão aqui quando os agentes IA começarem a processar.",
+            "type_agent-start": "Início",
+            "type_agent-complete": "Completo",
+            "type_agent-communication": "Comm",
+            "type_error": "Erro",
+            "tokens": "{count} tokens",
+            "latency": "{ms}ms"
+        }
     },
     "Upload": {
         "title": "Ingestão Inteligente de Dados",

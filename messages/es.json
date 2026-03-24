@@ -77,7 +77,55 @@
         "certStatus_excellent": "Excelente",
         "certStatus_good": "Bueno",
         "certStatus_needsWork": "Necesita mejora",
-        "certificationExplanation": "Porcentaje de planillas listas para certificar"
+        "certificationExplanation": "Porcentaje de planillas listas para certificar",
+        "processStepUpload": "Carga",
+        "processStepUploadDesc": "Cargar y validar archivos de nómina",
+        "processStepMapping": "Mapeo",
+        "processStepMappingDesc": "Mapear columnas a campos del sistema",
+        "processStepValidation": "Validación",
+        "processStepValidationDesc": "Auditar, corregir y verificar datos",
+        "processStepReport": "Reporte",
+        "processStepReportDesc": "Generar reporte ejecutivo",
+        "providers": {
+            "title": "Proveedores IA",
+            "configure": "Configurar",
+            "count": "{total} proveedores ({active} activos)",
+            "active": "Activo",
+            "inactive": "Inactivo",
+            "emptyTitle": "Sin proveedores configurados",
+            "emptyDescription": "Configura tu primer proveedor de IA para comenzar a usar los agentes inteligentes.",
+            "addProvider": "Configurar Proveedor",
+            "testFailed": "Último test de conectividad falló"
+        },
+        "processFlow": {
+            "title": "Flujo de Proceso",
+            "stepCounter": "Paso {current}/{total}"
+        },
+        "synthesis": {
+            "title": "Síntesis IA",
+            "emptyTitle": "Sin síntesis disponible",
+            "emptyDescription": "Ejecuta un análisis para ver el resumen consolidado de IA aquí.",
+            "loading": "Generando síntesis...",
+            "updating": "Actualizando síntesis...",
+            "findingsTitle": "Hallazgos",
+            "recommendationsTitle": "Recomendaciones",
+            "agentsTitle": "Agentes Contribuyentes",
+            "risk_low": "Riesgo Bajo",
+            "risk_medium": "Riesgo Medio",
+            "risk_high": "Riesgo Alto"
+        },
+        "logs": {
+            "title": "Logs en Vivo",
+            "clear": "Limpiar",
+            "emptyTitle": "Sin entradas de log",
+            "emptyDescription": "Los logs aparecerán aquí cuando los agentes IA comiencen a procesar.",
+            "type_agent-start": "Inicio",
+            "type_agent-complete": "Completo",
+            "type_agent-communication": "Comm",
+            "type_error": "Error",
+            "tokens": "{count} tokens",
+            "latency": "{ms}ms"
+        }
     },
     "Upload": {
         "title": "Ingesta Inteligente de Datos",
