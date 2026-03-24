@@ -131,7 +131,6 @@ export async function POST(req: Request) {
   const { data: providers, error: provError } = await admin
     .from('ai_providers')
     .select('*')
-    .eq('user_id', auth.userId)
     .eq('is_active', true)
     .order('priority', { ascending: true });
 
