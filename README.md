@@ -600,18 +600,21 @@ nomina-smart/
 ├── .kiro/
 │   ├── hooks/                    # Agent hooks (automatización de eventos del IDE)
 │   └── settings/
-│       └── mcp.json              # Servidores MCP (Supabase + Vercel) — excluido de git
+│       └── mcp.json              # Servidores MCP (Supabase + Vercel + PostgreSQL + Stitch) — excluido de git
 ├── messages/                     # Diccionarios i18n
 │   ├── en.json                   #   Inglés
 │   ├── es.json                   #   Español (default)
 │   └── pt.json                   #   Portugués
-├── scripts/                      # Migraciones SQL (001–006)
+├── scripts/                      # Migraciones SQL (001–006) + utilidades
 │   ├── 001_setup_schema.sql      #   Tablas base (companies, employees, audits, payroll_uploads)
 │   ├── 002_refactor_tables.sql   #   user_profiles, ai_providers, ai_usage_logs + trigger
 │   ├── 003_multi_country_tables.sql  # supported_countries, token_rates, corrections, sources
 │   ├── 004_regulatory_sync_tables.sql # sync_history, rule_audit_log, notifications, email_log
 │   ├── 005_finance_token_optimization.sql # routing_rules, quality_metrics, optimization_config
-│   └── 006_proper_rls_policies.sql    # Políticas RLS completas
+│   ├── 006_proper_rls_policies.sql    # Políticas RLS completas
+│   ├── check-db.cjs              #   Diagnóstico de BD: verifica 24 tablas via API REST Supabase
+│   ├── run-managed.cjs           #   Ejecutor gestionado del servidor de desarrollo
+│   └── stop-app.cjs              #   Detiene procesos de la aplicación
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/             # Rutas multilenguaje (es/en/pt)
@@ -1159,6 +1162,8 @@ El proyecto incluye configuración de servidores MCP en `.kiro/settings/mcp.json
 |----------|------|-----------|
 | **Supabase** | CLI (`npx`) | Gestión de base de datos, migraciones, tablas y funciones Edge directamente desde el IDE. Requiere un Personal Access Token de Supabase |
 | **Vercel** | URL remota | Gestión de despliegues, dominios y configuración de proyecto Vercel desde el IDE |
+| **PostgreSQL** | CLI (`npx`) | Acceso directo de lectura/escritura a la base de datos Supabase PostgreSQL. Permite ejecutar consultas SQL, inspeccionar esquemas y depurar datos desde el IDE |
+| **Stitch** | URL remota | Generación y edición de diseños UI desde prompts de texto (Google Stitch API). Permite crear pantallas, generar variantes y exportar código frontend |
 
 ### Configuración
 
@@ -1166,8 +1171,10 @@ El archivo `.kiro/settings/mcp.json` define los servidores MCP del workspace:
 
 - **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere reemplazar `<SUPABASE_PERSONAL_ACCESS_TOKEN>` con un token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens).
 - **vercel**: Conecta al endpoint remoto `https://mcp.vercel.com`. No requiere configuración adicional si ya estás autenticado en Vercel.
+- **postgresql**: Ejecuta `@modelcontextprotocol/server-postgres@latest` vía `npx` con la cadena de conexión de Supabase PostgreSQL. Permite consultas SQL directas sin pasar por la API de Supabase.
+- **stitch**: Conecta al endpoint remoto `https://stitch.googleapis.com/mcp`. Requiere una API Key de Google Cloud con acceso a la Stitch API.
 
-> **Nota**: El archivo `mcp.json` contiene tokens de acceso personal. Asegúrate de que `.kiro/` esté incluido en `.gitignore` para no exponer credenciales.
+> **Nota**: El archivo `mcp.json` contiene tokens de acceso personal y cadenas de conexión con credenciales. Asegúrate de que `.kiro/` esté incluido en `.gitignore` para no exponer credenciales.
 
 ---
 
