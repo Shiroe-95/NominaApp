@@ -20,12 +20,22 @@ export type MappingCategory =
   | 'contract'
   | 'informational';
 
+export interface MappingAlternative {
+  targetField: string;
+  category: MappingCategory;
+  confidence: 'high' | 'medium' | 'low';
+}
+
 export interface ColumnMapping {
   sourceColumn: string;
   targetField: string;
   category: MappingCategory;
   confidence: 'high' | 'medium' | 'low';
   matchMethod: 'synonym' | 'ai' | 'created';
+  /** When confidence is medium or low (≤ 0.7), 3 alternative mapping suggestions (Req 10.3) */
+  alternatives?: MappingAlternative[];
+  /** True when the column was not recognized and a custom field was created (Req 10.5) */
+  isCustomField?: boolean;
 }
 
 export interface LocaleParsingHints {
@@ -42,6 +52,10 @@ export interface MappingReport {
   synonymMatches: number;
   aiMatches: number;
   createdFields: number;
+  /** Count of custom fields created for unrecognized columns (Req 10.5) */
+  customFieldsCount: number;
+  /** Count of columns needing user confirmation due to low confidence (Req 10.3) */
+  columnsNeedingConfirmation: number;
   detectedLanguage?: string;
   localeHints?: LocaleParsingHints;
 }
@@ -367,6 +381,16 @@ function buildLocaleHints(countryCode: string): LocaleParsingHints | undefined {
 
 // ── Zod schema for AI disambiguation ────────────────────────────────
 
+const AiMappingAlternativeSchema = z.object({
+  targetField: z.string().describe('Campo estándar alternativo sugerido en snake_case'),
+  category: z
+    .enum(['identity', 'salary_base', 'non_salary', 'ibc', 'contribution', 'contract', 'informational'])
+    .describe('Categoría del campo alternativo'),
+  confidence: z
+    .enum(['high', 'medium', 'low'])
+    .describe('Nivel de confianza en esta alternativa'),
+});
+
 const AiMappingSuggestionSchema = z.object({
   mappings: z.array(
     z.object({
@@ -378,6 +402,11 @@ const AiMappingSuggestionSchema = z.object({
       confidence: z
         .enum(['high', 'medium', 'low'])
         .describe('Nivel de confianza en el mapeo'),
+      alternatives: z
+        .array(AiMappingAlternativeSchema)
+        .max(3)
+        .describe('3 opciones alternativas de mapeo cuando la confianza no es alta (Req 10.3)')
+        .optional(),
     }),
   ),
 });
@@ -463,6 +492,8 @@ export function createMapperAgent(): AgentDefinition {
         synonymMatches: 0,
         aiMatches: 0,
         createdFields: 0,
+        customFieldsCount: 0,
+        columnsNeedingConfirmation: 0,
       };
 
       return {
@@ -546,7 +577,8 @@ ${sampleContext.join('\n')}
 Para cada columna:
 1. Si reconoces el campo, mapéalo al campo estándar correspondiente
 2. Si no lo reconoces, crea un nombre en snake_case descriptivo y clasifica como "informational"
-3. No repitas campos destino ya usados: ${Array.from(usedTargets).join(', ')}`;
+3. No repitas campos destino ya usados: ${Array.from(usedTargets).join(', ')}
+4. IMPORTANTE: Si la confianza del mapeo es "medium" o "low", incluye exactamente 3 alternativas de mapeo en el campo "alternatives" con diferentes opciones de campo estándar y categoría para que el usuario pueda elegir la correcta`;
 
         const { object, usage } = await generateObject({
           model,
@@ -566,39 +598,51 @@ Para cada columna:
           );
 
           if (aiMapping && !usedTargets.has(aiMapping.targetField)) {
-            mappings.push({
+            const isLowConfidence = aiMapping.confidence === 'medium' || aiMapping.confidence === 'low';
+            const mapping: ColumnMapping = {
               sourceColumn: column,
               targetField: aiMapping.targetField,
               category: aiMapping.category,
               confidence: aiMapping.confidence,
               matchMethod: 'ai',
-            });
+            };
+
+            // Include alternatives for low/medium confidence mappings (Req 10.3)
+            if (isLowConfidence && aiMapping.alternatives && aiMapping.alternatives.length > 0) {
+              mapping.alternatives = aiMapping.alternatives.slice(0, 3);
+            }
+
+            mappings.push(mapping);
             usedTargets.add(aiMapping.targetField);
           } else {
-            // Fallback: create snake_case field, classify as informational (Req 8.3)
+            // Fallback: create custom snake_case field, classify as informational (Req 8.3, 10.5)
             const snakeField = toSnakeCase(column);
+            const customField = usedTargets.has(snakeField) ? `${snakeField}_extra` : snakeField;
             mappings.push({
               sourceColumn: column,
-              targetField: usedTargets.has(snakeField) ? `${snakeField}_extra` : snakeField,
+              targetField: customField,
               category: 'informational',
               confidence: 'low',
               matchMethod: 'created',
+              isCustomField: true,
             });
-            usedTargets.add(snakeField);
+            usedTargets.add(customField);
           }
         }
       } catch {
-        // If AI fails, fall back to creating snake_case fields for all ambiguous columns (Req 8.3)
+        // If AI fails, fall back to creating custom snake_case fields for all ambiguous columns (Req 8.3, 10.5)
         for (const column of ambiguousColumns) {
           const snakeField = toSnakeCase(column);
+          const customField = usedTargets.has(snakeField) ? `${snakeField}_extra` : snakeField;
           mappings.push({
             sourceColumn: column,
-            targetField: usedTargets.has(snakeField) ? `${snakeField}_extra` : snakeField,
+            targetField: customField,
             category: 'informational',
             confidence: 'low',
             matchMethod: 'created',
+            isCustomField: true,
           });
-          usedTargets.add(snakeField);
+          usedTargets.add(customField);
         }
       }
     }
@@ -609,6 +653,10 @@ Para cada columna:
       synonymMatches: mappings.filter((m) => m.matchMethod === 'synonym').length,
       aiMatches: mappings.filter((m) => m.matchMethod === 'ai').length,
       createdFields: mappings.filter((m) => m.matchMethod === 'created').length,
+      customFieldsCount: mappings.filter((m) => m.isCustomField === true).length,
+      columnsNeedingConfirmation: mappings.filter(
+        (m) => m.confidence === 'low' || m.confidence === 'medium',
+      ).length,
       detectedLanguage: detectedLanguage !== 'unknown' ? detectedLanguage : undefined,
       localeHints,
     };

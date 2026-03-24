@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentChip } from '@/components/ui/AgentChip';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { getPersona, getAgentDisplayName } from '@/lib/ai/agent-personas';
+import { colors } from '@/lib/design-tokens';
+import type { StreamEventType } from '@/lib/ai/streaming';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -51,6 +53,13 @@ interface Message {
 /** Clave de localStorage para persistir el historial de conversación. */
 const STORAGE_KEY = 'nominasmart_ai_history';
 
+/**
+ * Número máximo de intentos de reconexión SSE con backoff exponencial.
+ * Tras agotar los intentos, el sidebar vuelve al modo fetch simple.
+ * @see Requirements 3.4
+ */
+const MAX_RECONNECT_ATTEMPTS = 3;
+
 /** Sugerencias predefinidas mostradas en el mensaje de bienvenida. */
 const SUGGESTIONS = [
   'Lista todas las reglas normativas configuradas',
@@ -63,8 +72,55 @@ const SUGGESTIONS = [
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  text: '¡Hola! Soy Dianis 👑, tu directora de orquestación.\n\nYo coordino a todo el equipo de agentes para ayudarte con nómina de cualquier país:\n\n🔍 Juli — Auditora de nómina\n📝 Ana — Redactora de reportes\n⚙️ Wil — Ingeniero de correcciones\n🐕 Soul — Investigadora regulatoria\n🐈‍⬛ Gyoru — Mapeadora de campos\n\n🌎 Países: CO · MX · PE · CL · BR · AR · US\n\nDime qué necesitas y yo me encargo de asignar al equipo correcto.',
+  text: '¡Hola! Soy Dianis 👑, tu directora de orquestación.\n\nYo coordino a todo el equipo de agentes para ayudarte con nómina de cualquier país:\n\n🔍 Juli — Auditora de nómina\n📝 Ana — Redactora de reportes\n⚙️ Wil — Ingeniero de correcciones\n🐕 Soul — Investigadora regulatoria\n🐈‍⬛ Gyoru — Mapeadora de campos\n🐰 Luni — Experta en nómina multi-país\n\n🌎 Países: CO · MX · PE · CL · BR · AR · US\n\nDime qué necesitas y yo me encargo de asignar al equipo correcto.',
 };
+
+// ── SSE Stream Parser ───────────────────────────────────────────────
+
+interface SSEEvent {
+  type: StreamEventType;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Parses an SSE text chunk into individual events.
+ * Handles partial chunks by tracking leftover buffer.
+ */
+function parseSSEChunk(chunk: string, buffer: string): { events: SSEEvent[]; remaining: string } {
+  const text = buffer + chunk;
+  const events: SSEEvent[] = [];
+  // Split on double newline (SSE event boundary)
+  const parts = text.split('\n\n');
+  // Last part may be incomplete
+  const remaining = parts.pop() ?? '';
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+
+    let eventType: string | undefined;
+    let dataStr: string | undefined;
+
+    for (const line of trimmed.split('\n')) {
+      if (line.startsWith('event: ')) {
+        eventType = line.slice(7).trim();
+      } else if (line.startsWith('data: ')) {
+        dataStr = line.slice(6);
+      }
+    }
+
+    if (eventType && dataStr) {
+      try {
+        const data = JSON.parse(dataStr) as Record<string, unknown>;
+        events.push({ type: eventType as StreamEventType, data });
+      } catch {
+        // Skip malformed events
+      }
+    }
+  }
+
+  return { events, remaining };
+}
 
 // ── Component ───────────────────────────────────────────────────────
 
@@ -79,27 +135,26 @@ interface AiSidebarProps {
 /**
  * Panel lateral de chat con IA multi-agente.
  *
- * Conecta con `/api/ai/orchestrate` para enviar mensajes al Agente Maestro,
- * que orquesta agentes especializados (auditor, redactor, corrector, mapeador, nómina).
+ * Conecta con `/api/ai/orchestrate` usando SSE streaming para enviar mensajes
+ * al Agente Maestro, que orquesta agentes especializados.
  *
  * Funcionalidades:
+ * - Streaming SSE con renderizado incremental de contenido.
+ * - Indicador de escritura con agente activo (nombre + avatar).
+ * - Reconexión automática con backoff exponencial (hasta 3 intentos).
  * - Historial de conversación persistido en localStorage.
- * - Indicadores visuales de qué agentes están procesando (AgentChip).
  * - Chips de resultado por agente con tokens consumidos y latencia.
  * - Visualización del flujo de comunicación inter-agente (AgentBus).
  * - Sugerencias predefinidas en el mensaje de bienvenida.
  *
- * Cumple con Requisitos 14.1 (indicador de agente activo), 14.2 (progreso de sub-tareas),
- * 14.3 (chips de resultado), 14.4 (historial de conversaciones) y 25.5 (trazabilidad inter-agente).
- *
- * @param props - {@link AiSidebarProps}
- * @returns Panel lateral colapsable con chat de IA.
+ * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
  */
-
 export default function AiSidebar({ context }: AiSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
+  const [streamingText, setStreamingText] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window === 'undefined') return [WELCOME_MESSAGE];
     try {
@@ -113,8 +168,9 @@ export default function AiSidebar({ context }: AiSidebarProps) {
   });
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Persist to localStorage
+  // Persist to localStorage (Req 3.5)
   useEffect(() => {
     if (messages.length > 1) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch { /* ignore */ }
@@ -129,35 +185,57 @@ export default function AiSidebar({ context }: AiSidebarProps) {
   // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, streamingText]);
 
-  const handleSend = async (text: string = input) => {
-    const trimmed = text.trim();
-    if (!trimmed || isLoading) return;
+  // ── SSE Streaming fetch with reconnection ───────────────────────
 
-    const updated: Message[] = [...messages, { role: 'user', text: trimmed }];
-    setMessages(updated);
-    setInput('');
-    setIsLoading(true);
-    setActiveAgents([]);
+  /**
+   * Ejecuta una solicitud al endpoint de orquestación usando SSE streaming.
+   *
+   * Conecta con `/api/ai/orchestrate` y procesa eventos SSE en tiempo real,
+   * actualizando el estado del componente conforme los agentes progresan.
+   * Si el servidor no soporta SSE, hace fallback a respuesta JSON estándar.
+   *
+   * Implementa reconexión automática con backoff exponencial (1s, 2s, 4s)
+   * hasta {@link MAX_RECONNECT_ATTEMPTS} intentos ante desconexiones inesperadas.
+   *
+   * @param apiMessages - Historial de mensajes a enviar al orquestador.
+   * @param attempt - Número de intento actual para reconexión (uso interno).
+   * @returns Resultado consolidado con respuesta, resultados de agentes, plan y mensajes del bus.
+   *
+   * @see Requirements 3.1 (indicador de agente activo)
+   * @see Requirements 3.2 (renderizado incremental)
+   * @see Requirements 3.4 (reconexión automática)
+   */
+  const executeSSEStream = useCallback(async (
+    apiMessages: { role: 'user' | 'assistant'; content: string }[],
+    attempt: number = 0,
+  ): Promise<{
+    reply: string;
+    results: AgentResultInfo[];
+    plan?: { steps: PlanStep[] };
+    busHistory?: AgentBusMessage[];
+  }> => {
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    try {
-      // Build messages array (skip welcome message at index 0)
-      const apiMessages = updated.slice(1).map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.text,
-      }));
+    const res = await fetch('/api/ai/orchestrate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify({
+        type: 'chat',
+        messages: apiMessages,
+        context: context ?? {},
+      }),
+      signal: controller.signal,
+    });
 
-      const res = await fetch('/api/ai/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'chat',
-          messages: apiMessages,
-          context: context ?? {},
-        }),
-      });
-
+    // If server doesn't return SSE, fall back to JSON parsing
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/event-stream')) {
       const data = await res.json() as {
         reply?: string;
         results?: AgentResultInfo[];
@@ -166,28 +244,207 @@ export default function AiSidebar({ context }: AiSidebarProps) {
         interAgentMessages?: AgentBusMessage[];
         error?: string;
       };
-
       if (!res.ok) throw new Error(data.error ?? 'Error desconocido');
+      return {
+        reply: data.reply ?? 'Acción completada.',
+        results: data.results ?? [],
+        plan: data.plan,
+        busHistory: data.busHistory ?? data.interAgentMessages,
+      };
+    }
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `HTTP ${res.status}`);
+    }
+
+    if (!res.body) throw new Error('No response body');
+
+    // ── Parse SSE stream using ReadableStream reader ────────────
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+    const collectedResults: AgentResultInfo[] = [];
+    const collectedBusMessages: AgentBusMessage[] = [];
+    let collectedPlan: { steps: PlanStep[] } | undefined;
+    let finalReply = '';
+    let partialText = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const { events, remaining } = parseSSEChunk(chunk, sseBuffer);
+        sseBuffer = remaining;
+
+        for (const event of events) {
+          switch (event.type) {
+            case 'agent-start': {
+              // Req 3.1: Show typing indicator with active agent name + avatar
+              const agentName = event.data.agentName as string;
+              setActiveAgent(agentName);
+              setActiveAgents((prev) =>
+                prev.includes(agentName) ? prev : [...prev, agentName],
+              );
+              break;
+            }
+
+            case 'agent-complete': {
+              // Req 3.2: Render content incrementally as agents complete
+              const agentName = event.data.agentName as string;
+              const success = event.data.success as boolean;
+              const tokensUsed = (event.data.tokensUsed as number) ?? 0;
+              const latencyMs = (event.data.latencyMs as number) ?? 0;
+
+              collectedResults.push({
+                agentName,
+                success,
+                tokensUsed,
+                providerUsed: 'stream',
+                latencyMs,
+              });
+
+              // Build incremental status text
+              const persona = getPersona(agentName);
+              const statusIcon = success ? '✅' : '⚠️';
+              partialText += `${statusIcon} ${persona.emoji} ${persona.name} — ${success ? 'completado' : 'error'} (${tokensUsed}t · ${latencyMs}ms)\n`;
+              setStreamingText(partialText);
+              break;
+            }
+
+            case 'agent-communication': {
+              collectedBusMessages.push({
+                fromAgent: event.data.fromAgent as string,
+                toAgent: event.data.toAgent as string,
+                queryType: event.data.queryType as string,
+                payload: null,
+                timestamp: new Date().toISOString(),
+              });
+              break;
+            }
+
+            case 'plan-updated': {
+              const totalSteps = event.data.totalSteps as number;
+              const version = event.data.version as number;
+              const adaptation = event.data.adaptation as Record<string, unknown> | undefined;
+              collectedPlan = {
+                steps: Array.from({ length: totalSteps }, (_, i) => ({
+                  agentName: `step-${i}`,
+                  description: `Plan v${version}`,
+                })),
+              };
+              if (adaptation?.reason) {
+                partialText += `🔄 Plan adaptado: ${adaptation.reason as string}\n`;
+                setStreamingText(partialText);
+              }
+              break;
+            }
+
+            case 'pipeline-complete': {
+              // Final consolidated result
+              const response = event.data.response as {
+                reply?: string;
+                results?: AgentResultInfo[];
+                plan?: { steps: PlanStep[] };
+                busHistory?: AgentBusMessage[];
+              } | undefined;
+
+              if (response) {
+                finalReply = response.reply ?? '';
+                if (response.results) {
+                  collectedResults.length = 0;
+                  collectedResults.push(...response.results);
+                }
+                if (response.plan) collectedPlan = response.plan;
+              }
+              break;
+            }
+
+            case 'clarification-needed': {
+              finalReply = event.data.message as string ?? 'No entendí tu solicitud. ¿Podrías ser más específico?';
+              break;
+            }
+
+            case 'error': {
+              const errorMsg = event.data.error as string ?? 'Error desconocido';
+              const fatal = event.data.fatal as boolean;
+              if (fatal) {
+                throw new Error(errorMsg);
+              }
+              partialText += `❌ Error: ${errorMsg}\n`;
+              setStreamingText(partialText);
+              break;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // If stream disconnected unexpectedly, attempt reconnection
+      if (
+        err instanceof TypeError &&
+        attempt < MAX_RECONNECT_ATTEMPTS &&
+        !controller.signal.aborted
+      ) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return executeSSEStream(apiMessages, attempt + 1);
+      }
+      throw err;
+    }
+
+    return {
+      reply: finalReply || partialText.trim() || 'Acción completada.',
+      results: collectedResults,
+      plan: collectedPlan,
+      busHistory: collectedBusMessages.length > 0 ? collectedBusMessages : undefined,
+    };
+  }, [context]);
+
+  // ── Send handler ──────────────────────────────────────────────────
+
+  const handleSend = async (text: string = input) => {
+    const trimmed = text.trim();
+    if (!trimmed || isLoading) return;
+
+    const updated: Message[] = [...messages, { role: 'user', text: trimmed }];
+    setMessages(updated);
+    // Req 3.3: Clear input and disable until response starts arriving
+    setInput('');
+    setIsLoading(true);
+    setActiveAgent(null);
+    setActiveAgents([]);
+    setStreamingText('');
+
+    try {
+      // Build messages array (skip welcome message at index 0)
+      const apiMessages = updated.slice(1).map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.text,
+      }));
+
+      const result = await executeSSEStream(apiMessages);
 
       // Show which agents participated
-      const results = data.results ?? [];
-      const busMessages = data.busHistory ?? data.interAgentMessages ?? [];
-      setActiveAgents(results.map((r) => r.agentName));
+      setActiveAgents(result.results.map((r) => r.agentName));
 
       // Brief flash of active state, then clear
       setTimeout(() => setActiveAgents([]), 2000);
 
+      // Req 3.4: Show assistant message with agent result chips
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          text: data.reply ?? 'Acción completada.',
-          agentResults: results.length > 0 ? results : undefined,
-          plan: data.plan,
-          busHistory: busMessages.length > 0 ? busMessages : undefined,
+          text: result.reply,
+          agentResults: result.results.length > 0 ? result.results : undefined,
+          plan: result.plan,
+          busHistory: result.busHistory,
         },
       ]);
     } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
       console.error('Orchestrate error:', error);
       setMessages((prev) => [
         ...prev,
@@ -195,7 +452,10 @@ export default function AiSidebar({ context }: AiSidebarProps) {
       ]);
     } finally {
       setIsLoading(false);
+      setActiveAgent(null);
       setActiveAgents([]);
+      setStreamingText('');
+      abortRef.current = null;
     }
   };
 
@@ -205,7 +465,12 @@ export default function AiSidebar({ context }: AiSidebarProps) {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-gradient-to-br from-[#d0bcff] to-[#a078ff] text-[#23005c] rounded-2xl p-3.5 shadow-[0_0_25px_rgba(160,120,255,0.3)] transition-all hover:scale-105 hover:shadow-[0_0_35px_rgba(160,120,255,0.4)] active:scale-95 flex items-center gap-2"
+          className="fixed bottom-6 right-6 z-40 rounded-2xl p-3.5 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+          style={{
+            background: `linear-gradient(135deg, ${colors.secondary}, ${colors.primary})`,
+            color: '#23005c',
+            boxShadow: `0 0 25px ${colors.primary}4d`,
+          }}
         >
           <Bot className="w-5 h-5" />
           <span className="text-sm font-semibold pr-0.5">IA</span>
@@ -213,31 +478,58 @@ export default function AiSidebar({ context }: AiSidebarProps) {
       )}
 
       {isOpen && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-[#0b1326] shadow-[0_0_60px_rgba(6,14,32,0.8)] flex flex-col animate-in slide-in-from-right-full duration-300">
+        <div
+          className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] flex flex-col animate-in slide-in-from-right-full duration-300"
+          style={{
+            backgroundColor: colors.surface,
+            boxShadow: '0 0 60px rgba(6,14,32,0.8)',
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 bg-[#131b2e] border-b border-[rgba(73,68,84,0.15)] shrink-0">
+          <div
+            className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+            style={{
+              backgroundColor: colors.surfaceContainer.low,
+              borderColor: 'rgba(73,68,84,0.15)',
+            }}
+          >
             <div className="flex items-center gap-3">
               <AgentAvatar agentId="master" size={38} animate />
               <div>
-                <h3 className="font-semibold text-sm text-[#dae2fd]">👑 Dianis</h3>
-                <div className="flex items-center gap-1.5 text-xs text-[#958ea0]">
-                  <Activity className="w-3 h-3 text-[#4edea3]" />
+                <h3 className="font-semibold text-sm" style={{ color: colors.onSurface }}>
+                  👑 Dianis
+                </h3>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: '#958ea0' }}>
+                  <Activity className="w-3 h-3" style={{ color: colors.success }} />
                   Directora · Equipo listo
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={handleClearHistory} title="Limpiar historial" className="p-2 hover:bg-[#222a3d] rounded-full transition-colors">
-                <Trash2 className="w-4 h-4 text-[#958ea0] hover:text-[#ffb4ab]" />
+              <button
+                onClick={handleClearHistory}
+                title="Limpiar historial"
+                className="p-2 rounded-full transition-colors"
+                style={{ color: '#958ea0' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.surfaceContainer.high; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
-              <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-[#222a3d] rounded-full transition-colors">
-                <X className="w-5 h-5 text-[#958ea0]" />
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-2 rounded-full transition-colors"
+                style={{ color: '#958ea0' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.surfaceContainer.high; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0b1326]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: colors.surface }}>
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -246,47 +538,54 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                 <div
                   className={cn(
                     'p-3.5 rounded-2xl text-sm whitespace-pre-line leading-relaxed',
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-[#d0bcff]/20 to-[#a078ff]/20 text-[#dae2fd] rounded-tr-sm'
-                      : 'bg-[#171f33] text-[#cbc3d7] rounded-tl-sm',
+                    msg.role === 'user' ? 'rounded-tr-sm' : 'rounded-tl-sm',
                   )}
+                  style={
+                    msg.role === 'user'
+                      ? {
+                          background: `linear-gradient(135deg, ${colors.secondary}33, ${colors.primary}33)`,
+                          color: colors.onSurface,
+                        }
+                      : {
+                          backgroundColor: colors.surfaceContainer.default,
+                          color: '#cbc3d7',
+                        }
+                  }
                 >
                   {msg.text}
                 </div>
 
-                {/* Agent result chips */}
+                {/* Req 3.4: Agent result chips with tokens and latency */}
                 {msg.agentResults && msg.agentResults.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5 w-full">
-                    {msg.agentResults.map((result, ri) => {
-                      return (
-                        <div key={ri} className="flex items-center gap-1.5">
-                          <AgentAvatar agentId={result.agentName} size={20} animate={false} />
-                          <AgentChip
-                            agentName={result.agentName}
-                            active={activeAgents.includes(result.agentName)}
-                          />
-                          <span className="text-[10px] text-[#958ea0]">
-                            {result.tokensUsed}t · {result.latencyMs}ms
-                            {!result.success && ' · ⚠️'}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {msg.agentResults.map((result, ri) => (
+                      <div key={ri} className="flex items-center gap-1.5">
+                        <AgentAvatar agentId={result.agentName} size={20} animate={false} />
+                        <AgentChip
+                          agentName={result.agentName}
+                          active={activeAgents.includes(result.agentName)}
+                        />
+                        <span className="text-[10px]" style={{ color: '#958ea0' }}>
+                          {result.tokensUsed}t · {result.latencyMs}ms
+                          {!result.success && ' · ⚠️'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
                 {/* Inter-agent communication */}
                 {msg.busHistory && msg.busHistory.length > 0 && (
-                  <div className="mt-1.5 ml-3 pl-3 border-l-2 border-[#494454]/30 space-y-1">
-                    <span className="text-[9px] uppercase tracking-[0.05em] text-[#494454] font-semibold">
+                  <div className="mt-1.5 ml-3 pl-3 border-l-2 space-y-1" style={{ borderColor: 'rgba(73,68,84,0.3)' }}>
+                    <span className="text-[9px] uppercase tracking-[0.05em] font-semibold" style={{ color: '#494454' }}>
                       Comunicación del equipo
                     </span>
                     {msg.busHistory.map((bm, bi) => (
-                      <div key={bi} className="text-[10px] text-[#958ea0] flex items-center gap-1">
-                        <span className="font-medium text-[#cbc3d7]">{getAgentDisplayName(bm.fromAgent)}</span>
-                        <span className="text-[#494454]">→</span>
-                        <span className="font-medium text-[#cbc3d7]">{getAgentDisplayName(bm.toAgent)}</span>
-                        <span className="text-[#494454]">·</span>
+                      <div key={bi} className="text-[10px] flex items-center gap-1" style={{ color: '#958ea0' }}>
+                        <span className="font-medium" style={{ color: '#cbc3d7' }}>{getAgentDisplayName(bm.fromAgent)}</span>
+                        <span style={{ color: '#494454' }}>→</span>
+                        <span className="font-medium" style={{ color: '#cbc3d7' }}>{getAgentDisplayName(bm.toAgent)}</span>
+                        <span style={{ color: '#494454' }}>·</span>
                         <span>{bm.queryType}</span>
                       </div>
                     ))}
@@ -296,7 +595,7 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                 {/* Suggestions on welcome message */}
                 {msg.role === 'assistant' && i === 0 && (
                   <div className="mt-3 flex flex-col gap-1.5 w-full">
-                    <p className="text-[10px] text-[#958ea0] flex items-center gap-1 mb-0.5">
+                    <p className="text-[10px] flex items-center gap-1 mb-0.5" style={{ color: '#958ea0' }}>
                       <Sparkles className="w-3 h-3" /> Sugerencias
                     </p>
                     {SUGGESTIONS.map((s) => (
@@ -304,9 +603,18 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                         key={s}
                         disabled={isLoading}
                         onClick={() => void handleSend(s)}
-                        className="text-left text-xs bg-[#171f33] text-[#cbc3d7] px-3 py-2.5 rounded-lg hover:bg-[#222a3d] hover:text-[#d0bcff] transition-colors flex items-center gap-2 group"
+                        className="text-left text-xs px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 group"
+                        style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = colors.surfaceContainer.high;
+                          e.currentTarget.style.color = colors.secondary;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colors.surfaceContainer.default;
+                          e.currentTarget.style.color = '#cbc3d7';
+                        }}
                       >
-                        <BookOpen className="w-3 h-3 text-[#494454] group-hover:text-[#a078ff] shrink-0" />
+                        <BookOpen className="w-3 h-3 shrink-0" style={{ color: '#494454' }} />
                         {s}
                       </button>
                     ))}
@@ -315,22 +623,38 @@ export default function AiSidebar({ context }: AiSidebarProps) {
               </div>
             ))}
 
-            {/* Loading with active agent indicators */}
+            {/* Req 3.1: Typing indicator with active agent name + avatar */}
             {isLoading && (
               <div className="flex flex-col gap-2 mr-auto">
-                <div className="bg-[#171f33] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-                  <AgentAvatar agentId="master" size={22} animate />
+                <div
+                  className="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2"
+                  style={{ backgroundColor: colors.surfaceContainer.default }}
+                >
+                  <AgentAvatar agentId={activeAgent ?? 'master'} size={22} animate />
                   <div className="flex gap-1">
                     {[0, 150, 300].map((delay) => (
                       <span
                         key={delay}
-                        className="w-1.5 h-1.5 bg-[#a078ff] rounded-full animate-bounce"
-                        style={{ animationDelay: `${delay}ms` }}
+                        className="w-1.5 h-1.5 rounded-full animate-bounce"
+                        style={{ backgroundColor: colors.primary, animationDelay: `${delay}ms` }}
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-[#958ea0]">Dianis coordinando...</span>
+                  <span className="text-xs" style={{ color: '#958ea0' }}>
+                    {activeAgent
+                      ? `${getPersona(activeAgent).emoji} ${getPersona(activeAgent).name} procesando...`
+                      : 'Dianis coordinando...'}
+                  </span>
                 </div>
+                {/* Req 3.2: Incremental streaming content */}
+                {streamingText && (
+                  <div
+                    className="rounded-2xl rounded-tl-sm px-4 py-3 text-xs whitespace-pre-line leading-relaxed"
+                    style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
+                  >
+                    {streamingText}
+                  </div>
+                )}
                 {activeAgents.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {activeAgents.map((name) => (
@@ -345,7 +669,13 @@ export default function AiSidebar({ context }: AiSidebarProps) {
           </div>
 
           {/* Input */}
-          <div className="p-4 bg-[#131b2e] border-t border-[rgba(73,68,84,0.15)] shrink-0">
+          <div
+            className="p-4 border-t shrink-0"
+            style={{
+              backgroundColor: colors.surfaceContainer.low,
+              borderColor: 'rgba(73,68,84,0.15)',
+            }}
+          >
             <div className="relative flex items-center">
               <input
                 type="text"
@@ -354,12 +684,27 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                 onKeyDown={(e) => e.key === 'Enter' && void handleSend()}
                 placeholder={isLoading ? 'Procesando...' : 'Escribe un mensaje o instrucción...'}
                 disabled={isLoading}
-                className="w-full pr-12 pl-4 py-3 bg-[#060e20] rounded-full text-sm text-[#dae2fd] placeholder:text-[#494454] focus:outline-none focus:ring-2 focus:ring-[#a078ff]/30 focus:shadow-[0_0_15px_rgba(160,120,255,0.1)] transition-all disabled:opacity-70"
+                className="w-full pr-12 pl-4 py-3 rounded-full text-sm transition-all disabled:opacity-70"
+                style={{
+                  backgroundColor: '#060e20',
+                  color: colors.onSurface,
+                  outline: 'none',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${colors.primary}4d, 0 0 15px ${colors.primary}1a`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
               <button
                 onClick={() => void handleSend()}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 p-2 bg-gradient-to-br from-[#d0bcff] to-[#a078ff] hover:opacity-90 disabled:opacity-30 text-[#23005c] rounded-full transition-all flex items-center justify-center h-8 w-8 my-auto top-0 bottom-0"
+                className="absolute right-2 p-2 rounded-full transition-all flex items-center justify-center h-8 w-8 my-auto top-0 bottom-0 disabled:opacity-30 hover:opacity-90"
+                style={{
+                  background: `linear-gradient(135deg, ${colors.secondary}, ${colors.primary})`,
+                  color: '#23005c',
+                }}
               >
                 {isLoading ? (
                   <div className="w-3.5 h-3.5 border-2 border-[#23005c] border-t-transparent rounded-full animate-spin" />
@@ -368,7 +713,7 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                 )}
               </button>
             </div>
-            <p className="text-[10px] text-center text-[#494454] mt-2 flex items-center justify-center gap-1">
+            <p className="text-[10px] text-center mt-2 flex items-center justify-center gap-1" style={{ color: '#494454' }}>
               <Bot className="w-3 h-3" /> Equipo: Juli · Ana · Wil · Soul · Gyoru
             </p>
           </div>

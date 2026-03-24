@@ -20,7 +20,7 @@ interface AgentAvatarProps {
  * Avatar SVG animado para cada agente de NominaSmart.
  *
  * Renderiza un avatar vectorial basado en el `avatarType` de la persona del agente.
- * Soporta 4 variantes: `woman`, `man`, `dog` y `cat`. Cada variante incluye
+ * Soporta 5 variantes: `woman`, `man`, `dog`, `cat` y `rabbit`. Cada variante incluye
  * animaciones SVG (parpadeo de ojos, movimiento de orejas/cola) y un anillo
  * de glow pulsante con el color característico del agente.
  *
@@ -54,6 +54,7 @@ export function AgentAvatar({ agentId, size = 40, animate = true, className = ''
         {persona.avatarType === 'man' && <ManAvatar persona={persona} />}
         {persona.avatarType === 'dog' && <DogAvatar persona={persona} />}
         {persona.avatarType === 'cat' && <CatAvatar persona={persona} />}
+        {persona.avatarType === 'rabbit' && <RabbitAvatar persona={persona} />}
       </svg>
       {/* Glow ring */}
       {animate && (
@@ -217,6 +218,57 @@ function CatAvatar({ persona }: { persona: AgentPersona }) {
       </path>
       {/* Collar */}
       <path d="M32 68 Q50 72 68 68" stroke={persona.hexColor} strokeWidth="3" fill="none" strokeLinecap="round" />
+    </g>
+  );
+}
+
+
+/** Variante de avatar de conejo con orejas largas animadas, nariz rosada y cola esponjosa. */
+function RabbitAvatar({ persona }: { persona: AgentPersona }) {
+  return (
+    <g>
+      {/* Ears */}
+      <ellipse cx="38" cy="18" rx="7" ry="20" fill={persona.hairColor}>
+        <animate attributeName="ry" values="20;22;20" dur="2.5s" repeatCount="indefinite" />
+      </ellipse>
+      <ellipse cx="62" cy="18" rx="7" ry="20" fill={persona.hairColor}>
+        <animate attributeName="ry" values="20;22;20" dur="2.5s" repeatCount="indefinite" begin="0.4s" />
+      </ellipse>
+      {/* Inner ears */}
+      <ellipse cx="38" cy="18" rx="4" ry="15" fill="#FFB6C1" opacity="0.6" />
+      <ellipse cx="62" cy="18" rx="4" ry="15" fill="#FFB6C1" opacity="0.6" />
+      {/* Head */}
+      <circle cx="50" cy="48" r="24" fill={persona.hairColor} />
+      {/* Cheeks */}
+      <circle cx="34" cy="52" r="6" fill="#FFB6C1" opacity="0.35" />
+      <circle cx="66" cy="52" r="6" fill="#FFB6C1" opacity="0.35" />
+      {/* Eyes */}
+      <circle cx="40" cy="45" r="4" fill={persona.hexColor}>
+        <animate attributeName="r" values="4;1;4" dur="4s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="60" cy="45" r="4" fill={persona.hexColor}>
+        <animate attributeName="r" values="4;1;4" dur="4s" repeatCount="indefinite" />
+      </circle>
+      {/* Eye shine */}
+      <circle cx="41.5" cy="44" r="1.5" fill="white" />
+      <circle cx="61.5" cy="44" r="1.5" fill="white" />
+      {/* Nose */}
+      <ellipse cx="50" cy="52" rx="3" ry="2.5" fill="#FF8B8B">
+        <animate attributeName="rx" values="3;3.3;3" dur="1.5s" repeatCount="indefinite" />
+      </ellipse>
+      {/* Mouth */}
+      <path d="M47 55 L50 58 L53 55" stroke="#c9a0a0" strokeWidth="1" fill="none" strokeLinecap="round" />
+      {/* Whiskers */}
+      <line x1="22" y1="50" x2="38" y2="52" stroke="#c9a0a0" strokeWidth="0.7" opacity="0.4" />
+      <line x1="22" y1="55" x2="38" y2="54" stroke="#c9a0a0" strokeWidth="0.7" opacity="0.4" />
+      <line x1="78" y1="50" x2="62" y2="52" stroke="#c9a0a0" strokeWidth="0.7" opacity="0.4" />
+      <line x1="78" y1="55" x2="62" y2="54" stroke="#c9a0a0" strokeWidth="0.7" opacity="0.4" />
+      {/* Body */}
+      <ellipse cx="50" cy="82" rx="18" ry="16" fill={persona.hairColor} />
+      {/* Tail (fluffy puff) */}
+      <circle cx="72" cy="82" r="7" fill="white" opacity="0.8">
+        <animate attributeName="r" values="7;8;7" dur="2s" repeatCount="indefinite" />
+      </circle>
     </g>
   );
 }

@@ -1,5 +1,4 @@
-import { generateObject, type LanguageModel } from 'ai';
-import { z } from 'zod';
+import { type LanguageModel } from 'ai';
 import type {
   AgentContext,
   AgentDefinition,
@@ -14,22 +13,30 @@ import { createWriterAgent } from './writer';
 import { createCorrectorAgent } from './corrector';
 import { createMapperAgent } from './mapper';
 import { createPayrollExpertAgent } from './payroll-expert';
-import { AgentBus } from './agent-bus';
+import { AgentBusV2 } from './agent-bus';
+import type { AgentMessage } from './agent-bus';
 import { getAgentLabel as getPersonaLabel } from '@/lib/ai/agent-personas';
 import { selectModel, type ModelSelection, type TaskContext } from '../model-selector';
 import { calculateCost } from '../cost-calculator';
 import { logAiUsage } from '../usage-logger';
 import { createAdminClient } from '../../supabase/admin';
+import {
+  classifyIntentContextual,
+  LOW_CONFIDENCE_THRESHOLD,
+} from './intent-classifier';
+import { buildDynamicPlan, evaluateAndAdapt } from './dynamic-planner';
+import type { PlanContext } from './dynamic-planner';
+import { crossValidateCorrections, crossValidateReport } from './cross-validator';
+import type { DynamicPlan } from '../plan-serializer';
+import type { AuditReport } from './auditor';
+import type { CorrectionReport } from './corrector';
+import type { WriterReport } from './writer';
+
+// Re-export UserIntent from the canonical source (intent-classifier)
+export type { UserIntent } from './intent-classifier';
+import type { UserIntent } from './intent-classifier';
 
 // ── Intent classification ───────────────────────────────────────────
-
-export type UserIntent =
-  | 'audit'
-  | 'mapping'
-  | 'consultation'
-  | 'correction'
-  | 'report'
-  | 'full-analysis';
 
 /**
  * Maps OrchestrateRequest.type to a UserIntent.
@@ -49,116 +56,6 @@ export function classifyRequestType(type: OrchestrateRequest['type']): UserInten
       return 'full-analysis';
     default:
       return 'consultation';
-  }
-}
-
-// ── Zod schema for AI-based intent classification (chat messages) ───
-
-const IntentClassificationSchema = z.object({
-  intent: z
-    .enum(['audit', 'mapping', 'consultation', 'correction', 'report', 'full-analysis'])
-    .describe('The classified user intent'),
-  reasoning: z.string().describe('Brief explanation of why this intent was chosen'),
-});
-
-// ── Plan builders ───────────────────────────────────────────────────
-
-/**
- * Creates an execution plan based on the classified intent.
- * Each plan defines which agents to run and in what order,
- * including data dependencies between them (inputFrom).
- */
-export function buildPlan(intent: UserIntent): OrchestratorPlan {
-  switch (intent) {
-    case 'audit':
-      return {
-        steps: [
-          {
-            agentName: 'auditor',
-            description: 'Ejecutar validaciones matemáticas y normativas sobre los registros de nómina',
-          },
-        ],
-      };
-
-    case 'mapping':
-      return {
-        steps: [
-          {
-            agentName: 'mapper',
-            description: 'Mapear columnas del archivo a campos estándar del sistema',
-          },
-        ],
-      };
-
-    case 'consultation':
-      return {
-        steps: [
-          {
-            agentName: 'payroll-expert',
-            description: 'Responder consulta del usuario sobre normativa laboral o cálculos de nómina',
-          },
-        ],
-      };
-
-    case 'correction':
-      return {
-        steps: [
-          {
-            agentName: 'auditor',
-            description: 'Identificar hallazgos que requieren corrección',
-          },
-          {
-            agentName: 'corrector',
-            inputFrom: 'auditor',
-            description: 'Proponer correcciones numéricas para los hallazgos detectados',
-          },
-        ],
-      };
-
-    case 'report':
-      return {
-        steps: [
-          {
-            agentName: 'auditor',
-            description: 'Ejecutar validaciones para generar hallazgos',
-          },
-          {
-            agentName: 'writer',
-            inputFrom: 'auditor',
-            description: 'Generar reporte ejecutivo narrativo a partir de los hallazgos',
-          },
-        ],
-      };
-
-    case 'full-analysis':
-      return {
-        steps: [
-          {
-            agentName: 'auditor',
-            description: 'Ejecutar validaciones matemáticas y normativas completas',
-          },
-          {
-            agentName: 'writer',
-            inputFrom: 'auditor',
-            description: 'Generar reporte ejecutivo con hallazgos agrupados y priorizados',
-          },
-          {
-            agentName: 'corrector',
-            inputFrom: 'auditor',
-            description: 'Proponer correcciones numéricas determinísticas',
-          },
-        ],
-      };
-
-    default:
-      return {
-        steps: [
-          {
-            agentName: 'payroll-expert',
-            description: 'Responder consulta general del usuario',
-          },
-        ],
-      };
   }
 }
 
@@ -351,37 +248,76 @@ export function createMasterAgent(): AgentDefinition {
     const requestType = request?.type ?? 'chat';
     const messages = request?.messages;
 
-    // ── Step 1: Classify intent (Req 4.1) ───────────────────────────
+    // ── Step 1: Classify intent using contextual classifier (Req 6.1–6.4) ──
     let intent: UserIntent;
+    let classificationConfidence = 1.0;
 
     if (requestType !== 'chat') {
       // Deterministic classification for explicit request types
       intent = classifyRequestType(requestType);
     } else if (messages && messages.length > 0) {
-      // Use AI to classify intent from chat messages
-      intent = await classifyIntentFromMessages(messages, model).then((r) => {
-        totalTokens += r.tokensUsed;
-        return r.intent;
-      }).catch(() => 'consultation' as UserIntent);
+      // Use contextual classifier (considers last 5 messages + payroll context)
+      try {
+        const classification = await classifyIntentContextual(
+          messages as ChatMessage[],
+          {
+            hasData: (context.payrollData?.length ?? 0) > 0,
+            countryCode: context.countryCode,
+          },
+          model,
+        );
+        intent = classification.intent;
+        classificationConfidence = classification.confidence;
+        totalTokens += classification.contextUsed; // approximate token overhead
+
+        // Req 6.3: Low confidence → return clarification response
+        if (classificationConfidence < LOW_CONFIDENCE_THRESHOLD) {
+          return {
+            agentName: 'master',
+            success: true,
+            data: {
+              reply: `No estoy seguro de entender tu solicitud (confianza: ${Math.round(classificationConfidence * 100)}%). ${classification.reasoning}. ¿Podrías ser más específico?`,
+              results: [],
+              plan: { steps: [] },
+              clarificationNeeded: true,
+              confidence: classificationConfidence,
+            } satisfies OrchestrateResponse & { clarificationNeeded: boolean; confidence: number },
+            tokensUsed: totalTokens,
+            providerUsed: model.modelId ?? 'unknown',
+            latencyMs: Date.now() - startTime,
+          };
+        }
+      } catch {
+        intent = 'consultation';
+      }
     } else {
       intent = 'consultation';
     }
 
-    // ── Step 2: Build execution plan (Req 4.1) ─────────────────────
-    const plan = buildPlan(intent);
+    // ── Step 2: Build dynamic execution plan (Req 7.1) ──────────────
+    const planContext: PlanContext = {
+      hasPayrollData: (context.payrollData?.length ?? 0) > 0,
+      countryCode: context.countryCode,
+    };
 
-    // ── Step 3: Execute agents sequentially (Req 4.2, 4.3) ─────────
+    let plan: DynamicPlan = buildDynamicPlan(intent, planContext);
+
+    // ── Step 3: Execute agents sequentially (Req 4.2, 4.3, 7.1–7.5) ──
     const agentRegistry = getAgentRegistry();
     const results: AgentResult[] = [];
     const collectedResults: Record<string, unknown> = {
       ...context.previousResults,
     };
 
-    // Create AgentBus for inter-agent communication (Req 25.1–25.4)
-    const bus = new AgentBus({
+    // Create AgentBus v2 with streaming callback (Req 8.1–8.6)
+    const bus = new AgentBusV2({
       maxDepth: 5,
       timeout: 30_000,
       sessionId: `orch-${Date.now()}`,
+      onMessage: (_message: AgentMessage) => {
+        // In the JSON fallback path, we just record the message.
+        // The SSE streaming path in route.ts handles emitting events directly.
+      },
     });
 
     // Register all agents on the bus so they can call each other
@@ -401,8 +337,6 @@ export function createMasterAgent(): AgentDefinition {
     }
 
     // ── Load country-specific rules from DB ─────────────────────────
-    // This enriches the context so all agents have access to the
-    // country's normative rules (checks, required fields, etc.)
     if (!context.countryRules) {
       try {
         const supabase = createAdminClient();
@@ -439,8 +373,13 @@ export function createMasterAgent(): AgentDefinition {
     // Store model selection metadata per step for cost calculation and logging (Req 9.1, 9.2)
     const modelSelections: Array<{ agentName: string; selection: ModelSelection }> = [];
 
-    for (const step of plan.steps) {
+    // Track which steps we've already executed (for dynamic plan growth)
+    let executedStepCount = 0;
+
+    while (executedStepCount < plan.steps.length) {
+      const step = plan.steps[executedStepCount];
       const agent = agentRegistry.get(step.agentName);
+
       if (!agent) {
         results.push({
           agentName: step.agentName,
@@ -450,6 +389,7 @@ export function createMasterAgent(): AgentDefinition {
           providerUsed: 'none',
           latencyMs: 0,
         });
+        executedStepCount++;
         continue;
       }
 
@@ -491,14 +431,6 @@ export function createMasterAgent(): AgentDefinition {
       }
 
       try {
-        // Execute agent with the passed-in model.
-        // Fallback integration (Req 9.5): The outer executeWithFallback in orchestrate/route.ts
-        // wraps the entire master agent execution. If the provider is completely unavailable and
-        // the master agent throws, executeWithFallback retries with the next provider in priority
-        // order. Within this loop, individual sub-agent failures are caught and recorded (below)
-        // so the pipeline can continue — other agents may still succeed with the same provider.
-        // If model selection suggested a specific provider but it fails, the default model from
-        // executeWithFallback is still used as the execution model, ensuring continuity.
         const stepStart = Date.now();
         const agentResult = await agent.execute(agentContext, model);
         const stepLatencyMs = Date.now() - stepStart;
@@ -507,6 +439,9 @@ export function createMasterAgent(): AgentDefinition {
 
         // Store result for downstream agents (Req 4.2 — pass results between agents)
         collectedResults[step.agentName] = agentResult.data;
+
+        // Req 7.1–7.3: Evaluate result and adapt plan dynamically
+        plan = evaluateAndAdapt(plan, agentResult, executedStepCount, planContext);
 
         // ── Post-execution: cost calculation, usage logging, quality metrics (Req 9.3, 9.4) ──
         // Fire-and-forget — don't block the pipeline
@@ -583,16 +518,8 @@ export function createMasterAgent(): AgentDefinition {
           }
         })();
       } catch (error) {
-        // Sub-agent failure: record and continue the pipeline (Req 4.3).
-        // Fallback integration (Req 9.5): Individual sub-agent errors are NOT re-thrown here
-        // because the master agent runs a multi-step pipeline — aborting would lose results from
-        // agents that already succeeded. The outer executeWithFallback (in orchestrate/route.ts)
-        // handles full provider failures: if the master agent itself throws (e.g. all steps fail
-        // catastrophically), executeWithFallback retries the entire orchestration with the next
-        // provider in priority order. This two-level error handling ensures:
-        //   1. Partial pipeline failures are gracefully recorded (this catch block)
-        //   2. Complete provider outages trigger provider-level fallback (executeWithFallback)
-        results.push({
+        // Req 7.4, 12.1: Sub-agent failure — record and continue the pipeline.
+        const errorResult: AgentResult = {
           agentName: step.agentName,
           success: false,
           data: {
@@ -601,17 +528,70 @@ export function createMasterAgent(): AgentDefinition {
           tokensUsed: 0,
           providerUsed: model.modelId ?? 'unknown',
           latencyMs: 0,
-        });
+        };
+        results.push(errorResult);
+
+        // Evaluate even failed results so the plan can continue (Req 7.4)
+        plan = evaluateAndAdapt(plan, errorResult, executedStepCount, planContext);
+      }
+
+      executedStepCount++;
+    }
+
+    // ── Step 4: Cross-validation (Req 9.1, 9.2, 9.3) ───────────────
+    const warnings: string[] = [];
+
+    const auditorData = collectedResults['auditor'] as Record<string, unknown> | undefined;
+    const correctorData = collectedResults['corrector'] as Record<string, unknown> | undefined;
+    const writerData = collectedResults['writer'] as Record<string, unknown> | undefined;
+
+    if (correctorData && auditorData) {
+      try {
+        const { warning } = crossValidateCorrections(
+          correctorData as unknown as CorrectionReport,
+          auditorData as unknown as AuditReport,
+        );
+        if (warning) {
+          warnings.push(warning.message);
+        }
+      } catch (err) {
+        console.warn('[master] Cross-validation (corrections) failed:', err);
       }
     }
 
-    // ── Step 4: Consolidate response (Req 4.4) ─────────────────────
-    const reply = consolidateResults(results, plan);
+    if (writerData && auditorData) {
+      try {
+        const { warning } = crossValidateReport(
+          writerData as unknown as WriterReport,
+          auditorData as unknown as AuditReport,
+        );
+        if (warning) {
+          warnings.push(warning.message);
+        }
+      } catch (err) {
+        console.warn('[master] Cross-validation (report) failed:', err);
+      }
+    }
+
+    // ── Step 5: Consolidate response (Req 4.4) ─────────────────────
+    const orchestratorPlan: OrchestratorPlan = {
+      steps: plan.steps.map((s) => ({
+        agentName: s.agentName,
+        inputFrom: s.inputFrom,
+        description: s.description,
+      })),
+    };
+
+    let reply = consolidateResults(results, orchestratorPlan);
+
+    if (warnings.length > 0) {
+      reply += '\n\n' + warnings.join('\n');
+    }
 
     const response: OrchestrateResponse = {
       reply,
       results,
-      plan,
+      plan: orchestratorPlan,
     };
 
     // Attach model selection metadata for cost calculation and logging (task 6.2)
@@ -637,31 +617,5 @@ export function createMasterAgent(): AgentDefinition {
     name: 'master',
     systemPrompt: MASTER_SYSTEM_PROMPT,
     execute,
-  };
-}
-
-// ── AI intent classification helper ─────────────────────────────────
-
-async function classifyIntentFromMessages(
-  messages: ChatMessage[],
-  model: LanguageModel,
-): Promise<{ intent: UserIntent; tokensUsed: number }> {
-  const lastMessages = messages.slice(-3);
-  const conversationText = lastMessages
-    .map((m) => `${m.role}: ${m.content}`)
-    .join('\n');
-
-  const result = await generateObject({
-    model,
-    system: MASTER_SYSTEM_PROMPT,
-    prompt: `Clasifica la intención del usuario basándote en la conversación:\n\n${conversationText}`,
-    schema: IntentClassificationSchema,
-  });
-
-  const parsed = result.object as { intent: string; reasoning: string };
-
-  return {
-    intent: parsed.intent as UserIntent,
-    tokensUsed: result.usage?.totalTokens ?? 0,
   };
 }

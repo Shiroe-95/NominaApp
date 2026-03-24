@@ -2,5 +2,10 @@
     "kiroAgent.trustedCommands": [
         "*"
     ],
-    "typescript.autoClosingTags": false
+    "typescript.autoClosingTags": false,
+    "kiroAgent.trustedTools": [
+        "*",
+        "webFetch",
+        "remote_web_search"
+    ]
 }

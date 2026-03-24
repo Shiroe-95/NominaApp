@@ -38,7 +38,7 @@ const STEPS: FlowStep[] = [
     description: 'Juli audita contra normativa del país. Wil calcula correcciones exactas. Se comunican entre sí.',
     agentId: 'auditor',
     icon: <ShieldCheck className="w-5 h-5" />,
-    tip: '🔍 Juli detecta → ⚙️ Wil corrige → 💼 Dianis consulta normas',
+    tip: '🔍 Juli detecta → ⚙️ Wil corrige → 🐰 Luni consulta normas',
   },
   {
     id: 'results',

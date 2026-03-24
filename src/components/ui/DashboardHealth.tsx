@@ -1,5 +1,6 @@
 import { CheckCircle2, AlertTriangle, Users, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { colors, elevation } from '@/lib/design-tokens';
 
 interface DashboardHealthProps {
     certifiable: number;
@@ -10,41 +11,43 @@ interface DashboardHealthProps {
 
 export function DashboardHealth({ certifiable, noCertifiable, employeesAtRisk, rowsWithFindings }: DashboardHealthProps) {
     return (
-        <Card>
+        <Card style={{ boxShadow: elevation.low }}>
             <CardHeader>
-                <CardTitle className="text-sm text-white drop-shadow-sm">Salud de certificación</CardTitle>
+                <CardTitle className="text-sm font-semibold" style={{ color: colors.onSurface }}>
+                    Salud de certificación
+                </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm text-slate-300">
+            <CardContent className="space-y-4 text-sm" style={{ color: colors.onSurface, opacity: 0.8 }}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-light drop-shadow-[0_0_4px_rgba(52,211,153,0.6)]" />
+                        <CheckCircle2 className="h-5 w-5" style={{ color: colors.success }} />
                         <span>Certificables</span>
                     </div>
-                    <strong className="text-base text-white">{certifiable}</strong>
+                    <strong className="text-base" style={{ color: colors.onSurface }}>{certifiable}</strong>
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-rose-light drop-shadow-[0_0_4px_rgba(251,113,133,0.6)]" />
+                        <AlertTriangle className="h-5 w-5" style={{ color: colors.error }} />
                         <span>No certificables</span>
                     </div>
-                    <strong className="text-base text-white">{noCertifiable}</strong>
+                    <strong className="text-base" style={{ color: colors.onSurface }}>{noCertifiable}</strong>
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-amber-light drop-shadow-[0_0_4px_rgba(252,211,77,0.6)]" />
+                        <Users className="h-5 w-5" style={{ color: colors.warning }} />
                         <span>Empleados con riesgo</span>
                     </div>
-                    <strong className="text-base text-white">{employeesAtRisk}</strong>
+                    <strong className="text-base" style={{ color: colors.onSurface }}>{employeesAtRisk}</strong>
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <TrendingDown className="h-5 w-5 text-amber-light drop-shadow-[0_0_4px_rgba(252,211,77,0.6)]" />
+                        <TrendingDown className="h-5 w-5" style={{ color: colors.warning }} />
                         <span>Filas con hallazgos</span>
                     </div>
-                    <strong className="text-base text-white">{rowsWithFindings}</strong>
+                    <strong className="text-base" style={{ color: colors.onSurface }}>{rowsWithFindings}</strong>
                 </div>
             </CardContent>
         </Card>

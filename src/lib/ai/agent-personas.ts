@@ -16,8 +16,8 @@ export interface AgentPersona {
   description: string;
   /** Emoji representativo */
   emoji: string;
-  /** Tipo de avatar: 'woman' | 'man' | 'dog' | 'cat' */
-  avatarType: 'woman' | 'man' | 'dog' | 'cat';
+  /** Tipo de avatar: 'woman' | 'man' | 'dog' | 'cat' | 'rabbit' */
+  avatarType: 'woman' | 'man' | 'dog' | 'cat' | 'rabbit';
   /** Color principal (tailwind) */
   color: string;
   /** Color de fondo con opacidad */
@@ -111,19 +111,19 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
     hairColor: '#1a1a2e',
   },
   'payroll-expert': {
-    name: 'Dianis',
+    name: 'Luni',
     id: 'payroll-expert',
     role: 'Experta en Nómina Multi-País',
     description: 'Respondo tus dudas sobre normativa laboral de cualquier país',
-    emoji: '💼',
-    avatarType: 'woman',
+    emoji: '🐰',
+    avatarType: 'rabbit',
     color: 'violet',
     bgColor: 'bg-violet-500/15',
     textColor: 'text-violet-300',
     glowColor: 'shadow-[0_0_12px_rgba(139,92,246,0.4)]',
     hexColor: '#8b5cf6',
-    greeting: 'Soy Dianis en modo experta. Pregúntame lo que necesites sobre nómina de cualquier país 📚',
-    hairColor: '#1a1a2e',
+    greeting: '¡Hola! Soy Luni, tu experta en nómina. Pregúntame lo que necesites sobre normativa de cualquier país 🐰',
+    hairColor: '#F5E6D3',
   },
   researcher: {
     name: 'Soul',
@@ -159,7 +159,7 @@ export function getPersona(agentId: string): AgentPersona {
     role: 'Agente',
     description: '',
     emoji: '🤖',
-    avatarType: 'man' as const,
+    avatarType: 'man' as const as AgentPersona['avatarType'],
     color: 'slate',
     bgColor: 'bg-white/10',
     textColor: 'text-slate-300',

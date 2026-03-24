@@ -80,7 +80,7 @@ Nomina Smart implementa un sistema de agentes con personalidades únicas que col
 | 📝 **Ana** | Writer | 👩 Mujer | Redactora de Reportes | Genera reportes ejecutivos narrativos con hallazgos agrupados por categoría y priorizados por severidad |
 | ⚙️ **Wil** | Corrector | 👨 Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas. Incluye guía experta para hallazgos no determinísticos |
 | 🐈‍⬛ **Gyoru** | Mapper | 🐱 Gato | Mapeadora de Campos | Mapea columnas de archivos Excel a campos estándar con diccionario de sinónimos + fuzzy matching IA |
-| 💼 **Dianis** | Payroll Expert | 👩 Mujer | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países con cálculos paso a paso y gestión CRUD de reglas |
+| 🐰 **Luni** | Payroll Expert | 🐰 Conejo | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países con cálculos paso a paso y gestión CRUD de reglas |
 | 🐕 **Soul** | Researcher | 🐕 Perro | Investigadora Regulatoria | Investiga normativa laboral vigente por país/año con búsqueda web (Firecrawl), resolución de conflictos entre fuentes y fallback a REGULATION_DB |
 
 ### 14 Verificaciones Matemáticas del Auditor
@@ -597,6 +597,10 @@ flowchart TD
 
 ```
 nomina-smart/
+├── .kiro/
+│   ├── hooks/                    # Agent hooks (automatización de eventos del IDE)
+│   └── settings/
+│       └── mcp.json              # Servidores MCP (Supabase + Vercel) — excluido de git
 ├── messages/                     # Diccionarios i18n
 │   ├── en.json                   #   Inglés
 │   ├── es.json                   #   Español (default)
@@ -639,13 +643,15 @@ nomina-smart/
 │   ├── i18n/                     # Configuración next-intl (routing + request)
 │   ├── lib/
 │   │   ├── ai/                   # Capa IA completa
-│   │   │   ├── agents/           #   7 agentes + AgentBus
+│   │   │   ├── agents/           #   7 agentes + AgentBus v2 + clasificador + planificador + validador cruzado
 │   │   │   ├── providers.ts      #   Registry multi-proveedor (5 proveedores)
 │   │   │   ├── fallback.ts       #   Cadena de fallback con retry
 │   │   │   ├── model-selector.ts #   Selector inteligente por complejidad
 │   │   │   ├── cost-calculator.ts#   Calculadora de costos por tarea
 │   │   │   ├── encryption.ts     #   AES-256-GCM para API keys
 │   │   │   ├── rule-engine.ts    #   Motor de reglas multi-país
+│   │   │   ├── streaming.ts      #   Motor de streaming SSE para pipeline
+│   │   │   ├── plan-serializer.ts#   Serialización/deserialización de planes dinámicos
 │   │   │   ├── usage-logger.ts   #   Logger de uso IA (tokens, latencia, costo)
 │   │   │   ├── schemas.ts        #   Esquemas Zod compartidos
 │   │   │   └── types.ts          #   Tipos TypeScript del sistema IA
@@ -655,7 +661,7 @@ nomina-smart/
 │   │   ├── email/                # Email service (Resend) + plantillas localizadas
 │   │   ├── integrations/         # Framework de conectores (Siigo, Generic API)
 │   │   ├── notifications/        # Notificaciones in-app + broadcast a admins
-│   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation)
+│   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation, format-detector)
 │   │   ├── sync/                 # Sincronización regulatoria (cron + bootstrap)
 │   │   ├── supabase/             # Clientes Supabase (client, server, admin)
 │   │   └── types/                # Tipos compartidos
@@ -975,6 +981,23 @@ container-high (#222a3d) → container-highest (#2d3449) → bright (#31394d)
 | `.animate-shimmer` | Shimmer de carga (2s) |
 | `.animate-avatar-float` | Flotación de avatares de agentes (3s) |
 
+### Micro-interacciones (Req 5.1–5.4)
+
+| Clase | Efecto | Duración |
+|-------|--------|----------|
+| `.ns-interactive` | Transición hover (scale + brightness) y focus-visible con anillo violeta | 120ms |
+| `.ns-state-enter` | Entrada con fade + scale up | 300ms |
+| `.ns-state-exit` | Salida con fade + scale down | 200ms |
+| `.ns-state-error` | Shake horizontal + flash rojo para errores | 400ms |
+| `.ns-confirm` | Confirmación con bounce elástico | 300ms |
+| `.ns-success-ring` | Anillo expansivo esmeralda para acciones exitosas | 400ms |
+| `.ns-skeleton` | Esqueleto de carga con shimmer animado | 1.8s loop |
+| `.ns-skeleton-text` | Esqueleto para líneas de texto (h: 0.875rem) | — |
+| `.ns-skeleton-heading` | Esqueleto para títulos (h: 1.5rem) | — |
+| `.ns-skeleton-card` | Esqueleto para tarjetas (h: 120px, 90px en móvil) | — |
+| `.ns-skeleton-avatar` | Esqueleto circular para avatares (40×40px) | — |
+| `.ns-responsive-stack` | Apila layouts horizontales en columna bajo 768px | — |
+
 ### Background
 
 El fondo global usa gradientes radiales con violeta y esmeralda sobre base `#060913`:
@@ -984,6 +1007,23 @@ background-image:
   radial-gradient(ellipse at 85% 5%, rgba(124, 58, 237, 0.15), transparent 45%),
   radial-gradient(ellipse at 15% 95%, rgba(16, 185, 129, 0.15), transparent 45%);
 ```
+
+### Utilidades de Dashboard
+
+El módulo `src/lib/design-tokens.ts` también exporta funciones utilitarias para el dashboard:
+
+| Función | Descripción |
+|---------|-------------|
+| `calculateTrend(current, previous)` | Calcula indicador de tendencia (up/down/stable) con porcentaje de cambio |
+| `aggregateFindingsBySeverity(findings)` | Agrupa hallazgos de auditoría por severidad (alta/media/baja) |
+| `spacingToPx(value)` | Convierte valor de espaciado ("16px") a número |
+
+### Integración con Componentes
+
+Los componentes UI (`AgentPipeline`, `AiSidebar`, `DashboardMetrics`, etc.) consumen los tokens de diseño a través de dos mecanismos:
+
+- **CSS custom properties** (`cssVars`): para clases Tailwind dinámicas (ej: `` bg-[${cssVars.colors.surface}] ``)
+- **Constantes directas** (`colors`, `elevation`): para estilos inline donde se necesitan valores calculados (ej: `boxShadow`, opacidades)
 
 ---
 
@@ -1038,16 +1078,24 @@ npm run test:watch
 
 | Archivo | Cobertura |
 |---------|-----------|
+| `src/lib/design-tokens.test.ts` | Tokens de diseño premium, cálculo de tendencias y agregación de severidad |
 | `src/lib/ai/agents/auditor.test.ts` | Verificaciones matemáticas del auditor |
+| `src/lib/ai/agents/agent-bus.test.ts` | AgentBus v2: enrutamiento, logging, timeout y prevención de ciclos |
+| `src/lib/ai/agents/intent-classifier.test.ts` | Clasificador contextual de intención |
+| `src/lib/ai/agents/dynamic-planner.test.ts` | Planificador dinámico adaptativo |
+| `src/lib/ai/agents/cross-validator.test.ts` | Validación cruzada entre agentes |
 | `src/lib/ai/agents/researcher.test.ts` | Investigación regulatoria y resolución de conflictos |
 | `src/lib/ai/encryption.test.ts` | Encriptación/desencriptación AES-256-GCM |
 | `src/lib/ai/model-selector.test.ts` | Selección inteligente de modelos |
 | `src/lib/ai/providers.test.ts` | Registry de proveedores y fallback |
+| `src/lib/ai/streaming.test.ts` | Motor de streaming SSE para pipeline de agentes |
+| `src/lib/ai/plan-serializer.test.ts` | Serialización/deserialización de planes de ejecución |
 | `src/lib/ai/rule-engine.test.ts` | Motor de reglas multi-país |
 | `src/lib/audit/audit-service.test.ts` | Servicio de auditoría |
 | `src/lib/email/email-service.test.ts` | Servicio de email |
 | `src/lib/email/templates/index.test.ts` | Plantillas de email |
 | `src/lib/notifications/notification-service.test.ts` | Servicio de notificaciones |
+| `src/lib/payroll/format-detector.test.ts` | Detección automática de formato de archivo (CSV, XLSX, JSON) |
 | `src/lib/sync/sync-service.test.ts` | Servicio de sincronización regulatoria |
 
 ---
@@ -1098,6 +1146,28 @@ Después del deploy, verifica que el cron job esté activo en Vercel Dashboard �
 - **AI Usage**: Tabla `ai_usage_logs` (tokens, latency, cost, model, agent)
 - **Audit Trail**: Tabla `rule_audit_log` (action, origin, previous/new values)
 - **Notifications**: Tabla `notifications` (type, severity, metadata)
+
+---
+
+## 🤖 Configuración MCP (Model Context Protocol)
+
+El proyecto incluye configuración de servidores MCP en `.kiro/settings/mcp.json` para integración con el IDE Kiro. Estos servidores permiten interactuar con servicios externos directamente desde el asistente IA del IDE.
+
+### Servidores Configurados
+
+| Servidor | Tipo | Propósito |
+|----------|------|-----------|
+| **Supabase** | CLI (`npx`) | Gestión de base de datos, migraciones, tablas y funciones Edge directamente desde el IDE. Requiere un Personal Access Token de Supabase |
+| **Vercel** | URL remota | Gestión de despliegues, dominios y configuración de proyecto Vercel desde el IDE |
+
+### Configuración
+
+El archivo `.kiro/settings/mcp.json` define los servidores MCP del workspace:
+
+- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere reemplazar `<SUPABASE_PERSONAL_ACCESS_TOKEN>` con un token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens).
+- **vercel**: Conecta al endpoint remoto `https://mcp.vercel.com`. No requiere configuración adicional si ya estás autenticado en Vercel.
+
+> **Nota**: El archivo `mcp.json` contiene tokens de acceso personal. Asegúrate de que `.kiro/` esté incluido en `.gitignore` para no exponer credenciales.
 
 ---
 
