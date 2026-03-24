@@ -1,5 +1,22 @@
 'use client';
 
+/**
+ * Página de conciliación y revisión de nómina.
+ *
+ * Presenta un tablero de revisión en 3 pasos para planillas previamente cargadas:
+ *   1. Revisión de cobertura de campos y variables detectadas
+ *   2. Validación normativa (campos obligatorios, cálculos, verificaciones matemáticas)
+ *   3. Gestión de hallazgos por empleado con acciones sugeridas (asignar, resolver)
+ *
+ * Integra el componente LivePayrollWorkbench para análisis interactivo en tiempo real,
+ * y utiliza AgentAvatar/getPersona para mostrar avatares de agentes IA en la interfaz.
+ *
+ * Datos consumidos desde:
+ * - GET `/api/payrolls` — planillas cargadas
+ * - GET `/api/rules` — reglas normativas por país/año
+ * - GET/POST/PATCH `/api/actions` — action items (hallazgos) por planilla
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Brain, CheckCircle2, FileSpreadsheet, ShieldCheck, XCircle } from 'lucide-react';
@@ -9,6 +26,8 @@ import { cn } from '@/lib/utils';
 import { buildSuggestedActions, summarizeActions } from '@/lib/payroll/actions';
 import LivePayrollWorkbench from '@/components/ui/LivePayrollWorkbench';
 import { createClient } from '@/lib/supabase/client';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { getPersona } from '@/lib/ai/agent-personas';
 
 interface RuleApiRow {
     country_code: string;
@@ -123,10 +142,25 @@ interface ActionItem {
     resolution_note: string | null;
 }
 
+/**
+ * Genera una clave única para identificar un action item por empleado y título.
+ * @param employeeDocument - Número de documento del empleado
+ * @param title - Título del hallazgo/acción
+ * @returns Clave compuesta en formato "documento::título"
+ */
 function actionKey(employeeDocument: string, title: string) {
     return `${employeeDocument}::${title}`;
 }
 
+/**
+ * Componente principal de la página de conciliación.
+ *
+ * Carga la planilla más reciente y sus action items, fusiona hallazgos del motor
+ * matemático y del análisis IA, y permite gestionar acciones (asignar, resolver)
+ * directamente desde la tabla de riesgo por empleado.
+ *
+ * @returns Página de conciliación con tablero de revisión, panel normativo y gestión de hallazgos
+ */
 export default function ReconcilePage() {
     const t = useTranslations('Reconcile');
     const [rows, setRows] = useState<PayrollReview[]>([]);
@@ -248,6 +282,10 @@ export default function ReconcilePage() {
         [allRules, latest]
     );
 
+    /**
+     * Crea o actualiza un action item para un hallazgo de empleado.
+     * Envía POST a `/api/actions` y actualiza el estado local.
+     */
     const upsertAction = async (params: {
         employeeDocument: string;
         employeeName: string;
@@ -284,6 +322,10 @@ export default function ReconcilePage() {
         }
     };
 
+    /**
+     * Actualiza el estado de un action item existente (status, asignado, nota de resolución).
+     * Envía PATCH a `/api/actions/[id]`.
+     */
     const patchAction = async (id: string, payload: { status?: string; assignedTo?: string; resolutionNote?: string }) => {
         setIsSavingAction(true);
         try {
@@ -303,6 +345,12 @@ export default function ReconcilePage() {
         }
     };
 
+    /**
+     * Busca el nombre de un empleado por su documento en las matrices fuente del reporte IA.
+     * Recorre las columnas de documento y nombre en cada matriz hasta encontrar coincidencia.
+     * @param doc - Número de documento del empleado
+     * @returns Nombre del empleado o texto traducido "sin nombre" si no se encuentra
+     */
     const findNameInMatrices = (doc: string) => {
         if (!latest?.ai_validation_report?.sourceMatrices) return t('noName');
         const normDoc = String(doc).trim();
@@ -342,15 +390,24 @@ export default function ReconcilePage() {
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="rounded-xl border border-white/10 glass-panel p-3 shadow-lg shadow-black/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step1Title')}</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <AgentAvatar agentId="auditor" size={24} animate={false} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step1Title')}</p>
+                    </div>
                     <p className="mt-1 text-sm text-slate-300 leading-snug">{t('step1Description')}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 glass-panel p-3 shadow-lg shadow-black/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step2Title')}</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <AgentAvatar agentId="corrector" size={24} animate={false} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step2Title')}</p>
+                    </div>
                     <p className="mt-1 text-sm text-slate-300 leading-snug">{t('step2Description')}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 glass-panel p-3 shadow-lg shadow-black/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step3Title')}</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <AgentAvatar agentId="writer" size={24} animate={false} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-light">{t('step3Title')}</p>
+                    </div>
                     <p className="mt-1 text-sm text-slate-300 leading-snug">{t('step3Description')}</p>
                 </div>
             </div>

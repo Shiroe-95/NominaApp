@@ -5,7 +5,7 @@ import { User, Bell, Globe2, Shield, Info, CheckCircle2, Sparkles, Key, ArrowRig
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter, usePathname } from '@/i18n/routing';
 
 /** Roles disponibles en la plataforma con su descripción para el selector de rol activo. */
 const ROLES = [
@@ -36,6 +36,8 @@ const NOTIFICATIONS = [
  * @returns Página de configuración renderizada como componente cliente.
  */
 export default function SettingsPage() {
+    const router = useRouter();
+    const pathname = usePathname();
     const [activeRole, setActiveRole] = useState('admin');
     const [notifs, setNotifs] = useState<Record<string, boolean>>(
         Object.fromEntries(NOTIFICATIONS.map((n) => [n.id, n.defaultOn]))
@@ -157,17 +159,20 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {['Español', 'English'].map((lang) => (
+                    {([
+                        { code: 'es' as const, label: 'Español' },
+                        { code: 'en' as const, label: 'English' },
+                        { code: 'pt' as const, label: 'Português' },
+                    ]).map((lang) => (
                         <button
-                            key={lang}
+                            key={lang.code}
+                            onClick={() => router.replace(pathname, { locale: lang.code })}
                             className={cn(
                                 'px-4 py-2 rounded-lg text-sm font-medium border transition-all',
-                                lang === 'Español'
-                                    ? 'border-emerald bg-emerald/5 text-emerald'
-                                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                                'border-slate-200 text-slate-600 hover:border-emerald hover:bg-emerald/5 hover:text-emerald'
                             )}
                         >
-                            {lang}
+                            {lang.label}
                         </button>
                     ))}
                 </div>

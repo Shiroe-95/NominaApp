@@ -1,9 +1,24 @@
 'use client';
 
+/**
+ * Layout público de NóminaSmart.
+ *
+ * Envuelve todas las páginas públicas (landing, about, pricing, contact)
+ * con un header sticky con glassmorphism, navegación responsive (desktop + mobile)
+ * y un footer con enlaces de producto, empresa, legal y redes sociales.
+ *
+ * Diseño basado en el Design System "Obsidian Ledger":
+ * - Header: surface_variant al 40% + backdrop-blur 20px
+ * - Footer: surface level 1 (#181b26), sin border-top
+ *
+ * @module PublicLayout
+ */
+
 import { ReactNode, useState } from 'react';
 import { Zap, ArrowRight, Menu, X, Github, Twitter, Linkedin } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/routing';
 
+/** Enlaces de navegación principal del header. */
 const navLinks = [
   { href: '/' as const, label: 'Inicio' },
   { href: '/about' as const, label: 'Nosotros' },
@@ -11,12 +26,34 @@ const navLinks = [
   { href: '/contact' as const, label: 'Contacto' },
 ];
 
+/** Grupos de enlaces del footer organizados por categoría. */
 const footerLinks = [
-  { label: 'Producto', items: ['Auditoría IA', 'Multi-país', 'Reportes', 'API'] },
-  { label: 'Empresa', items: ['Nosotros', 'Blog', 'Carreras', 'Prensa'] },
-  { label: 'Legal', items: ['Privacidad', 'Términos', 'Seguridad', 'GDPR'] },
+  { label: 'Producto', items: [
+    { text: 'Auditoría IA', href: '/pricing' },
+    { text: 'Multi-país', href: '/about' },
+    { text: 'Reportes', href: '/pricing' },
+    { text: 'Contacto', href: '/contact' },
+  ]},
+  { label: 'Empresa', items: [
+    { text: 'Nosotros', href: '/about' },
+    { text: 'Precios', href: '/pricing' },
+    { text: 'Contacto', href: '/contact' },
+  ]},
+  { label: 'Legal', items: [
+    { text: 'Privacidad', href: '/contact' },
+    { text: 'Términos', href: '/contact' },
+    { text: 'Seguridad', href: '/contact' },
+  ]},
 ];
 
+/**
+ * Layout compartido por todas las páginas públicas (sin autenticación).
+ *
+ * Incluye header con navegación responsive, menú mobile con backdrop-blur,
+ * y footer con branding, redes sociales (Twitter, LinkedIn, GitHub) y enlaces legales.
+ *
+ * @param props.children - Contenido de la página pública renderizada dentro del layout.
+ */
 export default function PublicLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -111,15 +148,15 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 Plataforma de auditoría de nómina con inteligencia artificial para empresas de Latinoamérica.
               </p>
               <div className="flex items-center gap-3 mt-6">
-                <span className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] cursor-pointer transition-all">
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] transition-all">
                   <Twitter className="w-4 h-4" />
-                </span>
-                <span className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] cursor-pointer transition-all">
+                </a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] transition-all">
                   <Linkedin className="w-4 h-4" />
-                </span>
-                <span className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] cursor-pointer transition-all">
+                </a>
+                <a href="https://github.com/Shiroe-95/NominaApp" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#1c1f2a] flex items-center justify-center text-[#958da1] hover:text-[#d2bbff] hover:bg-[#262a35] transition-all">
                   <Github className="w-4 h-4" />
-                </span>
+                </a>
               </div>
             </div>
             {footerLinks.map((group) => (
@@ -127,8 +164,8 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4cd7f6] mb-4">{group.label}</p>
                 <ul className="space-y-2.5">
                   {group.items.map((item) => (
-                    <li key={item}>
-                      <span className="text-sm text-[#958da1] hover:text-[#e0e2f1] cursor-pointer transition-colors">{item}</span>
+                    <li key={item.text}>
+                      <Link href={item.href as never} className="text-sm text-[#958da1] hover:text-[#e0e2f1] transition-colors">{item.text}</Link>
                     </li>
                   ))}
                 </ul>
@@ -139,9 +176,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-[#4a4455] text-xs">© {new Date().getFullYear()} NóminaSmart · Auditoría inteligente de nómina</p>
             <div className="flex items-center gap-4 text-xs text-[#958da1]">
-              <span className="hover:text-[#e0e2f1] cursor-pointer transition-colors">Privacidad</span>
-              <span className="hover:text-[#e0e2f1] cursor-pointer transition-colors">Términos</span>
-              <span className="hover:text-[#e0e2f1] cursor-pointer transition-colors">Seguridad</span>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Privacidad</Link>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Términos</Link>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Seguridad</Link>
             </div>
           </div>
         </div>

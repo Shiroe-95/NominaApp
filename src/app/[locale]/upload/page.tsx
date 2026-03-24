@@ -1,11 +1,30 @@
 'use client';
 
+/**
+ * Página de carga y validación de nómina.
+ *
+ * Implementa un flujo de 4 pasos para procesar archivos de nómina:
+ *   1. Carga de archivos Excel/CSV y selección de hojas
+ *   2. Mapeo inteligente de campos con IA (Gyoru)
+ *   3. Verificación contra reglas normativas por país/año y pre-certificación
+ *   4. Corrección de datos (manual o asistida por IA) y exportación
+ *
+ * Reglas de negocio principales:
+ * - Las etiquetas de reglas siguen el formato "Normativa {País} {Año} - {Ley/Norma}"
+ * - La certificación requiere que todos los campos y cálculos obligatorios estén mapeados
+ * - Las reglas se cargan dinámicamente desde la API (`/api/rules`); si falla, se usan FALLBACK_RULES
+ * - Soporta detección automática de periodo (mes/año) desde el contenido del archivo Excel
+ * - Las correcciones aplicadas en el paso 4 se persisten junto con la planilla
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import UploadZone, { ParsedFile } from '@/components/ui/UploadZone';
 import MappingAI, { MappingResult } from '@/components/ui/MappingAI';
 import { Sparkles, Database, FileSpreadsheet, Building2, CalendarClock, CheckCircle2, AlertTriangle, Globe2, Trash2, ChevronDown, ChevronUp, Loader2, PenLine, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { getPersona } from '@/lib/ai/agent-personas';
 import { buildRiskReport, summarizeConcepts } from '@/lib/payroll/conceptClassifier';
 import { finalizeEmployeeRiskSummary, summarizeEmployeeRiskFromMatrix } from '@/lib/payroll/employeeRisk';
 import { validatePayrollCalculations, type MatrixInput, type ValidationReport } from '@/lib/payroll/ruleValidation';
@@ -13,6 +32,7 @@ import PayrollEditor, { type CorrectionEntry } from '@/components/ui/PayrollEdit
 import type { AiValidationReport } from '@/app/api/ai/validation/route';
 import * as XLSX from 'xlsx';
 
+/** Empresa asociada a una carga de nómina. */
 interface Company {
     id: string;
     name: string;
@@ -20,13 +40,22 @@ interface Company {
     industry?: string;
 }
 
+/**
+ * Conjunto de reglas normativas para un país y año específico.
+ * Define los campos obligatorios, cálculos requeridos y verificaciones a ejecutar.
+ */
 interface RuleSet {
+    /** Etiqueta descriptiva, ej: "Normativa Colombia 2026 - Ley 1393" */
     label: string;
+    /** Campos estructurales obligatorios para certificación */
     requiredFields: string[];
+    /** Cálculos numéricos obligatorios para certificación */
     requiredCalculations: string[];
+    /** Verificaciones normativas a mostrar al usuario */
     checks: string[];
 }
 
+/** Fila de regla tal como llega desde la API `/api/rules`. */
 interface RuleApiRow {
     country_code: string;
     rule_year: number;
@@ -36,10 +65,15 @@ interface RuleApiRow {
     checks: string[];
 }
 
+/**
+ * Reglas normativas de respaldo cuando la API `/api/rules` no está disponible.
+ * Organizadas por código de país → año → conjunto de reglas.
+ * Las etiquetas usan el formato estándar: "Normativa {País} {Año} - {Referencia legal}".
+ */
 const FALLBACK_RULES: Record<'CO' | 'MX', Record<number, RuleSet>> = {
     CO: {
         2026: {
-            label: 'Colombia 2026 - Ley 1393 UGPP',
+            label: 'Normativa Colombia 2026 - Ley 1393',
             requiredFields: ['document_number', 'first_name', 'base_salary', 'non_salary_payments'],
             requiredCalculations: ['ibc_total', 'health_employee_deduction', 'pension_employee_deduction'],
             checks: [
@@ -54,7 +88,7 @@ const FALLBACK_RULES: Record<'CO' | 'MX', Record<number, RuleSet>> = {
             ],
         },
         2025: {
-            label: 'Colombia 2025 - Ley 1393 UGPP',
+            label: 'Normativa Colombia 2025 - Ley 1393',
             requiredFields: ['document_number', 'first_name', 'base_salary', 'non_salary_payments'],
             requiredCalculations: ['ibc_total', 'health_employee_deduction', 'pension_employee_deduction'],
             checks: [
@@ -66,7 +100,7 @@ const FALLBACK_RULES: Record<'CO' | 'MX', Record<number, RuleSet>> = {
     },
     MX: {
         2025: {
-            label: 'IMSS/ISR 2025',
+            label: 'Normativa México 2025 - IMSS/ISR',
             requiredFields: ['employee_id', 'first_name', 'last_name', 'base_salary'],
             requiredCalculations: ['sbc', 'isr_retenido'],
             checks: ['Validar SBC y retencion ISR'],
@@ -316,6 +350,10 @@ export default function UploadPage() {
         }
     };
 
+    /**
+     * Procesa los archivos seleccionados: fusiona headers, cuenta filas,
+     * intenta detectar el periodo desde el contenido y avanza al paso 2 (mapeo IA).
+     */
     const handleUploadProceed = async (filesData: ParsedFile[]) => {
         if (!selectedCompanyId) return;
 
@@ -350,6 +388,12 @@ export default function UploadPage() {
         setCurrentStep(2);
     };
 
+    /**
+     * Detecta el periodo (mes y año) escaneando las primeras 20 filas del workbook.
+     * Busca nombres de meses en español y años entre 2020-2030.
+     * @param workbook - Libro de Excel parseado con XLSX
+     * @returns Objeto con month y year detectados (null si no se encuentran)
+     */
     const detectPeriodFromWorkbook = (workbook: XLSX.WorkBook) => {
         const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
         let detectedMonth: number | null = null;
@@ -384,6 +428,11 @@ export default function UploadPage() {
         setCurrentStep(3);
     };
 
+    /**
+     * Transforma matrices crudas en filas con nombres de campo mapeados (source → target).
+     * @param matrices - Matrices de datos parseadas de los archivos Excel
+     * @returns Array de objetos donde las claves son los nombres de campo destino
+     */
     const buildMappedRows = (matrices: MatrixInput[]) => {
         const targetBySource = new Map<string, string>();
         for (const rel of mappingResult.mappingDetails) {
@@ -402,6 +451,10 @@ export default function UploadPage() {
         );
     };
 
+    /**
+     * Navega al paso 4 (corrección): parsea las matrices de datos, ejecuta validación
+     * matemática local y solicita validación IA al endpoint `/api/ai/validation`.
+     */
     const handleGoToCorrection = async () => {
         if (uploadedFiles.length === 0) return;
         setIsParsing(true);
@@ -472,6 +525,11 @@ export default function UploadPage() {
         }
     };
 
+    /**
+     * Guarda la planilla completa en la BD: agrega riesgo por empleado, validación
+     * matemática, validación IA, resumen de conceptos y correcciones aplicadas.
+     * Persiste via POST a `/api/payrolls` y opcionalmente PATCH para correcciones.
+     */
     const handleSavePayroll = async () => {
         if (!selectedCompanyId || uploadedFiles.length === 0) return;
 
@@ -669,6 +727,7 @@ export default function UploadPage() {
         }
     };
 
+    /** Exporta la planilla con correcciones aplicadas a un archivo Excel descargable. */
     const handleExportExcel = () => {
         if (!parsedMatrices || parsedMatrices.length === 0) return;
 
@@ -844,95 +903,46 @@ export default function UploadPage() {
                 )}
             </div>
 
-            {/* ── Stepper ───────────────────────────────────── */}
+            {/* ── Stepper with Agents ───────────────────────────────────── */}
             <div className="flex items-center gap-0 py-2">
-                {/* Step 1 */}
-                <button
-                    onClick={() => setCurrentStep(1)}
-                    className="flex flex-col items-center gap-1.5 flex-shrink-0"
-                >
-                    <div className={cn(
-                        'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200',
-                        currentStep >= 1
-                            ? 'bg-violet text-white shadow-md shadow-violet/30'
-                            : 'bg-white border-2 border-slate-200 text-slate-400'
-                    )}>1</div>
-                    <span className={cn('text-xs font-semibold whitespace-nowrap', currentStep >= 1 ? 'text-slate-800' : 'text-slate-400')}>
-                        Cargar datos
-                    </span>
-                </button>
-
-                {/* Line 1 */}
-                <div className="flex-1 mx-3 pb-5 relative">
-                    <div className="h-0.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div className={cn('h-full bg-violet transition-all duration-500', currentStep > 1 ? 'w-full' : 'w-0')} />
-                    </div>
-                </div>
-
-                {/* Step 2 */}
-                <button
-                    onClick={() => setCurrentStep(2)}
-                    className="flex flex-col items-center gap-1.5 flex-shrink-0"
-                >
-                    <div className={cn(
-                        'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200',
-                        currentStep >= 2
-                            ? 'bg-violet text-white shadow-md shadow-violet/30'
-                            : 'bg-white border-2 border-slate-200 text-slate-400'
-                    )}>
-                        <Sparkles className="w-4 h-4" />
-                    </div>
-                    <span className={cn('text-xs font-semibold whitespace-nowrap', currentStep >= 2 ? 'text-slate-800' : 'text-slate-400')}>
-                        AI Mapping
-                    </span>
-                </button>
-
-                {/* Line 2 */}
-                <div className="flex-1 mx-3 pb-5">
-                    <div className="h-0.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div className={cn('h-full bg-violet transition-all duration-500', currentStep > 2 ? 'w-full' : 'w-0')} />
-                    </div>
-                </div>
-
-                {/* Step 3 */}
-                <button
-                    onClick={() => currentStep >= 3 ? setCurrentStep(3) : undefined}
-                    className="flex flex-col items-center gap-1.5 flex-shrink-0"
-                >
-                    <div className={cn(
-                        'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200',
-                        currentStep >= 3
-                            ? 'bg-violet text-white shadow-md shadow-violet/30'
-                            : 'bg-white border-2 border-slate-200 text-slate-400'
-                    )}>
-                        <Database className="w-4 h-4" />
-                    </div>
-                    <span className={cn('text-xs font-semibold whitespace-nowrap', currentStep >= 3 ? 'text-slate-800' : 'text-slate-400')}>
-                        Verificación
-                    </span>
-                </button>
-
-                {/* Line 3 */}
-                <div className="flex-1 mx-3 pb-5">
-                    <div className="h-0.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div className={cn('h-full bg-violet transition-all duration-500', currentStep > 3 ? 'w-full' : 'w-0')} />
-                    </div>
-                </div>
-
-                {/* Step 4 */}
-                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                    <div className={cn(
-                        'w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200',
-                        currentStep >= 4
-                            ? 'bg-violet text-white shadow-md shadow-violet/30'
-                            : 'bg-white border-2 border-slate-200 text-slate-400'
-                    )}>
-                        <PenLine className="w-4 h-4" />
-                    </div>
-                    <span className={cn('text-xs font-semibold whitespace-nowrap', currentStep >= 4 ? 'text-slate-800' : 'text-slate-400')}>
-                        Corregir
-                    </span>
-                </div>
+                {[
+                    { step: 1, label: 'Cargar datos', agentId: 'master', icon: null },
+                    { step: 2, label: 'Mapeo IA', agentId: 'mapper', icon: Sparkles },
+                    { step: 3, label: 'Auditoría', agentId: 'auditor', icon: Database },
+                    { step: 4, label: 'Corrección', agentId: 'corrector', icon: PenLine },
+                ].map((item, idx) => {
+                    const persona = getPersona(item.agentId);
+                    return (
+                        <div key={item.step} className="contents">
+                            {idx > 0 && (
+                                <div className="flex-1 mx-2 pb-8">
+                                    <div className="h-0.5 bg-slate-200 rounded-full overflow-hidden">
+                                        <div className={cn('h-full bg-violet transition-all duration-500', currentStep > idx ? 'w-full' : 'w-0')} />
+                                    </div>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => item.step <= currentStep ? setCurrentStep(item.step) : undefined}
+                                className="flex flex-col items-center gap-1 flex-shrink-0"
+                            >
+                                <div className={cn(
+                                    'relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200',
+                                    currentStep >= item.step
+                                        ? 'ring-2 ring-violet/40 shadow-md'
+                                        : 'ring-2 ring-slate-200 opacity-50'
+                                )}>
+                                    <AgentAvatar agentId={item.agentId} size={38} animate={currentStep === item.step} />
+                                </div>
+                                <span className={cn('text-[10px] font-bold whitespace-nowrap', currentStep >= item.step ? 'text-slate-800' : 'text-slate-400')}>
+                                    {persona.name}
+                                </span>
+                                <span className={cn('text-[9px] whitespace-nowrap', currentStep >= item.step ? 'text-slate-500' : 'text-slate-300')}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Step trace */}
@@ -961,12 +971,12 @@ export default function UploadPage() {
                 {currentStep === 1 && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                            <div className="w-8 h-8 rounded-lg bg-emerald/10 flex items-center justify-center flex-shrink-0">
-                                <FileSpreadsheet className="w-4 h-4 text-emerald" />
-                            </div>
+                            <AgentAvatar agentId="master" size={36} animate />
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">Archivos de nómina</p>
-                                <p className="text-xs text-slate-400 mt-0.5">Carga hojas de nómina y base de cálculo para certificar según el país y año.</p>
+                                <p className="text-sm font-semibold text-slate-800">
+                                    {getPersona('master').emoji} {getPersona('master').name}: Archivos de nómina
+                                </p>
+                                <p className="text-xs text-slate-400 mt-0.5">Carga hojas de nómina y base de cálculo. Gyoru 🐈‍⬛ mapeará tus columnas en el siguiente paso.</p>
                             </div>
                         </div>
                         <UploadZone onProceed={handleUploadProceed} />
@@ -976,6 +986,15 @@ export default function UploadPage() {
 
                 {currentStep === 2 && (
                     <div className="animate-in fade-in slide-in-from-right-8 duration-500">
+                        <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+                            <AgentAvatar agentId="mapper" size={36} animate />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                    {getPersona('mapper').emoji} {getPersona('mapper').name}: Mapeo inteligente
+                                </p>
+                                <p className="text-xs text-slate-400 mt-0.5">Conecto tus columnas con el sistema normativo usando IA.</p>
+                            </div>
+                        </div>
                         <MappingAI
                             dynamicHeaders={uploadedHeaders}
                             fileName={fileStats.name}
@@ -990,6 +1009,16 @@ export default function UploadPage() {
 
                 {currentStep === 3 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                            <AgentAvatar agentId="auditor" size={36} animate />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                    {getPersona('auditor').emoji} {getPersona('auditor').name}: Auditoría y verificación
+                                </p>
+                                <p className="text-xs text-slate-400 mt-0.5">Reviso cada número contra la normativa vigente. Ningún error se me escapa.</p>
+                            </div>
+                        </div>
+
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <h3 className="font-semibold text-slate-900">Resumen de validación</h3>
                             <p className="text-sm text-slate-600 mt-1">
@@ -1139,6 +1168,16 @@ export default function UploadPage() {
 
                 {currentStep === 4 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                            <AgentAvatar agentId="corrector" size={36} animate />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                    {getPersona('corrector').emoji} {getPersona('corrector').name}: Corrección de nómina
+                                </p>
+                                <p className="text-xs text-slate-400 mt-0.5">Calculo las correcciones exactas con precisión de ingeniero.</p>
+                            </div>
+                        </div>
+
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <h3 className="font-semibold text-slate-900">Corrección de nómina</h3>
                             <p className="text-sm text-slate-600 mt-1">
