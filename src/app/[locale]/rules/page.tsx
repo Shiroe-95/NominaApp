@@ -515,7 +515,7 @@ export default function RulesPage() {
 
 const FIELD_LABELS: Record<string, { label: string; desc: string }> = {
     document_number: { label: 'Número de documento', desc: 'Identifica al empleado. Permite agrupar hallazgos por persona.' },
-    document_type: { label: 'Tipo de documento', desc: 'CC, CE, etc. Requerido para reportes PILA y UGPP.' },
+    document_type: { label: 'Tipo de documento', desc: 'CC, CE, etc. Requerido para reportes regulatorios.' },
     first_name: { label: 'Nombre', desc: 'Nombre del empleado para los reportes y el plan de acción.' },
     last_name: { label: 'Apellido', desc: 'Apellido del empleado.' },
     base_salary: { label: 'Salario base', desc: 'Base para calcular el IBC, prestaciones y todos los aportes.' },
@@ -1014,7 +1014,7 @@ function RuleForm({
                     <input
                         value={draft.label}
                         onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
-                        placeholder="Ej: UGPP Colombia 2027"
+                        placeholder="Ej: Normativa Colombia 2027"
                         className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg"
                     />
                 </div>

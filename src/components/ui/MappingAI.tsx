@@ -457,7 +457,7 @@ export default function MappingAI({
                 <div className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-white/10 bg-black/40 text-xs font-semibold text-slate-300 uppercase tracking-wide">
                     <div className="col-span-5">Columna en planilla</div>
                     <div className="col-span-1 flex justify-center"><ArrowRight className="w-3.5 h-3.5" /></div>
-                    <div className="col-span-5">Campo UGPP / sistema</div>
+                    <div className="col-span-5">Campo normativo / sistema</div>
                     <div className="col-span-1 text-right">OK</div>
                 </div>
                 <div className="divide-y divide-white/5 max-h-[60vh] overflow-y-auto custom-scrollbar">

@@ -1,3 +1,16 @@
+/**
+ * DashboardClient — Componente principal del dashboard ejecutivo.
+ *
+ * Renderiza métricas, filtros, gráficos de tendencia, salud de nómina,
+ * hallazgos recientes y desglose por empresa. Adapta su contenido según
+ * el rol del usuario (admin / analyst / client).
+ *
+ * Sub-componentes internos esperados (definidos más abajo en el archivo o externamente):
+ * - AgentTeamSection: sección destacada del equipo de agentes IA
+ * - AdminMetrics / AnalystMetrics / ClientMetrics: tarjetas de métricas por rol
+ * - RecentFindingsSummary: tabla resumen de hallazgos recientes
+ * - CertificationStatusCard: estado de certificación (solo rol client)
+ */
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -6,21 +19,25 @@ import { Link } from '@/i18n/routing';
 import {
     ArrowRight, Shield, FileText, Users, Activity,
     AlertTriangle, CheckCircle, Clock, TrendingUp,
-    BarChart3,
+    BarChart3, Sparkles,
 } from 'lucide-react';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { DashboardTrends } from '@/components/ui/DashboardTrends';
 import { DashboardHealth } from '@/components/ui/DashboardHealth';
 import { TopCompanies } from '@/components/ui/TopCompanies';
 import { LatestPayrollCard } from '@/components/ui/LatestPayrollCard';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 import type { UserRole } from '@/lib/auth/user-profile';
 
+/** Empresa disponible para filtrar en el dashboard. */
 interface Company {
     id: string;
     name: string;
     nit: string;
 }
 
+/** Fila de nómina cargada con reportes de riesgo y validación. */
 interface PayrollRow {
     id: string;
     company_id: string;
@@ -35,23 +52,39 @@ interface PayrollRow {
     created_at: string;
 }
 
+/**
+ * Convierte un valor desconocido a número seguro.
+ * @param input - Valor a convertir.
+ * @returns El número si es finito, o 0 en caso contrario.
+ */
 function safeNumber(input: unknown) {
     return typeof input === 'number' && Number.isFinite(input) ? input : 0;
 }
 
+/**
+ * Props del componente DashboardClient.
+ * @property role - Rol del usuario autenticado (admin | analyst | client).
+ * @property initialCompanies - Lista de empresas para el filtro de empresa.
+ * @property initialPayrolls - Nóminas cargadas desde el servidor para renderizar métricas.
+ */
 interface DashboardClientProps {
     role: UserRole;
     initialCompanies: Company[];
     initialPayrolls: PayrollRow[];
 }
 
-// Severity color helpers for findings (Req 13.3)
+/** Mapa de clases CSS por nivel de severidad de riesgo. */
 const severityColor = {
     high: 'text-rose-light bg-rose/10 border-rose/20',
     medium: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
     low: 'text-emerald bg-emerald/10 border-emerald/20',
 } as const;
 
+/**
+ * Clasifica un puntaje de riesgo numérico en nivel de severidad.
+ * @param score - Puntaje de riesgo (0–100).
+ * @returns 'high' si ≥ 70, 'medium' si ≥ 40, 'low' en caso contrario.
+ */
 function getSeverityFromScore(score: number): 'high' | 'medium' | 'low' {
     if (score >= 70) return 'high';
     if (score >= 40) return 'medium';
@@ -135,7 +168,6 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
             .slice(0, 6);
     }, [filtered]);
 
-    // Recent findings with severity for Req 13.3
     const recentFindings = useMemo(() => {
         return filtered
             .filter((p) => safeNumber(p.calculation_validation_report?.criticalFindings) > 0 || safeNumber(p.risk_report?.score) > 0)
@@ -153,7 +185,6 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
 
     const latest = filtered[0];
 
-    // --- Hero section varies by role ---
     const heroConfig = {
         admin: {
             badge: t('adminPanel'),
@@ -198,11 +229,13 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 </div>
             </section>
 
-            {/* Filters — Req 13.2: filtering by period and company */}
+            {/* AI Agent Team — PROMINENT */}
+            <AgentTeamSection />
+
+            {/* Filters */}
             <section className="rounded-2xl border border-white/10 glass-panel p-4 shadow-xl shadow-black/20">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('filters')}</p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                    {/* Company filter — admin/analyst see all, client sees only their company */}
                     {role !== 'client' && (
                         <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className="h-10 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white focus:border-violet-light focus:ring-1 focus:ring-violet-light outline-none transition-shadow shadow-inner">
                             <option value="all">{t('allCompanies')}</option>
@@ -230,7 +263,7 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 </div>
             </section>
 
-            {/* Role-specific metric cards — Req 13.1 */}
+            {/* Role-specific metric cards */}
             <div className="animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-100">
                 {role === 'admin' && <AdminMetrics metrics={metrics} t={t} />}
                 {role === 'analyst' && <AnalystMetrics metrics={metrics} t={t} />}
@@ -250,7 +283,7 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
                 </section>
             </div>
 
-            {/* Recent findings with severity color coding — Req 13.3 */}
+            {/* Recent findings */}
             {recentFindings.length > 0 && (
                 <div className="animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-250">
                     <RecentFindingsSummary findings={recentFindings} t={t} />
@@ -275,8 +308,49 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls }: Das
     );
 }
 
+// ─── Agent Team Section — Prominent on Dashboard ───
+function AgentTeamSection() {
+    const agents = Object.values(AGENT_PERSONAS);
+    return (
+        <section className="rounded-2xl border border-white/10 glass-panel p-5 shadow-xl shadow-black/20 animate-in slide-in-from-bottom-4 duration-700 ease-out">
+            <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-4 w-4 text-violet-light" />
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                    Tu equipo de agentes IA
+                </h3>
+                <span className="ml-auto text-[10px] font-bold tracking-wider uppercase text-[#4edea3] bg-[#10B981]/15 px-2.5 py-1 rounded-full">
+                    {agents.length} agentes activos
+                </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                {agents.map((agent) => (
+                    <div
+                        key={agent.id}
+                        className="group flex flex-col items-center gap-2 rounded-xl bg-black/20 border border-white/5 p-3 hover:bg-white/5 hover:border-white/10 transition-all duration-200"
+                    >
+                        <div className="relative">
+                            <AgentAvatar agentId={agent.id} size={44} animate={false} />
+                            <div
+                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0a0e18]"
+                                style={{ backgroundColor: agent.hexColor }}
+                            />
+                        </div>
+                        <div className="text-center min-w-0 w-full">
+                            <p className="text-xs font-semibold text-white truncate">
+                                {agent.emoji} {agent.name}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
+                                {agent.role}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
 
-// ─── Admin Metrics: Global overview (all companies), AI usage, active providers, total payrolls ───
+// ─── Admin Metrics ───
 function AdminMetrics({ metrics, t }: { metrics: any; t: any }) {
     return (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -310,7 +384,7 @@ function AdminMetrics({ metrics, t }: { metrics: any; t: any }) {
     );
 }
 
-// ─── Analyst Metrics: Pending payrolls, recent findings, pending actions, quick upload ───
+// ─── Analyst Metrics ───
 function AnalystMetrics({ metrics, t }: { metrics: any; t: any }) {
     return (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -340,7 +414,7 @@ function AnalystMetrics({ metrics, t }: { metrics: any; t: any }) {
     );
 }
 
-// ─── Client Metrics: Company-specific, certification status, prioritized findings, risk trends ───
+// ─── Client Metrics ───
 function ClientMetrics({ metrics, t }: { metrics: any; t: any }) {
     return (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -377,7 +451,7 @@ function ClientMetrics({ metrics, t }: { metrics: any; t: any }) {
     );
 }
 
-// ─── Recent Findings Summary with color-coded severity (Req 13.3) ───
+// ─── Recent Findings Summary ───
 interface FindingSummary {
     id: string;
     company: string;
@@ -435,7 +509,7 @@ function RecentFindingsSummary({ findings, t }: { findings: FindingSummary[]; t:
     );
 }
 
-// ─── Certification Status Card (Client role) — Req 13.1 ───
+// ─── Certification Status Card ───
 function CertificationStatusCard({ certRate, certifiable, total, t }: { certRate: number; certifiable: number; total: number; t: any }) {
     const status = certRate >= 90 ? 'excellent' : certRate >= 70 ? 'good' : 'needsWork';
     const statusColors = {

@@ -162,7 +162,7 @@ export default function SettingsPage() {
             {/* Rules admin tip */}
             <div className="flex items-start gap-3 p-4 rounded-xl border border-blue-100 bg-blue-50 text-xs text-blue-700">
                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>Para administrar reglas normativas (campos requeridos, cálculos, checks UGPP) ve a la sección <strong>Reglas</strong> en el menú lateral.</p>
+                <p>Para administrar reglas normativas (campos requeridos, cálculos, verificaciones) ve a la sección <strong>Reglas</strong> en el menú lateral.</p>
             </div>
 
             <div className="flex items-center justify-end gap-3">

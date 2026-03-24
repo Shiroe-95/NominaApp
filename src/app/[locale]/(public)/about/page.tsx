@@ -1,7 +1,23 @@
+/**
+ * AboutPage — Página pública "Quiénes somos" de NominaSmart.
+ *
+ * Presenta la visión de la empresa, el equipo de agentes IA,
+ * los fundadores, los valores corporativos y la misión.
+ *
+ * Secciones:
+ * - Hero: introducción con título y descripción.
+ * - AI Agent Team: grid con los 7 agentes IA (avatar, nombre, rol).
+ * - Founders: tarjetas de los cofundadores con bio, expertise y cita.
+ * - Values: principios corporativos con iconos y descripciones.
+ * - Mission: declaración de misión de la empresa.
+ */
 'use client';
 
 import { Zap, Brain, ShieldCheck, Users, Lightbulb, GraduationCap, Code2, BarChart3 } from 'lucide-react';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 
+/** Datos de los cofundadores de NominaSmart. */
 const founders = [
   {
     name: 'Diana Granados',
@@ -12,7 +28,7 @@ const founders = [
     bio: 'Administradora de Empresas con especialización en Desarrollo Organizacional. Experta en gestión de nómina y cumplimiento normativo laboral con más de una década de experiencia.',
     expertise: [
       { icon: Users, label: 'Gestión de Nómina & RRHH' },
-      { icon: ShieldCheck, label: 'Cumplimiento Normativo UGPP' },
+      { icon: ShieldCheck, label: 'Cumplimiento Normativo Laboral' },
       { icon: Lightbulb, label: 'Desarrollo Organizacional' },
       { icon: GraduationCap, label: 'Administración de Empresas' },
     ],
@@ -35,6 +51,7 @@ const founders = [
   },
 ];
 
+/** Valores corporativos mostrados en la sección de principios. */
 const values = [
   { icon: ShieldCheck, title: 'Seguridad primero', description: 'Tus datos de nómina están cifrados y protegidos. Nunca compartimos información con terceros.', iconColor: 'text-[#4edea3]', glowColor: 'rgba(16,185,129,0.2)' },
   { icon: Brain, title: 'IA responsable', description: 'Nuestros agentes de IA son transparentes, auditables y siempre bajo supervisión humana.', iconColor: 'text-[#d2bbff]', glowColor: 'rgba(124,58,237,0.2)' },
@@ -66,13 +83,40 @@ export default function AboutPage() {
           </h1>
 
           <p className="mt-8 text-lg text-[#958da1] max-w-2xl mx-auto leading-relaxed font-[family-name:var(--font-inter)]">
-            NóminaSmart nació de la unión entre el conocimiento profundo en gestión de nómina
-            y la tecnología de inteligencia artificial más avanzada.
+            NominaSmart nació de la unión entre el conocimiento profundo en gestión de nómina
+            y la tecnología de inteligencia artificial más avanzada. Operamos en múltiples países de Latinoamérica.
           </p>
         </div>
       </section>
 
-      {/* Founders — Glass cards, gradient accent bar, no explicit borders */}
+      {/* AI Agent Team */}
+      <section className="py-28 px-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">Equipo IA</p>
+            <h2 className="text-3xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Nuestros agentes de inteligencia artificial</h2>
+            <p className="mt-4 text-[#958da1] max-w-2xl mx-auto font-[family-name:var(--font-inter)]">
+              Cada agente tiene personalidad, especialidad y trabajan en equipo para auditar tu nómina con precisión.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+            {Object.values(AGENT_PERSONAS).map((agent) => (
+              <div
+                key={agent.id}
+                className="flex flex-col items-center text-center bg-[#1c1f2a] rounded-[1.25rem] p-5 hover:bg-[#313440] transition-all duration-300"
+                style={{ border: '1px solid rgba(74,68,85,0.10)' }}
+              >
+                <AgentAvatar agentId={agent.id} size={56} animate={false} />
+                <p className="mt-3 text-sm font-bold text-[#e0e2f1]">{agent.emoji} {agent.name}</p>
+                <p className="text-[10px] mt-1 leading-tight" style={{ color: agent.hexColor }}>{agent.role}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Founders */}
       <section className="py-28 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
@@ -166,7 +210,7 @@ export default function AboutPage() {
           <h2 className="text-3xl font-extrabold text-[#e0e2f1] mb-8 tracking-[-0.02em]">Nuestra misión</h2>
           <p className="text-lg text-[#ccc3d8] leading-relaxed font-[family-name:var(--font-inter)]">
             Democratizar la auditoría de nómina con inteligencia artificial, haciendo que
-            cada empresa pueda garantizar el cumplimiento normativo laboral de forma rápida, precisa y accesible.
+            cada empresa en cualquier país pueda garantizar el cumplimiento normativo laboral de forma rápida, precisa y accesible.
           </p>
           <p className="mt-5 text-[#958da1] leading-relaxed font-[family-name:var(--font-inter)]">
             Creemos que la tecnología debe servir a las personas. Por eso nuestros agentes de IA

@@ -618,7 +618,7 @@ nomina-smart/
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/             # Rutas multilenguaje (es/en/pt)
-│   │   │   ├── (public)/         #   Landing, about, contact, pricing (sin auth)
+│   │   │   ├── (public)/         #   Landing, about, contact, pricing (sin auth) — incluye página de planes y precios con tabla comparativa
 │   │   │   ├── login/            #   Autenticación
 │   │   │   ├── admin/            #   Paneles admin (finanzas, países, uso, optimización)
 │   │   │   ├── dashboard/        #   Dashboard ejecutivo con métricas
@@ -1167,8 +1167,8 @@ El proyecto incluye configuración de servidores MCP en `.kiro/settings/mcp.json
 
 El archivo `.kiro/settings/mcp.json` define los servidores MCP del workspace:
 
-- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere un Personal Access Token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). Herramientas auto-aprobadas: `list_tables`, `list_projects`, `apply_migration`, `execute_sql`.
-- **vercel**: Conecta vía URL remota a `https://mcp.vercel.com`. La autenticación se maneja automáticamente a través de la sesión de Vercel del usuario. Herramientas auto-aprobadas: `list_teams`, `list_projects`, `list_deployments`, `get_deployment_build_logs`.
+- **supabase**: Ejecuta `@supabase/mcp-server-supabase@latest` vía `npx`. Requiere un Personal Access Token válido generado en [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens). Todas las herramientas están auto-aprobadas (`"*"`).
+- **vercel**: Conecta vía URL remota a `https://mcp.vercel.com`. La autenticación se maneja automáticamente a través de la sesión de Vercel del usuario. Todas las herramientas están auto-aprobadas (`"*"`).
 
 > **Nota**: El archivo `mcp.json` contiene tokens de acceso personal. Está excluido de git via `.gitignore` (entrada `.kiro/settings/mcp.json`). Nunca commitear este archivo.
 

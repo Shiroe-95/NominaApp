@@ -5,33 +5,35 @@ import {
   CheckCircle2, Star, Sparkles, TrendingUp, Users, Activity,
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
+import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 
 const benefits = [
   {
     icon: ShieldCheck,
-    title: 'Cumplimiento UGPP garantizado',
-    description: 'Valida automáticamente 14 verificaciones normativas colombianas incluyendo IBC, Ley 1393 y aportes.',
+    title: 'Cumplimiento normativo multi-país',
+    description: 'Valida automáticamente reglas laborales de Colombia, México, Perú, Chile, Brasil, Argentina y más.',
     iconColor: 'text-[#4edea3]',
     glowColor: 'rgba(16,185,129,0.2)',
   },
   {
     icon: Brain,
-    title: 'Agentes de IA especializados',
-    description: 'Auditor, Corrector, Redactor y Mapeador trabajan en equipo para analizar tu nómina con precisión.',
+    title: '7 agentes de IA especializados',
+    description: 'Dianis coordina, Juli audita, Wil corrige, Ana redacta, Gyoru mapea, Luni consulta normas y Soul investiga cambios regulatorios.',
     iconColor: 'text-[#d2bbff]',
     glowColor: 'rgba(124,58,237,0.2)',
   },
   {
     icon: BarChart3,
     title: 'Reportes ejecutivos instantáneos',
-    description: 'Genera reportes narrativos con hallazgos priorizados, referencias normativas y recomendaciones.',
+    description: 'Genera reportes narrativos con hallazgos priorizados, referencias normativas y recomendaciones accionables.',
     iconColor: 'text-[#4cd7f6]',
     glowColor: 'rgba(6,182,212,0.2)',
   },
   {
     icon: Globe,
     title: 'Multi-país y multi-moneda',
-    description: 'Soporta nóminas de Colombia, México, Perú, Chile, Brasil y más con reglas normativas por país.',
+    description: 'Una sola plataforma para todas tus operaciones de nómina en Latinoamérica y más allá.',
     iconColor: 'text-[#ffb3b6]',
     glowColor: 'rgba(225,29,72,0.2)',
   },
@@ -40,7 +42,7 @@ const benefits = [
 const features = [
   'Mapeo inteligente de columnas Excel con IA',
   'Correcciones numéricas con fórmulas normativas',
-  'Pipeline guiado paso a paso',
+  'Pipeline guiado paso a paso con agentes visibles',
   'Múltiples proveedores de IA con fallback automático',
   'Dashboard con métricas de riesgo en tiempo real',
   'Cifrado de datos y API keys',
@@ -50,63 +52,63 @@ const testimonials = [
   {
     name: 'María González',
     role: 'Directora de RRHH',
-    company: 'TechCorp Colombia',
-    quote: 'NóminaSmart redujo nuestro tiempo de auditoría de 3 días a 15 minutos. Los hallazgos son precisos y los reportes impecables.',
+    company: 'TechCorp LATAM',
+    quote: 'NominaSmart redujo nuestro tiempo de auditoría de 3 días a 15 minutos. Los agentes de IA trabajan como un equipo real.',
     rating: 5,
   },
   {
     name: 'Carlos Ramírez',
     role: 'Contador Senior',
     company: 'Grupo Financiero Andino',
-    quote: 'La detección automática de inconsistencias en IBC y aportes nos ha evitado sanciones de la UGPP en múltiples ocasiones.',
+    quote: 'La detección automática de inconsistencias nos ha evitado sanciones regulatorias en múltiples países.',
     rating: 5,
   },
   {
     name: 'Ana Martínez',
     role: 'Gerente de Nómina',
     company: 'Industrias del Pacífico',
-    quote: 'El mapeo inteligente de columnas es increíble. Subimos archivos de cualquier formato y el sistema los entiende al instante.',
+    quote: 'Gyoru mapea nuestros archivos de cualquier formato al instante. Juli encuentra errores que nadie más ve.',
     rating: 5,
   },
 ];
 
 const metrics = [
-  { label: 'Riesgo UGPP', value: '4.2%', icon: ShieldCheck, trend: '↓ 12%' },
+  { label: 'Riesgo Promedio', value: '4.2%', icon: ShieldCheck, trend: '↓ 12%' },
   { label: 'Cumplimiento', value: '98.7%', icon: TrendingUp, trend: '↑ 3.1%' },
   { label: 'Empleados', value: '1,247', icon: Users, trend: '↑ 89' },
   { label: 'Auditorías', value: '342', icon: Activity, trend: '↑ 28' },
 ];
 
+const agentList = Object.values(AGENT_PERSONAS);
+
 export default function LandingPage() {
   return (
     <div className="relative">
-      {/* Hero — Asymmetric layout, weighted left */}
+      {/* Hero */}
       <section className="relative overflow-hidden pt-28 pb-36 px-6">
-        {/* Level 0 radial glows */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-[#7C3AED]/[0.15] rounded-full blur-[150px]" />
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#10B981]/[0.15] rounded-full blur-[120px]" />
         </div>
 
         <div className="relative mx-auto max-w-6xl">
-          {/* Intentional asymmetry: large text anchored left */}
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1c1f2a] text-sm text-[#ccc3d8] mb-8 backdrop-blur-[12px]">
               <Sparkles className="w-4 h-4 text-[#4edea3]" />
-              Plataforma de auditoría de nómina con IA
+              Plataforma de auditoría de nómina con IA multi-agente
             </div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-[#e0e2f1] leading-[1.05] tracking-[-0.03em]">
-              Audita tu nómina con{' '}
+              Tu equipo de IA{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#4edea3] via-[#4cd7f6] to-[#d2bbff]" style={{ backgroundImage: 'linear-gradient(135deg, #4edea3, #d2bbff)' }}>
-                inteligencia artificial
+                audita tu nómina
               </span>
             </h1>
 
             <p className="mt-8 text-lg text-[#958da1] max-w-xl leading-relaxed font-[family-name:var(--font-inter)]">
-              Detecta inconsistencias, garantiza cumplimiento UGPP y genera reportes ejecutivos
-              en minutos. Agentes de IA especializados trabajan en equipo para analizar cada
-              registro de tu nómina.
+              7 agentes de IA especializados trabajan en equipo para detectar errores,
+              garantizar cumplimiento normativo multi-país y generar reportes ejecutivos
+              en minutos.
             </p>
 
             <div className="mt-12 flex flex-col sm:flex-row items-start gap-4">
@@ -126,7 +128,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Floating dashboard preview — Glass Card */}
+          {/* Dashboard preview */}
           <div className="mt-20 relative">
             <div className="absolute -inset-4 bg-gradient-to-r from-[#7C3AED]/15 via-transparent to-[#10B981]/15 rounded-3xl blur-xl" />
             <div className="relative bg-[#1c1f2a]/80 backdrop-blur-[12px] rounded-[1.5rem] p-6" style={{ border: '1px solid rgba(74,68,85,0.10)' }}>
@@ -134,7 +136,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-[#E11D48]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#F59E0B]/60" />
                 <div className="w-3 h-3 rounded-full bg-[#10B981]/60" />
-                <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#4cd7f6]">NóminaSmart Dashboard</span>
+                <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#4cd7f6]">NominaSmart Dashboard</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {metrics.map((m) => (
@@ -153,12 +155,59 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Benefits — Glass Cards with ambient glow on hover */}
+      {/* Agent Team — THE STAR SECTION */}
+      <section className="py-32 px-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">Conoce a tu equipo</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">
+              7 agentes de IA que trabajan por ti
+            </h2>
+            <p className="mt-4 text-[#958da1] max-w-2xl mx-auto font-[family-name:var(--font-inter)]">
+              Cada agente tiene una personalidad, especialidad y rol definido. Trabajan en equipo,
+              se comunican entre sí y adaptan su plan según la complejidad de tu nómina.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {agentList.map((agent) => (
+              <div
+                key={agent.id}
+                className="group relative bg-[#1c1f2a] backdrop-blur-[12px] rounded-[1.5rem] p-6 hover:bg-[#313440] transition-all duration-300 flex flex-col items-center text-center"
+                style={{ border: '1px solid rgba(74,68,85,0.10)' }}
+              >
+                <div className="mb-4 relative">
+                  <AgentAvatar agentId={agent.id} size={72} animate={false} />
+                  <div
+                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] border-2 border-[#1c1f2a]"
+                    style={{ backgroundColor: agent.hexColor }}
+                  >
+                    {agent.emoji}
+                  </div>
+                </div>
+                <h3 className="text-base font-bold text-[#e0e2f1]">{agent.name}</h3>
+                <p className="text-xs font-medium mt-1" style={{ color: agent.hexColor }}>{agent.role}</p>
+                <p className="mt-3 text-[#958da1] text-sm leading-relaxed font-[family-name:var(--font-inter)]">
+                  {agent.description}
+                </p>
+                <div
+                  className="mt-4 px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                  style={{ backgroundColor: `${agent.hexColor}15`, color: agent.hexColor }}
+                >
+                  &ldquo;{agent.greeting.split('.')[0]}&rdquo;
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits */}
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4cd7f6] mb-4">Ventajas</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">¿Por qué elegir NóminaSmart?</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">¿Por qué elegir NominaSmart?</h2>
             <p className="mt-4 text-[#958da1] max-w-xl mx-auto font-[family-name:var(--font-inter)]">
               Tecnología de punta para simplificar la auditoría de nómina más compleja.
             </p>
@@ -185,7 +234,45 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features — No borders, spacing-based separation */}
+      {/* How it works — Agent-powered pipeline */}
+      <section className="py-32 px-6">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-20">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">Proceso</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">
+              Así trabaja tu equipo de agentes
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              { step: '01', title: 'Sube tu archivo', desc: 'Arrastra tu Excel. Dianis coordina al equipo.', agentId: 'master' },
+              { step: '02', title: 'Mapeo inteligente', desc: 'Gyoru conecta tus columnas con el sistema.', agentId: 'mapper' },
+              { step: '03', title: 'Auditoría + Corrección', desc: 'Juli audita. Wil corrige. Luni consulta normas.', agentId: 'auditor' },
+              { step: '04', title: 'Reporte ejecutivo', desc: 'Ana genera tu reporte narrativo listo para gerencia.', agentId: 'writer' },
+            ].map((item) => {
+              const persona = AGENT_PERSONAS[item.agentId];
+              return (
+                <div key={item.step} className="flex flex-col items-center text-center">
+                  <div className="relative mb-4">
+                    <AgentAvatar agentId={item.agentId} size={64} animate={false} />
+                    <span
+                      className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
+                      style={{ backgroundColor: persona?.hexColor ?? '#7C3AED' }}
+                    >
+                      {item.step}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-bold text-[#e0e2f1] mb-1">{item.title}</h3>
+                  <p className="text-xs text-[#958da1] leading-relaxed font-[family-name:var(--font-inter)]">{item.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
       <section className="py-32 px-6">
         <div className="mx-auto max-w-4xl">
           <div className="text-center mb-20">
@@ -206,7 +293,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials — Glass cards, no divider lines */}
+      {/* Testimonials */}
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
@@ -227,7 +314,6 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-[#ccc3d8] text-sm leading-relaxed flex-1 font-[family-name:var(--font-inter)]">&ldquo;{t.quote}&rdquo;</p>
-                {/* No border-t, use spacing */}
                 <div className="mt-6 pt-0">
                   <p className="text-[#e0e2f1] text-sm font-semibold">{t.name}</p>
                   <p className="text-[#4cd7f6] text-xs mt-0.5">{t.role} · {t.company}</p>
@@ -238,12 +324,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA — Gradient button with ambient glow */}
+      {/* CTA */}
       <section className="py-32 px-6">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Empieza a auditar tu nómina hoy</h2>
           <p className="mt-5 text-[#958da1] max-w-xl mx-auto font-[family-name:var(--font-inter)]">
-            Únete a cientos de empresas que ya usan NóminaSmart para garantizar el cumplimiento normativo.
+            Únete a empresas en toda Latinoamérica que ya usan NominaSmart para garantizar el cumplimiento normativo.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link

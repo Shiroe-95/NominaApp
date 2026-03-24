@@ -73,12 +73,12 @@ export default function LoginPage() {
                             </span>
                         </h1>
                         <p className="mt-4 text-[#958da1] text-base leading-relaxed max-w-sm">
-                            Verifica cumplimiento UGPP, detecta inconsistencias y certifica tu nómina en minutos.
+                            Audita tu nómina con agentes de IA especializados. Multi-país, multi-moneda, en minutos.
                         </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {['UGPP 2026', 'Triple Match', 'AI Mapping', 'Riesgo IBC'].map((f) => (
+                        {['Multi-País', 'Triple Match', 'AI Mapping', '7 Agentes IA'].map((f) => (
                             <span key={f} className="px-3 py-1.5 rounded-full bg-[#1c1f2a] text-[#ccc3d8] text-xs font-medium">
                                 {f}
                             </span>

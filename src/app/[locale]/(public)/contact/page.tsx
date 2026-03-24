@@ -123,7 +123,7 @@ export default function ContactPage() {
                     type="tel"
                     className="block w-full pl-10 pr-4 h-11 rounded-[0.75rem] bg-[#0a0e18] text-sm text-[#e0e2f1] placeholder-[#958da1] focus:outline-none transition-all font-[family-name:var(--font-inter)]"
                     style={{ border: '1px solid rgba(74,68,85,0.15)' }}
-                    placeholder="+57 300 000 0000"
+                    placeholder="+1 000 000 0000"
                   />
                 </div>
               </div>

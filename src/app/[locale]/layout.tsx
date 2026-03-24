@@ -1,3 +1,15 @@
+/**
+ * Layout raíz para rutas localizadas ([locale]).
+ *
+ * Responsabilidades:
+ * - Carga las fuentes tipográficas (Plus Jakarta Sans + Inter).
+ * - Valida que el locale solicitado esté soportado; redirige a 404 si no.
+ * - Provee el contexto de internacionalización (next-intl) a toda la app.
+ * - Envuelve el contenido en el AppShell (Sidebar + Header).
+ *
+ * Metadata SEO: título y descripción en español reflejando la propuesta
+ * de valor multi-país con agentes de IA especializados.
+ */
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
@@ -7,21 +19,30 @@ import { routing } from '@/i18n/routing';
 import "../globals.css";
 import AppShell from '@/components/layout/AppShell';
 
+/** Fuente principal para títulos y UI. */
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
+/** Fuente secundaria para cuerpo de texto. */
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
 
+/** Metadata SEO global de la aplicación. */
 export const metadata: Metadata = {
-  title: "NóminaSmart - Payroll Audit & UGPP Compliance",
-  description: "Automated payroll auditing and UGPP compliance SaaS in Colombia.",
+  title: "NominaSmart - Auditoría Inteligente de Nómina con IA",
+  description: "Plataforma multi-país de auditoría de nómina con agentes de IA especializados. Detecta riesgos, corrige errores y genera reportes ejecutivos.",
 };
 
+/**
+ * Layout raíz con soporte i18n.
+ * @param children - Contenido de la página actual.
+ * @param params - Parámetros de ruta; incluye `locale` (es | en | pt).
+ * @returns Estructura HTML completa con providers de i18n y shell de la app.
+ */
 export default async function RootLayout({
   children,
   params

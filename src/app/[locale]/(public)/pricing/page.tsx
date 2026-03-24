@@ -1,8 +1,22 @@
+/**
+ * PricingPage — Página pública de planes y precios de NominaSmart.
+ *
+ * Muestra tres planes de suscripción (Básico, Profesional, Empresarial)
+ * con tarjetas de resumen y una tabla comparativa detallada de funcionalidades.
+ *
+ * Secciones:
+ * - Tarjetas de planes con precio, descripción y lista de características.
+ * - Tabla comparativa con disponibilidad de agentes IA, límites y soporte por plan.
+ * - CTA final hacia la página de contacto para solicitar demo.
+ *
+ * Ruta: /[locale]/pricing (pública, sin autenticación requerida).
+ */
 'use client';
 
 import { ArrowRight, Check, Minus } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
+/** Definición de los planes de suscripción disponibles. */
 const plans = [
   {
     name: 'Básico',
@@ -14,7 +28,7 @@ const plans = [
     features: {
       employees: 'Hasta 50 empleados',
       uploads: '5 cargas/mes',
-      agents: 'Auditor + Mapeador',
+      agents: 'Juli (Auditora) + Gyoru (Mapeador)',
       reports: 'Reportes básicos',
       providers: '1 proveedor de IA',
       countries: '1 país',
@@ -26,12 +40,12 @@ const plans = [
     price: '299',
     currency: 'USD',
     period: '/mes',
-    description: 'Para empresas medianas con necesidades avanzadas de cumplimiento.',
+    description: 'Para empresas medianas con necesidades avanzadas de cumplimiento multi-país.',
     highlight: true,
     features: {
       employees: 'Hasta 500 empleados',
       uploads: 'Cargas ilimitadas',
-      agents: 'Todos los agentes IA',
+      agents: 'Todos los 7 agentes IA',
       reports: 'Reportes ejecutivos completos',
       providers: '3 proveedores de IA',
       countries: '3 países',
@@ -48,7 +62,7 @@ const plans = [
     features: {
       employees: 'Empleados ilimitados',
       uploads: 'Cargas ilimitadas',
-      agents: 'Todos los agentes + Investigador',
+      agents: 'Todos los agentes + Soul (Investigadora)',
       reports: 'Reportes personalizados',
       providers: 'Proveedores ilimitados',
       countries: 'Todos los países',
@@ -57,15 +71,17 @@ const plans = [
   },
 ];
 
+/** Filas de la tabla comparativa: cada fila indica disponibilidad o valor por plan. */
 const comparisonFeatures = [
   { label: 'Empleados', basic: 'Hasta 50', pro: 'Hasta 500', enterprise: 'Ilimitados' },
   { label: 'Cargas mensuales', basic: '5', pro: 'Ilimitadas', enterprise: 'Ilimitadas' },
-  { label: 'Agente Auditor', basic: true, pro: true, enterprise: true },
-  { label: 'Agente Mapeador', basic: true, pro: true, enterprise: true },
-  { label: 'Agente Corrector', basic: false, pro: true, enterprise: true },
-  { label: 'Agente Redactor', basic: false, pro: true, enterprise: true },
-  { label: 'Agente Nómina', basic: false, pro: true, enterprise: true },
-  { label: 'Agente Investigador', basic: false, pro: false, enterprise: true },
+  { label: '🔍 Juli (Auditora)', basic: true, pro: true, enterprise: true },
+  { label: '🐈‍⬛ Gyoru (Mapeador)', basic: true, pro: true, enterprise: true },
+  { label: '⚙️ Wil (Corrector)', basic: false, pro: true, enterprise: true },
+  { label: '📝 Ana (Redactora)', basic: false, pro: true, enterprise: true },
+  { label: '🐰 Luni (Experta Nómina)', basic: false, pro: true, enterprise: true },
+  { label: '🐕 Soul (Investigadora)', basic: false, pro: false, enterprise: true },
+  { label: '👑 Dianis (Orquestadora)', basic: true, pro: true, enterprise: true },
   { label: 'Bus de Agentes', basic: false, pro: false, enterprise: true },
   { label: 'Multi-país', basic: '1 país', pro: '3 países', enterprise: 'Todos' },
   { label: 'Multi-moneda', basic: false, pro: true, enterprise: true },
@@ -75,6 +91,11 @@ const comparisonFeatures = [
   { label: 'Soporte', basic: 'Email', pro: 'Chat prioritario', enterprise: 'Dedicado 24/7' },
 ];
 
+/**
+ * Renderiza el valor de una celda en la tabla comparativa.
+ * Muestra un ícono de check/minus para booleanos, o texto para strings.
+ * @param props.value - Valor booleano (incluido/no incluido) o texto descriptivo.
+ */
 function CellValue({ value }: { value: boolean | string }) {
   if (typeof value === 'boolean') {
     return value ? (
@@ -86,6 +107,11 @@ function CellValue({ value }: { value: boolean | string }) {
   return <span className="text-[#ccc3d8] text-sm font-[family-name:var(--font-inter)]">{value}</span>;
 }
 
+/**
+ * Componente principal de la página de precios.
+ * Renderiza las tarjetas de planes, la tabla comparativa y el CTA final.
+ * @returns Página completa de pricing con diseño Obsidian Ledger.
+ */
 export default function PricingPage() {
   return (
     <div className="relative">

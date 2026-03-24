@@ -1,3 +1,15 @@
+/**
+ * Header — Barra superior principal de la aplicación.
+ *
+ * Muestra el título contextual de la página actual, indicador de etapa del pipeline,
+ * controles de idioma, notificaciones, menú de perfil de usuario y menú móvil con Sidebar.
+ * El contenido se adapta dinámicamente según la ruta activa usando `pageMeta`.
+ *
+ * @remarks
+ * - Obtiene la sesión del usuario desde Supabase para mostrar email e inicial.
+ * - Incluye logout con redirección completa (window.location) para limpiar estado del cliente.
+ * - En pantallas pequeñas, despliega el Sidebar como overlay.
+ */
 'use client';
 
 import { Menu, ChevronDown, Settings, LogOut, User, ArrowRight } from 'lucide-react';
@@ -9,10 +21,11 @@ import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
+/** Metadatos contextuales por ruta: título, subtítulo, CTA opcional y etapa del pipeline. */
 const pageMeta: Record<string, { title: string; subtitle: string; ctaLabel?: string; ctaHref?: string; stage?: string }> = {
     '/': {
         title: 'Centro de control de nomina',
-        subtitle: 'Monitorea riesgo UGPP, desviaciones y estado de certificacion en un solo lugar.',
+        subtitle: 'Monitorea riesgo normativo, desviaciones y estado de certificacion en un solo lugar.',
         ctaLabel: 'Cargar planilla',
         ctaHref: '/upload',
         stage: 'Inicio',
@@ -42,6 +55,11 @@ const pageMeta: Record<string, { title: string; subtitle: string; ctaLabel?: str
     },
 };
 
+/**
+ * Hook que ejecuta un callback al hacer clic fuera del elemento referenciado.
+ * @param ref - Referencia al elemento DOM a monitorear.
+ * @param handler - Función a ejecutar cuando se detecta un clic externo.
+ */
 function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
     useEffect(() => {
         function handleMouseDown(event: MouseEvent) {
@@ -78,6 +96,11 @@ export default function Header() {
 
     useClickOutside(profileRef, () => setProfileOpen(false));
 
+/**
+ * Cierra la sesión del usuario y redirige a la página de login.
+ * Usa `window.location.href` en lugar de router.push para forzar
+ * una navegación completa que limpie el estado del cliente y pase por el middleware.
+ */
     function handleLogout() {
         setProfileOpen(false);
         const supabase = createClient();
