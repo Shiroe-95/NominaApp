@@ -594,7 +594,7 @@ export default function ReconcilePage() {
                                                                 <CheckCircle2 className="w-3.5 h-3.5" /> {t('resolve')}
                                                             </button>
                                                         ) : (
-                                                            <div className="inline-flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                                            <div className="inline-flex items-center gap-1.5 text-emerald-light font-black text-[10px] uppercase bg-emerald/15 px-3 py-1.5 rounded-lg border border-emerald/25">
                                                                 <CheckCircle2 className="w-3 h-3" /> {t('completed')}
                                                             </div>
                                                         )}
@@ -628,12 +628,12 @@ export default function ReconcilePage() {
                                 <p>{t('classifiedCategories')}: <strong>{Object.keys(latest.concept_summary?.byCategory ?? {}).length}</strong></p>
                                 <div className="flex flex-wrap gap-2">
                                     {(latest.detected_variables ?? []).slice(0, 25).map((v) => (
-                                        <span key={v} className="text-xs bg-slate-100 border border-slate-200 px-2 py-1 rounded-full">{v}</span>
+                                        <span key={v} className="text-xs bg-white/10 border border-white/10 text-slate-300 px-2 py-1 rounded-full">{v}</span>
                                     ))}
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(latest.concept_summary?.byCategory ?? {}).map(([k, v]) => (
-                                        <span key={k} className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-1 rounded-full">{k}: {v}</span>
+                                        <span key={k} className="text-xs bg-violet/15 border border-violet/20 text-violet-light px-2 py-1 rounded-full">{k}: {v}</span>
                                     ))}
                                 </div>
                             </CardContent>
@@ -644,63 +644,63 @@ export default function ReconcilePage() {
                             <CardContent className="space-y-3 text-sm">
                                 {(latest.missing_required_fields?.length ?? 0) > 0 ? (
                                     <div>
-                                        <p className="font-medium text-amber-700 flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> {t('missingRequiredFields')}</p>
+                                        <p className="font-medium text-amber-light flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> {t('missingRequiredFields')}</p>
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {latest.missing_required_fields.map((f) => (
-                                                <span key={f} className="text-xs bg-amber-100 border border-amber-300 text-amber-800 px-2 py-1 rounded-full">{f}</span>
+                                                <span key={f} className="text-xs bg-amber/15 border border-amber/25 text-amber-light px-2 py-1 rounded-full">{f}</span>
                                             ))}
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {t('missingRequiredFields')} completos.</p>
+                                    <p className="text-emerald-light flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {t('missingRequiredFields')} completos.</p>
                                 )}
 
                                 {(latest.missing_required_calculations?.length ?? 0) > 0 ? (
                                     <div>
-                                        <p className="font-medium text-amber-700 flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> {t('missingRequiredCalculations')}</p>
+                                        <p className="font-medium text-amber-light flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> {t('missingRequiredCalculations')}</p>
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {latest.missing_required_calculations.map((f) => (
-                                                <span key={f} className="text-xs bg-amber-100 border border-amber-300 text-amber-800 px-2 py-1 rounded-full">{f}</span>
+                                                <span key={f} className="text-xs bg-amber/15 border border-amber/25 text-amber-light px-2 py-1 rounded-full">{f}</span>
                                             ))}
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {t('missingRequiredCalculations')} completos.</p>
+                                    <p className="text-emerald-light flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> {t('missingRequiredCalculations')} completos.</p>
                                 )}
                                 {(latest.risk_report?.factors?.length ?? 0) > 0 && (
                                     <div>
-                                        <p className="font-medium text-slate-700">{t('riskFactors')}:</p>
+                                        <p className="font-medium text-slate-300">{t('riskFactors')}:</p>
                                         <ul className="space-y-1 mt-1">
                                             {(latest.risk_report?.factors ?? []).map((f) => (
-                                                <li key={`${f.name}-${f.detail}`} className="text-xs text-slate-600">
-                                                    <strong>{f.name}</strong> (+{f.points}): {f.detail}
+                                                <li key={`${f.name}-${f.detail}`} className="text-xs text-slate-400">
+                                                    <strong className="text-slate-300">{f.name}</strong> (+{f.points}): {f.detail}
                                                 </li>
                                             ))}
                                         </ul>
                                     </div>
                                 )}
                                 <div>
-                                    <p className="font-medium text-slate-700">{t('mathematicalValidation')}</p>
-                                    <p className="text-xs text-slate-600">
+                                    <p className="font-medium text-slate-300">{t('mathematicalValidation')}</p>
+                                    <p className="text-xs text-slate-400">
                                         Filas: {latest.calculation_validation_report?.rowsAnalyzed ?? 0} | Hallazgos: {latest.calculation_validation_report?.rowsWithFindings ?? 0} | Criticos: {latest.calculation_validation_report?.criticalFindings ?? 0}
                                     </p>
                                     <div className="mt-2 space-y-2">
                                         {(latest.calculation_validation_report?.checks ?? []).slice(0, 8).map((check) => {
                                             const hasMissing = check.missingDependencies && check.missingDependencies.length > 0;
                                             return (
-                                                <div key={check.id} className="text-xs border-l-2 border-slate-100 pl-2 py-1">
-                                                    <p className="font-semibold text-slate-700">{check.label}</p>
+                                                <div key={check.id} className="text-xs border-l-2 border-white/10 pl-2 py-1">
+                                                    <p className="font-semibold text-slate-300">{check.label}</p>
                                                     {hasMissing ? (
-                                                        <div className="text-amber-600 space-y-0.5">
+                                                        <div className="text-amber-light space-y-0.5">
                                                             <p className="flex items-center gap-1 font-medium"><AlertTriangle className="w-3 h-3" /> Faltan campos: {check.missingDependencies!.join(', ')}</p>
                                                             {check.potentialMatches && Object.keys(check.potentialMatches).length > 0 && (
-                                                                <p className="text-[10px] text-slate-400 bg-slate-50 p-1 rounded border border-dashed border-slate-100 mt-1">
+                                                                <p className="text-[10px] text-slate-500 bg-white/5 p-1 rounded border border-dashed border-white/10 mt-1">
                                                                     Sugerencia: {Object.entries(check.potentialMatches).map(([t, h]) => `${h} → ${t}`).join(', ')}
                                                                 </p>
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <p className="text-slate-500">Correctos: {check.passedRows} | Fallas: {check.failedRows}</p>
+                                                        <p className="text-slate-400">Correctos: {check.passedRows} | Fallas: {check.failedRows}</p>
                                                     )}
                                                 </div>
                                             );
@@ -715,21 +715,21 @@ export default function ReconcilePage() {
                         <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="w-4 h-4 text-slate-500" /> {t('processedSheets')}</CardTitle></CardHeader>
                         <CardContent>
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow>
-                                        <TableHead className="font-bold text-slate-700">Archivo</TableHead>
-                                        <TableHead className="font-bold text-slate-700">Hoja</TableHead>
-                                        <TableHead className="text-right font-bold text-slate-700">Filas</TableHead>
-                                        <TableHead className="text-right font-bold text-slate-700">Variables</TableHead>
+                                <TableHeader className="bg-black/30">
+                                    <TableRow className="border-white/10">
+                                        <TableHead className="font-bold text-slate-300">Archivo</TableHead>
+                                        <TableHead className="font-bold text-slate-300">Hoja</TableHead>
+                                        <TableHead className="text-right font-bold text-slate-300">Filas</TableHead>
+                                        <TableHead className="text-right font-bold text-slate-300">Variables</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {(latest.sheet_summary ?? []).map((s, idx) => (
-                                        <TableRow key={`${s.fileName}-${s.sheetName}-${idx}`}>
-                                            <TableCell className="text-xs font-semibold text-slate-600">{s.fileName}</TableCell>
-                                            <TableCell className="text-xs text-slate-500">{s.sheetName}</TableCell>
-                                            <TableCell className="text-right text-xs font-mono">{s.rowCount.toLocaleString('es-CO')}</TableCell>
-                                            <TableCell className="text-right text-xs font-mono">{s.headerCount}</TableCell>
+                                        <TableRow key={`${s.fileName}-${s.sheetName}-${idx}`} className="border-white/10 hover:bg-white/5">
+                                            <TableCell className="text-xs font-semibold text-slate-300">{s.fileName}</TableCell>
+                                            <TableCell className="text-xs text-slate-400">{s.sheetName}</TableCell>
+                                            <TableCell className="text-right text-xs font-mono text-slate-300">{s.rowCount.toLocaleString('es-CO')}</TableCell>
+                                            <TableCell className="text-right text-xs font-mono text-slate-300">{s.headerCount}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
