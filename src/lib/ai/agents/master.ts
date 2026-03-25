@@ -13,6 +13,7 @@ import { createWriterAgent } from './writer';
 import { createCorrectorAgent } from './corrector';
 import { createMapperAgent } from './mapper';
 import { createPayrollExpertAgent } from './payroll-expert';
+import { createResearcherAgent } from './researcher';
 import { AgentBusV2 } from './agent-bus';
 import type { AgentMessage } from './agent-bus';
 import { getAgentLabel as getPersonaLabel } from '@/lib/ai/agent-personas';
@@ -73,6 +74,7 @@ function getAgentRegistry(): Map<string, AgentDefinition> {
   registry.set('corrector', createCorrectorAgent());
   registry.set('mapper', createMapperAgent());
   registry.set('payroll-expert', createPayrollExpertAgent());
+  registry.set('researcher', createResearcherAgent());
 
   return registry;
 }
@@ -93,6 +95,7 @@ Agentes disponibles:
 - **Corrector**: Propone correcciones numéricas determinísticas basadas en fórmulas normativas
 - **Mapeador**: Mapea columnas de archivos Excel a campos estándar del sistema
 - **Nómina**: Asistente conversacional de normativa laboral multi-país y cálculos de nómina
+- **Investigador**: Investiga normativa laboral vigente, detecta cambios regulatorios y actualiza reglas
 
 Tipos de intención:
 - audit: El usuario quiere validar registros de nómina
@@ -101,6 +104,7 @@ Tipos de intención:
 - correction: El usuario quiere corregir errores detectados
 - report: El usuario quiere un reporte ejecutivo de auditoría
 - full-analysis: El usuario quiere un análisis completo (auditoría + reporte + correcciones)
+- rule-update: El usuario quiere actualizar, investigar o sincronizar reglas normativas/fiscales
 
 Clasifica la intención basándote en el contenido del mensaje del usuario.`;
 
@@ -226,6 +230,25 @@ function formatAgentResult(result: AgentResult, description?: string): string {
     case 'payroll-expert': {
       const reply = data?.['reply'] as string | undefined;
       return `${header}\n${reply ?? 'Consulta procesada.'}`;
+    }
+
+    case 'researcher': {
+      const researchResult = data as Record<string, unknown> | undefined;
+      const sources = researchResult?.['sources'] as Array<Record<string, unknown>> | undefined;
+      const confidence = researchResult?.['confidence'] as string | undefined;
+      const rulesUpdated = researchResult?.['rulesUpdated'] as boolean | undefined;
+      const changes = researchResult?.['changesDetected'] as unknown[] | undefined;
+
+      let body = rulesUpdated ? '✅ Reglas actualizadas' : '📋 Investigación completada';
+      if (confidence) body += ` (confianza: ${confidence})`;
+      if (changes && changes.length > 0) body += ` — ${changes.length} cambio(s) detectado(s)`;
+      if (sources && sources.length > 0) {
+        body += '\n\nFuentes consultadas:';
+        for (const s of sources.slice(0, 5)) {
+          body += `\n• ${s['title'] ?? 'Sin título'} — ${s['url'] ?? ''}`;
+        }
+      }
+      return `${header}\n${body}`;
     }
 
     default:

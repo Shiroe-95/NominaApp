@@ -6,6 +6,21 @@ import type { ProviderSummary } from '@/lib/types/pipeline';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Página del Dashboard ejecutivo (Server Component).
+ *
+ * Carga datos de nóminas, empresas y proveedores de IA desde Supabase
+ * y los pasa al componente cliente `DashboardClient` para renderizado interactivo.
+ *
+ * Estrategia de acceso a datos:
+ * - Usa el cliente autenticado (`createClient`) solo para obtener la sesión del usuario.
+ * - Usa el cliente admin (`createAdminClient`) para todas las consultas de datos,
+ *   incluyendo `ai_providers`, ya que los proveedores son compartidos globalmente
+ *   y no están restringidos por RLS al usuario que los creó.
+ * - Filtra datos por `company_id` cuando el rol es `client` (scoping por empresa).
+ *
+ * @returns Componente `DashboardClient` con datos pre-cargados del servidor.
+ */
 export default async function DashboardPage() {
     let payrollData: any[] = [];
     let companiesData: any[] = [];

@@ -39,6 +39,7 @@ import { createWriterAgent } from '@/lib/ai/agents/writer';
 import { createCorrectorAgent } from '@/lib/ai/agents/corrector';
 import { createMapperAgent } from '@/lib/ai/agents/mapper';
 import { createPayrollExpertAgent } from '@/lib/ai/agents/payroll-expert';
+import { createResearcherAgent } from '@/lib/ai/agents/researcher';
 import { selectModel, type ModelSelection, type TaskContext } from '@/lib/ai/model-selector';
 import { calculateCost } from '@/lib/ai/cost-calculator';
 import type { AgentDefinition } from '@/lib/ai/types';
@@ -64,6 +65,7 @@ function getAgentRegistry(): Map<string, AgentDefinition> {
   registry.set('corrector', createCorrectorAgent());
   registry.set('mapper', createMapperAgent());
   registry.set('payroll-expert', createPayrollExpertAgent());
+  registry.set('researcher', createResearcherAgent());
   return registry;
 }
 

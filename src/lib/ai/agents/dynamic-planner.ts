@@ -110,6 +110,19 @@ function getStepsForIntent(intent: UserIntent): PlanStep[] {
         },
       ];
 
+    case 'rule-update':
+      return [
+        {
+          agentName: 'researcher',
+          description: 'Investigar normativa laboral vigente y detectar cambios regulatorios',
+        },
+        {
+          agentName: 'payroll-expert',
+          inputFrom: 'researcher',
+          description: 'Actualizar reglas normativas en la base de datos con los hallazgos de la investigación',
+        },
+      ];
+
     default:
       return [
         {

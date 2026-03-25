@@ -10,7 +10,8 @@ export type UserIntent =
   | 'consultation'
   | 'correction'
   | 'report'
-  | 'full-analysis';
+  | 'full-analysis'
+  | 'rule-update';
 
 export interface IntentClassificationResult {
   intent: UserIntent;
@@ -43,7 +44,7 @@ const PAYROLL_PRIORITY_INTENTS: ReadonlySet<UserIntent> = new Set([
 
 const IntentClassificationSchema = z.object({
   intent: z
-    .enum(['audit', 'mapping', 'consultation', 'correction', 'report', 'full-analysis'])
+    .enum(['audit', 'mapping', 'consultation', 'correction', 'report', 'full-analysis', 'rule-update'])
     .describe('The classified user intent'),
   confidence: z
     .number()
@@ -66,6 +67,7 @@ Analiza la conversación del usuario y clasifica su intención en una de las sig
 - correction: El usuario quiere corregir errores detectados en la nómina
 - report: El usuario quiere un reporte ejecutivo de auditoría
 - full-analysis: El usuario quiere un análisis completo (auditoría + reporte + correcciones)
+- rule-update: El usuario quiere actualizar, investigar o sincronizar reglas normativas/fiscales
 
 Considera TODO el contexto conversacional proporcionado, no solo el último mensaje.
 Asigna un nivel de confianza entre 0.0 y 1.0 basado en qué tan clara es la intención.
