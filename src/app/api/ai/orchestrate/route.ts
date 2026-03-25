@@ -58,6 +58,20 @@ const SSE_HEADERS = {
 
 // ── Agent registry builder ──────────────────────────────────────────
 
+/**
+ * Construye el registro de agentes disponibles para el pipeline de orquestación.
+ *
+ * Cada agente se registra con su nombre clave (usado en planes dinámicos y AgentBus)
+ * y su definición (factory). Los 6 agentes registrados son:
+ * - `auditor`        — Juli: 14 verificaciones matemáticas y normativas.
+ * - `writer`         — Ana: generación de reportes ejecutivos narrativos.
+ * - `corrector`      — Wil: correcciones numéricas determinísticas.
+ * - `mapper`         — Gyoru: mapeo de columnas Excel a campos estándar.
+ * - `payroll-expert` — Luni: asistente conversacional de normativa laboral.
+ * - `researcher`     — Soul: investigación regulatoria por país/año con búsqueda web.
+ *
+ * @returns Mapa nombre→AgentDefinition con los 6 agentes del sistema.
+ */
 function getAgentRegistry(): Map<string, AgentDefinition> {
   const registry = new Map<string, AgentDefinition>();
   registry.set('auditor', createAuditorAgent());

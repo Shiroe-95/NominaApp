@@ -230,6 +230,42 @@ async function deleteRule(args: {
   };
 }
 
+/**
+ * Ejecuta sincronización regulatoria automática.
+ * Investiga normativa vigente y actualiza las reglas en la base de datos.
+ */
+async function syncRules(args: {
+  countryCode?: string;
+  year?: number;
+}): Promise<ToolResult> {
+  try {
+    const { runSync } = await import('../../sync/sync-service');
+    const results = await runSync({
+      countryCode: args.countryCode?.toUpperCase(),
+      year: args.year,
+      force: true,
+    });
+
+    const successCount = results.filter(r => r.status === 'completed').length;
+    const errorCount = results.filter(r => r.status === 'failed').length;
+
+    let detail = `Sincronización completada: ${successCount} exitoso(s), ${errorCount} error(es).\n`;
+    for (const r of results) {
+      const icon = r.status === 'completed' ? '✅' : '❌';
+      detail += `\n${icon} ${r.countryCode} ${r.year}: ${r.status === 'completed' ? `${r.changesDetected ?? 0} cambio(s)` : r.error ?? 'error'}`;
+    }
+
+    return {
+      success: errorCount === 0,
+      summary: `Sync: ${successCount} OK, ${errorCount} errores`,
+      detail,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error desconocido';
+    return { success: false, summary: 'Error en sync', detail: `Error al sincronizar: ${msg}` };
+  }
+}
+
 // ── System prompt ───────────────────────────────────────────────────
 
 const PAYROLL_EXPERT_SYSTEM_PROMPT = `Eres el Agente de Nómina de NóminaSmart, un experto en normativa laboral y cálculos de nómina para múltiples países de Latinoamérica y Estados Unidos.
@@ -248,6 +284,7 @@ CAPACIDADES:
 2. Realizar cálculos paso a paso de nómina adaptados al país: base de cotización, prestaciones, aportes, liquidaciones
 3. Gestionar reglas normativas en la base de datos (listar, crear, actualizar, eliminar)
 4. Comparar normativas entre países cuando el usuario lo solicite
+5. Sincronizar reglas normativas automáticamente: investigar cambios regulatorios y actualizar la base de datos
 
 INSTRUCCIONES:
 - Identifica el país del contexto (context.countryCode) y adapta tus respuestas a la normativa de ese país
@@ -382,6 +419,19 @@ function buildAITools() {
         return result.detail;
       },
     }),
+
+    sincronizar_reglas: tool({
+      description:
+        'Ejecuta sincronización regulatoria automática. Investiga normativa vigente por país/año y actualiza las reglas en la base de datos. Usar cuando el usuario pida actualizar, sincronizar o investigar reglas fiscales/normativas.',
+      parameters: z.object({
+        countryCode: z.string().optional().describe('Código de país (CO, MX). Omitir para sincronizar todos los países activos.'),
+        year: z.number().optional().describe('Año fiscal. Omitir para usar el año actual.'),
+      }),
+      execute: async (args) => {
+        const result = await syncRules(args);
+        return result.detail;
+      },
+    }),
   };
 }
 
@@ -444,6 +494,17 @@ const agentToolDefinitions: ToolDefinition[] = [
         ruleYear: { type: 'number' },
       },
       required: ['countryCode', 'ruleYear'],
+    },
+  },
+  {
+    name: 'sincronizar_reglas',
+    description: 'Ejecuta sincronización regulatoria automática. Investiga y actualiza reglas fiscales/normativas.',
+    parameters: {
+      type: 'object',
+      properties: {
+        countryCode: { type: 'string', description: 'Código de país. Omitir para todos.' },
+        year: { type: 'number', description: 'Año fiscal. Omitir para año actual.' },
+      },
     },
   },
 ];
