@@ -54,9 +54,9 @@ export default async function DashboardPage() {
             companiesQuery = companiesQuery.eq('id', companyId);
         }
 
-        // Query ai_providers for the authenticated user (uses auth client for RLS)
+        // Query ai_providers using admin client (bypasses RLS since providers are shared)
         const providersQuery = user
-            ? supabaseAuth
+            ? supabase
                 .from('ai_providers')
                 .select('id, display_name, provider_type, is_active, last_test_success')
                 .order('priority', { ascending: true })
