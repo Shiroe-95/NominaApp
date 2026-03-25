@@ -127,6 +127,9 @@ export async function POST(req: Request) {
   const request = parsed.data;
 
   // ── Load provider configs from DB ───────────────────────────────
+  // Carga todos los proveedores activos globalmente (sin filtrar por user_id).
+  // Esto permite que cualquier usuario autenticado use los proveedores
+  // configurados por administradores, habilitando una configuración centralizada.
   const admin = createAdminClient();
   const { data: providers, error: provError } = await admin
     .from('ai_providers')

@@ -774,7 +774,7 @@ Se configuran desde `/settings/providers` (requiere rol admin). Tipos soportados
 | Google | `google` | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash |
 | OpenRouter | `openrouter` | Cualquier modelo disponible en OpenRouter (incluye modelos gratuitos de Gemini, DeepSeek, Llama, Qwen) |
 
-Cada proveedor tiene: `api_key` (cifrada con AES-256-GCM), `model_id`, `priority` (orden de fallback), `is_active`.
+Cada proveedor tiene: `api_key` (cifrada con AES-256-GCM), `model_id`, `priority` (orden de fallback), `is_active`. Los proveedores configurados son compartidos globalmente: cualquier usuario autenticado puede usar los proveedores activos sin importar quién los creó.
 
 ### Optimización de Tokens
 
@@ -844,7 +844,7 @@ curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
 | `payroll_action_items` | Hallazgos/tickets con prioridad, severidad y resolución | → payroll_id |
 | `country_year_rules` | Reglas normativas por país/año (status: draft/pending_review/approved/rejected) | → audit_log, sources |
 | `user_profiles` | Perfiles con rol (admin/analyst/client), locale, alert_countries | → auth.users (PK=FK) |
-| `ai_providers` | Proveedores IA con API key cifrada AES-256-GCM | → user_id |
+| `ai_providers` | Proveedores IA con API key cifrada AES-256-GCM (compartidos globalmente) | → user_id |
 | `ai_usage_logs` | Uso IA: tokens in/out, latencia, costo, complejidad, modelo | → provider_id, company_id |
 | `supported_countries` | 7 países con moneda, formato y frecuencia de sync | → sync_history |
 | `sync_history` | Historial de sincronizaciones (status, reintentos, confianza) | → country_code |

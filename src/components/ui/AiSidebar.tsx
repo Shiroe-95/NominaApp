@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2, ExternalLink } from 'lucide-react';
+import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2, ExternalLink, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { getPersona } from '@/lib/ai/agent-personas';
@@ -65,6 +65,37 @@ const SUGGESTIONS = [
   'Muestra las reglas de México 2025',
   'Crea una regla para Perú 2026',
 ];
+
+/** Acciones rápidas de agentes que se pueden invocar directamente. */
+const AGENT_ACTIONS = [
+  {
+    agentId: 'researcher',
+    label: '🔄 Actualizar reglas normativas',
+    description: 'Soul investiga cambios regulatorios y actualiza las reglas de todos los países.',
+    action: 'sync',
+  },
+  {
+    agentId: 'auditor',
+    label: '🔍 Auditar última nómina',
+    description: 'Juli ejecuta las 14 verificaciones sobre la última planilla cargada.',
+    action: 'chat',
+    prompt: 'Ejecuta una auditoría completa sobre la última nómina cargada. Analiza todos los hallazgos y dame un resumen ejecutivo.',
+  },
+  {
+    agentId: 'payroll-expert',
+    label: '📋 Consultar normativa vigente',
+    description: 'Luni responde preguntas sobre leyes laborales de cualquier país.',
+    action: 'chat',
+    prompt: 'Dame un resumen de la normativa laboral vigente para Colombia 2026, incluyendo SMMLV, auxilio de transporte, y porcentajes de aportes.',
+  },
+  {
+    agentId: 'writer',
+    label: '📝 Generar reporte ejecutivo',
+    description: 'Ana redacta un reporte con hallazgos priorizados de la última auditoría.',
+    action: 'chat',
+    prompt: 'Genera un reporte ejecutivo de la última nómina procesada con hallazgos priorizados por severidad y recomendaciones.',
+  },
+] as const;
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
@@ -162,6 +193,7 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     return [WELCOME_MESSAGE];
   });
   const [input, setInput] = useState('');
+  const [syncLoading, setSyncLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -394,6 +426,61 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     };
   }, [context]);
 
+  // ── Agent action handler ────────────────────────────────────────
+
+  const handleAgentAction = async (action: typeof AGENT_ACTIONS[number]) => {
+    if (isLoading || syncLoading) return;
+
+    if (action.action === 'sync') {
+      // Execute regulatory sync via bootstrap API
+      setSyncLoading(true);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', text: '🔄 Actualizar reglas normativas de todos los países' },
+      ]);
+
+      try {
+        const res = await fetch('/api/sync/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: true }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error ?? 'Error al sincronizar');
+        }
+
+        const results = data.results ?? [];
+        const successCount = results.filter((r: { status: string }) => r.status === 'success').length;
+        const errorCount = results.filter((r: { status: string }) => r.status === 'error').length;
+
+        let replyText = `🐕 Soul completó la sincronización regulatoria.\n\n`;
+        replyText += `✅ Exitosos: ${successCount}\n`;
+        if (errorCount > 0) replyText += `⚠️ Con errores: ${errorCount}\n`;
+        replyText += `\nTotal procesados: ${results.length}`;
+
+        if (results.length > 0) {
+          replyText += '\n\nDetalle:';
+          for (const r of results.slice(0, 10)) {
+            const icon = r.status === 'success' ? '✅' : '❌';
+            replyText += `\n${icon} ${r.countryCode} ${r.year} — ${r.status === 'success' ? `${r.changesDetected ?? 0} cambios` : r.error ?? 'error'}`;
+          }
+        }
+
+        setMessages((prev) => [...prev, { role: 'assistant', text: replyText }]);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido';
+        setMessages((prev) => [...prev, { role: 'assistant', text: `❌ Error al sincronizar: ${msg}` }]);
+      } finally {
+        setSyncLoading(false);
+      }
+    } else if (action.action === 'chat' && 'prompt' in action) {
+      // Send as a chat message to the orchestrator
+      void handleSend(action.prompt);
+    }
+  };
+
   // ── Send handler ──────────────────────────────────────────────────
 
   const handleSend = async (text: string = input) => {
@@ -575,6 +662,33 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                       >
                         <BookOpen className="w-3 h-3 shrink-0" style={{ color: '#494454' }} />
                         {s}
+                      </button>
+                    ))}
+
+                    <p className="text-[10px] flex items-center gap-1 mt-3 mb-0.5" style={{ color: '#958ea0' }}>
+                      <Zap className="w-3 h-3" /> Acciones rápidas
+                    </p>
+                    {AGENT_ACTIONS.map((action) => (
+                      <button
+                        key={action.label}
+                        disabled={isLoading || syncLoading}
+                        onClick={() => void handleAgentAction(action)}
+                        className="text-left text-xs px-3 py-2.5 rounded-lg transition-colors flex items-start gap-2 group"
+                        style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = colors.surfaceContainer.high;
+                          e.currentTarget.style.color = colors.secondary;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colors.surfaceContainer.default;
+                          e.currentTarget.style.color = '#cbc3d7';
+                        }}
+                      >
+                        <AgentAvatar agentId={action.agentId} size={18} animate={false} />
+                        <div className="min-w-0">
+                          <span className="block font-medium leading-tight">{action.label}</span>
+                          <span className="block text-[10px] mt-0.5 leading-tight" style={{ color: '#958ea0' }}>{action.description}</span>
+                        </div>
                       </button>
                     ))}
                   </div>
