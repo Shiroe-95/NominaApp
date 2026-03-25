@@ -232,7 +232,15 @@ async function deleteRule(args: {
 
 /**
  * Ejecuta sincronización regulatoria automática.
- * Investiga normativa vigente y actualiza las reglas en la base de datos.
+ *
+ * Delega en `sync-service.runSync()` para investigar normativa vigente
+ * (vía el agente Soul / Researcher) y actualizar las reglas en
+ * `country_year_rules`. Fuerza la ejecución ignorando la frecuencia
+ * configurada (`force: true`).
+ *
+ * @param args.countryCode - Código ISO del país (ej. 'CO', 'MX'). Omitir para sincronizar todos los países activos.
+ * @param args.year - Año fiscal objetivo. Omitir para usar el año actual.
+ * @returns ToolResult con resumen de éxitos/errores y detalle por país/año.
  */
 async function syncRules(args: {
   countryCode?: string;

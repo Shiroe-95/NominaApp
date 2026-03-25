@@ -80,7 +80,7 @@ Nomina Smart implementa un sistema de agentes con personalidades únicas que col
 | 📝 **Ana** | Writer | 👩 Mujer | Redactora de Reportes | Genera reportes ejecutivos narrativos con hallazgos agrupados por categoría y priorizados por severidad |
 | ⚙️ **Wil** | Corrector | 👨 Hombre | Ingeniero de Correcciones | Propone correcciones numéricas determinísticas con fórmulas normativas. Incluye guía experta para hallazgos no determinísticos |
 | 🐈‍⬛ **Gyoru** | Mapper | 🐱 Gato | Mapeadora de Campos | Mapea columnas de archivos Excel a campos estándar con diccionario de sinónimos + fuzzy matching IA |
-| 🐰 **Luni** | Payroll Expert | 🐰 Conejo | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países con cálculos paso a paso y gestión CRUD de reglas |
+| 🐰 **Luni** | Payroll Expert | 🐰 Conejo | Experta en Nómina Multi-País | Asistente conversacional de normativa laboral para 7 países con cálculos paso a paso, gestión CRUD de reglas y sincronización regulatoria automática |
 | 🐕 **Soul** | Researcher | 🐕 Perro | Investigadora Regulatoria | Investiga normativa laboral vigente por país/año con búsqueda web (Firecrawl), resolución de conflictos entre fuentes y fallback a REGULATION_DB |
 
 ### 14 Verificaciones Matemáticas del Auditor
