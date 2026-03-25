@@ -129,6 +129,7 @@ Nomina Smart implementa un sistema de agentes con personalidades únicas que col
 | **Notificaciones In-App** | Severidad (info/warning/critical), tipos: cambio regulatorio, sync completado, regla pendiente. Broadcast a admins |
 | **Auditoría de Cambios** | Registro de cambios en reglas con retención 5 años. Trazabilidad de origen (manual/automático) y fuentes |
 | **Integraciones** | Framework extensible de conectores para ERPs (Siigo, Generic API). Interfaz `IntegrationConnector` para agregar nuevos sistemas |
+| **Acciones Rápidas de Agentes** | Botones de acceso directo en el chat IA para invocar agentes sin escribir: sincronización regulatoria (Soul), auditoría de última nómina (Juli), consulta normativa (Luni) y generación de reporte ejecutivo (Ana) |
 | **Design System** | Obsidian Ledger: tokens de diseño oscuro con jerarquía de superficies tonales (6 niveles), paleta semántica, glassmorphism. Compatible con Material Design 3 |
 
 ---

@@ -606,6 +606,21 @@ const sections: Section[] = [
           deben participar. Puede ser una consulta simple (solo Luni responde) o un análisis completo
           (Juli audita, Wil corrige, Ana redacta).
         </p>
+        <SectionHeading>Acciones rápidas</SectionHeading>
+        <p className="text-[#958da1] text-sm mb-2">
+          El panel de bienvenida incluye botones de acciones rápidas que invocan directamente a agentes específicos
+          sin necesidad de escribir un mensaje:
+        </p>
+        <ul className="text-sm text-[#958da1] space-y-1 list-disc list-inside">
+          <li><strong className="text-[#e0e2f1]">🔄 Actualizar reglas normativas:</strong> Soul investiga cambios regulatorios y actualiza las reglas de todos los países.</li>
+          <li><strong className="text-[#e0e2f1]">🔍 Auditar última nómina:</strong> Juli ejecuta las 14 verificaciones sobre la última planilla cargada.</li>
+          <li><strong className="text-[#e0e2f1]">📋 Consultar normativa vigente:</strong> Luni responde con un resumen de la normativa laboral vigente.</li>
+          <li><strong className="text-[#e0e2f1]">📝 Generar reporte ejecutivo:</strong> Ana redacta un reporte con hallazgos priorizados de la última auditoría.</li>
+        </ul>
+        <Tip>
+          Las acciones rápidas son atajos para las tareas más comunes. Cada una invoca al agente especializado
+          correspondiente con un prompt optimizado.
+        </Tip>
         <SectionHeading>Tipos de interacción</SectionHeading>
         <div className="space-y-2 mt-2">
           {[

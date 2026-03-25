@@ -428,6 +428,15 @@ export default function AiSidebar({ context }: AiSidebarProps) {
 
   // ── Agent action handler ────────────────────────────────────────
 
+  /**
+   * Ejecuta una acción rápida de agente desde los botones del panel de bienvenida.
+   *
+   * Soporta dos tipos de acción:
+   * - `sync`: Invoca `/api/sync/bootstrap` para sincronización regulatoria de todos los países.
+   * - `chat`: Envía el prompt predefinido de la acción al orquestador vía {@link handleSend}.
+   *
+   * @param action - Definición de la acción rápida desde {@link AGENT_ACTIONS}.
+   */
   const handleAgentAction = async (action: typeof AGENT_ACTIONS[number]) => {
     if (isLoading || syncLoading) return;
 
