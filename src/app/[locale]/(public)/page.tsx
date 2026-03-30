@@ -29,83 +29,19 @@ import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 import { useTranslations } from 'next-intl';
 
-/** Tarjetas de beneficios principales mostradas en la sección "¿Por qué elegir NominaSmart?". */
-const benefits = [
-  {
-    icon: ShieldCheck,
-    title: 'Cumplimiento normativo multi-país',
-    description: 'Valida automáticamente reglas laborales de Colombia, México, Perú, Chile, Brasil, Argentina y más.',
-    iconColor: 'text-[#4edea3]',
-    glowColor: 'rgba(16,185,129,0.2)',
-  },
-  {
-    icon: Brain,
-    title: '7 agentes de IA especializados',
-    description: 'Dianis coordina, Juli audita, Wil corrige, Ana redacta, Gyoru mapea, Luni consulta normas y Soul investiga cambios regulatorios.',
-    iconColor: 'text-[#d2bbff]',
-    glowColor: 'rgba(124,58,237,0.2)',
-  },
-  {
-    icon: BarChart3,
-    title: 'Reportes ejecutivos instantáneos',
-    description: 'Genera reportes narrativos con hallazgos priorizados, referencias normativas y recomendaciones accionables.',
-    iconColor: 'text-[#4cd7f6]',
-    glowColor: 'rgba(6,182,212,0.2)',
-  },
-  {
-    icon: Globe,
-    title: 'Multi-país y multi-moneda',
-    description: 'Una sola plataforma para todas tus operaciones de nómina en Latinoamérica y más allá.',
-    iconColor: 'text-[#ffb3b6]',
-    glowColor: 'rgba(225,29,72,0.2)',
-  },
+/** Icon/style config for benefits cards (text comes from translations). */
+const benefitStyles = [
+  { icon: ShieldCheck, iconColor: 'text-[#4edea3]', glowColor: 'rgba(16,185,129,0.2)' },
+  { icon: Brain, iconColor: 'text-[#d2bbff]', glowColor: 'rgba(124,58,237,0.2)' },
+  { icon: BarChart3, iconColor: 'text-[#4cd7f6]', glowColor: 'rgba(6,182,212,0.2)' },
+  { icon: Globe, iconColor: 'text-[#ffb3b6]', glowColor: 'rgba(225,29,72,0.2)' },
 ];
 
-/** Lista de funcionalidades clave mostradas como checklist con iconos de verificación. */
-const features = [
-  'Mapeo inteligente de columnas Excel con IA',
-  'Correcciones numéricas con fórmulas normativas',
-  'Pipeline guiado paso a paso con agentes visibles',
-  'Múltiples proveedores de IA con fallback automático',
-  'Dashboard con métricas de riesgo en tiempo real',
-  'Cifrado de datos y API keys',
-];
+/** (features list is now built inside the component using translations) */
 
-/** Testimonios de clientes con nombre, cargo, empresa, cita y calificación (estrellas). */
-const testimonials = [
-  {
-    name: 'Lo que podrás lograr',
-    role: 'Auditoría automatizada',
-    company: 'Tu empresa',
-    quote: 'Imagina reducir tu tiempo de auditoría de nómina de días a minutos, con agentes de IA que detectan errores que el ojo humano pasa por alto.',
-    rating: 5,
-    avatar: '🎯',
-  },
-  {
-    name: 'Cumplimiento garantizado',
-    role: 'Normativa colombiana',
-    company: 'UGPP · DIAN · MinTrabajo',
-    quote: 'NominaSmart valida tu nómina contra la normativa laboral vigente: aportes a seguridad social, retención en la fuente, prestaciones y más.',
-    rating: 5,
-    avatar: '🛡️',
-  },
-  {
-    name: 'Reportes ejecutivos',
-    role: 'Listos para gerencia',
-    company: 'En minutos, no días',
-    quote: 'Genera reportes narrativos con hallazgos priorizados, referencias normativas y recomendaciones accionables para presentar a la junta directiva.',
-    rating: 5,
-    avatar: '📊',
-  },
-];
+/** (testimonials are now built inside the component using translations) */
 
-/** Métricas simuladas del dashboard preview en el hero (riesgo, cumplimiento, empleados, auditorías). */
-const metrics = [
-  { label: 'Riesgo Promedio', value: '4.2%', icon: ShieldCheck, trend: '↓ 12%' },
-  { label: 'Cumplimiento', value: '98.7%', icon: TrendingUp, trend: '↑ 3.1%' },
-  { label: 'Empleados', value: '1,247', icon: Users, trend: '↑ 89' },
-  { label: 'Auditorías', value: '342', icon: Activity, trend: '↑ 28' },
-];
+/** (metrics are now built inside the component using translations) */
 
 /** Estadísticas destacadas de la plataforma (empleados auditados, países, precisión, tiempo). */
 const stats = [
@@ -115,11 +51,7 @@ const stats = [
   { value: '<15min', labelKey: 'statsTime', icon: Clock },
 ];
 
-/** Nombres de empresas mostradas en la barra de social proof "Empresas que confían en NominaSmart". */
-const trustedBy = [
-  'Hecho en Colombia 🇨🇴', 'Normativa UGPP', 'Seguridad Social',
-  'Retención en la Fuente', 'Prestaciones Sociales', 'Código Sustantivo',
-];
+/** (trustedBy is now built inside the component using translations) */
 
 /** Lista de agentes IA derivada de AGENT_PERSONAS para la galería del equipo. */
 const agentList = Object.values(AGENT_PERSONAS);
@@ -143,6 +75,26 @@ export default function LandingPage() {
 
   const features = [
     t('feat1'), t('feat2'), t('feat3'), t('feat4'), t('feat5'), t('feat6'),
+  ];
+
+  const benefits = [
+    { ...benefitStyles[0], title: t('benefit1Title'), description: t('benefit1Desc') },
+    { ...benefitStyles[1], title: t('benefit2Title'), description: t('benefit2Desc') },
+    { ...benefitStyles[2], title: t('benefit3Title'), description: t('benefit3Desc') },
+    { ...benefitStyles[3], title: t('benefit4Title'), description: t('benefit4Desc') },
+  ];
+
+  const testimonials = [
+    { name: t('testimonial1Name'), role: t('testimonial1Role'), company: t('testimonial1Company'), quote: t('testimonial1Quote'), rating: 5, avatar: '🎯' },
+    { name: t('testimonial2Name'), role: t('testimonial2Role'), company: t('testimonial2Company'), quote: t('testimonial2Quote'), rating: 5, avatar: '🛡️' },
+    { name: t('testimonial3Name'), role: t('testimonial3Role'), company: t('testimonial3Company'), quote: t('testimonial3Quote'), rating: 5, avatar: '📊' },
+  ];
+
+  const metrics = [
+    { label: t('metricRisk'), value: '4.2%', icon: ShieldCheck, trend: '↓ 12%' },
+    { label: t('metricCompliance'), value: '98.7%', icon: TrendingUp, trend: '↑ 3.1%' },
+    { label: t('metricEmployees'), value: '1,247', icon: Users, trend: '↑ 89' },
+    { label: t('metricAudits'), value: '342', icon: Activity, trend: '↑ 28' },
   ];
 
   return (
