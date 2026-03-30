@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, Pagination } from '@/components/ui';
+import type { BadgeProps } from '@/components/ui/Badge';
+
+type BadgeVariant = NonNullable<BadgeProps['variant']>;
 
 export interface AuditEntry {
   id: string;
@@ -22,10 +25,10 @@ export default function AuditTrailPage() {
   const [searchUser, setSearchUser] = useState('');
   const [cursor, setCursor] = useState<string | null>(null);
 
-  const severityColor: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    info: 'secondary',
-    warning: 'outline',
-    critical: 'destructive',
+  const severityColor: Record<string, BadgeVariant> = {
+    info: 'info',
+    warning: 'warning',
+    critical: 'critical',
   };
 
   return (
