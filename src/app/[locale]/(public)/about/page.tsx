@@ -7,6 +7,7 @@ import { Zap, Brain, ShieldCheck, Users, Lightbulb, GraduationCap, Code2, BarCha
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
 import { useTranslations } from 'next-intl';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 export default function AboutPage() {
   const t = useTranslations('Public');
