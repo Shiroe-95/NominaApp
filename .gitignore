@@ -36,8 +36,8 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# kiro settings (contiene tokens de acceso)
-.kiro/settings/mcp.json
+# kiro settings
+# .kiro/settings/mcp.json — safe to commit (OAuth, no tokens stored)
 
 # vercel
 .vercel

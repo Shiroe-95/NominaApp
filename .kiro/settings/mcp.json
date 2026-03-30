@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp",
+      "autoApprove": ["*"]
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com",
+      "autoApprove": ["*"]
+    }
+  }
+}
