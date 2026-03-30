@@ -234,7 +234,10 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {agentList.map((agent) => (
+            {agentList.map((agent) => {
+              const keyMap: Record<string, string> = { master: 'Master', auditor: 'Auditor', writer: 'Writer', corrector: 'Corrector', mapper: 'Mapper', 'payroll-expert': 'Expert', researcher: 'Researcher' };
+              const k = keyMap[agent.id] || 'Master';
+              return (
               <div
                 key={agent.id}
                 className="group relative bg-[#1c1f2a] backdrop-blur-[12px] rounded-[1.5rem] p-6 hover:bg-[#313440] transition-all duration-300 flex flex-col items-center text-center hover:-translate-y-1"
@@ -250,18 +253,19 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <h3 className="text-base font-bold text-[#e0e2f1]">{agent.name}</h3>
-                <p className="text-xs font-medium mt-1" style={{ color: agent.hexColor }}>{agent.role}</p>
+                <p className="text-xs font-medium mt-1" style={{ color: agent.hexColor }}>{t(`agent${k}Role` as 'agentMasterRole')}</p>
                 <p className="mt-3 text-[#958da1] text-sm leading-relaxed font-[family-name:var(--font-inter)]">
-                  {agent.description}
+                  {t(`agent${k}Desc` as 'agentMasterDesc')}
                 </p>
                 <div
                   className="mt-4 px-3 py-1.5 rounded-lg text-[11px] font-medium"
                   style={{ backgroundColor: `${agent.hexColor}15`, color: agent.hexColor }}
                 >
-                  &ldquo;{agent.greeting.split('.')[0]}&rdquo;
+                  &ldquo;{t(`agent${k}Greeting` as 'agentMasterGreeting').split('.')[0]}&rdquo;
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

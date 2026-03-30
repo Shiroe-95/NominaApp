@@ -157,7 +157,10 @@ export default function AboutPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-            {Object.values(AGENT_PERSONAS).map((agent) => (
+            {Object.values(AGENT_PERSONAS).map((agent) => {
+              const keyMap: Record<string, string> = { master: 'Master', auditor: 'Auditor', writer: 'Writer', corrector: 'Corrector', mapper: 'Mapper', 'payroll-expert': 'Expert', researcher: 'Researcher' };
+              const k = keyMap[agent.id] || 'Master';
+              return (
               <div
                 key={agent.id}
                 className="flex flex-col items-center text-center bg-[#1c1f2a] rounded-[1.25rem] p-5 hover:bg-[#313440] transition-all duration-300 group hover:-translate-y-1"
@@ -167,9 +170,10 @@ export default function AboutPage() {
                   <AgentAvatar agentId={agent.id} size={56} animate={false} />
                 </div>
                 <p className="mt-3 text-sm font-bold text-[#e0e2f1]">{agent.emoji} {agent.name}</p>
-                <p className="text-[10px] mt-1 leading-tight" style={{ color: agent.hexColor }}>{agent.role}</p>
+                <p className="text-[10px] mt-1 leading-tight" style={{ color: agent.hexColor }}>{t(`agent${k}Role` as 'agentMasterRole')}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
