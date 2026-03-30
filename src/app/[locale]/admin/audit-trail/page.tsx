@@ -87,7 +87,7 @@ export default function AuditTrailPage() {
         </table>
       </div>
 
-      <Pagination currentPage={1} totalPages={1} onPageChange={() => setCursor(cursor)} />
+      <Pagination hasNextPage={false} hasPreviousPage={false} onNextPage={() => setCursor(cursor)} onPreviousPage={() => setCursor(null)} />
     </div>
   );
 }
