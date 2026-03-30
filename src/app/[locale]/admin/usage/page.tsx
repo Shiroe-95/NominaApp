@@ -211,6 +211,7 @@ export default function UsagePage() {
       case 'agent': return data.by_agent ?? [];
       case 'task': return data.by_task ?? [];
       case 'client': return data.by_client ?? [];
+      default: return [];
     }
   };
 
