@@ -48,17 +48,17 @@ const values = [
 ];
 
 const timeline = [
-  { year: '2023', title: 'La idea nace', description: 'Diana y Wilson identifican la necesidad de automatizar la auditoría de nómina en LATAM.', icon: Lightbulb, color: '#F59E0B' },
-  { year: '2024', title: 'Primer prototipo', description: 'Se desarrolla el primer agente de IA (Juli) capaz de auditar nóminas colombianas.', icon: Rocket, color: '#7C3AED' },
-  { year: '2025', title: 'Expansión multi-país', description: 'NóminaSmart se expande a 7 países con 7 agentes de IA especializados.', icon: MapPin, color: '#10B981' },
-  { year: '2026', title: 'Liderazgo regional', description: 'Más de 200 empresas confían en NóminaSmart para su auditoría de nómina.', icon: Award, color: '#E11D48' },
+  { year: '2023', title: 'La idea nace', description: 'Diana y Wilson identifican la necesidad de automatizar la auditoría de nómina en Colombia.', icon: Lightbulb, color: '#F59E0B' },
+  { year: '2024', title: 'Investigación y diseño', description: 'Se investiga la normativa laboral colombiana y se diseña la arquitectura multi-agente de IA.', icon: Rocket, color: '#7C3AED' },
+  { year: '2025', title: 'Primer agente funcional', description: 'Juli, la auditora de IA, logra detectar inconsistencias en nóminas colombianas con alta precisión.', icon: MapPin, color: '#10B981' },
+  { year: '2026', title: 'Lanzamiento oficial', description: 'NóminaSmart se lanza al mercado colombiano con 7 agentes de IA especializados y prueba gratuita de 14 días.', icon: Award, color: '#E11D48' },
 ];
 
 const aboutStats = [
   { value: '7', label: 'Agentes IA' },
-  { value: '7+', label: 'Países' },
-  { value: '200+', label: 'Empresas' },
-  { value: '50K+', label: 'Empleados auditados' },
+  { value: '100%', label: 'Normativa CO' },
+  { value: '14', label: 'Días gratis' },
+  { value: '<15min', label: 'Auditoría completa' },
 ];
 
 export default function AboutPage() {
@@ -85,8 +85,9 @@ export default function AboutPage() {
           </h1>
 
           <p className="mt-8 text-lg text-[#958da1] max-w-2xl mx-auto leading-relaxed font-[family-name:var(--font-inter)]">
-            NominaSmart nació de la unión entre el conocimiento profundo en gestión de nómina
-            y la tecnología de inteligencia artificial más avanzada. Operamos en múltiples países de Latinoamérica.
+            NominaSmart nació en Colombia de la unión entre el conocimiento profundo en gestión de nómina
+            y la tecnología de inteligencia artificial más avanzada. Estamos construyendo la herramienta
+            que todo contador y auditor de nómina merece.
           </p>
 
           {/* Stats bar */}

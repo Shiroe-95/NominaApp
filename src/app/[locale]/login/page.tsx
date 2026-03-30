@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Mail, ArrowRight, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import { useRouter } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
@@ -13,6 +13,24 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    // If already logged in, redirect to dashboard
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user) {
+                const redirectTo = searchParams.get('redirectTo');
+                if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.includes('/login')) {
+                    window.location.href = redirectTo;
+                } else {
+                    router.push('/dashboard');
+                }
+            } else {
+                setCheckingSession(false);
+            }
+        });
+    }, [router, searchParams]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,6 +65,14 @@ export default function LoginPage() {
     };
 
     const inputClass = "block w-full pl-10 pr-4 h-11 rounded-xl bg-[#0a0e18] border border-[#4a4455]/[0.15] text-sm text-[#e0e2f1] placeholder-[#958da1] focus:outline-none focus:border-[#7C3AED]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.12)] transition-all";
+
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#10131d]">
+                <div className="w-6 h-6 border-2 border-[#7C3AED] border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex">

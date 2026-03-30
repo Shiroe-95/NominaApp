@@ -10,9 +10,10 @@
  */
 
 import { ReactNode, useState, useEffect } from 'react';
-import { Zap, ArrowRight, Menu, X, Github, Twitter, Linkedin, Globe, ChevronDown } from 'lucide-react';
+import { Zap, ArrowRight, Menu, X, Github, Twitter, Linkedin, Globe, ChevronDown, LayoutDashboard, LogOut } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useLocale } from 'next-intl';
+import { createClient } from '@/lib/supabase/client';
 
 /** Enlaces de navegación principal del header. */
 const navLinks = [
@@ -67,6 +68,28 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check auth state on mount and listen for changes
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ? { email: data.user.email ?? undefined } : null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? { email: session.user.email ?? undefined } : null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    window.location.href = `/${locale}`;
+  };
 
   // Aplica sombra al header cuando el usuario hace scroll (> 20px)
   useEffect(() => {
@@ -164,11 +187,34 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
 
             <Link
               href={'/login' as never}
-              className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[#7C3AED] text-white shadow-[0_0_12px_rgba(124,58,237,0.3)] hover:shadow-[0_0_24px_rgba(124,58,237,0.5)] hover:-translate-y-0.5 transition-all duration-200"
+              className={`hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${authLoading ? 'opacity-0' : ''} ${
+                user
+                  ? 'bg-[#10B981] text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:shadow-[0_0_24px_rgba(16,185,129,0.5)] hover:-translate-y-0.5'
+                  : 'bg-[#7C3AED] text-white shadow-[0_0_12px_rgba(124,58,237,0.3)] hover:shadow-[0_0_24px_rgba(124,58,237,0.5)] hover:-translate-y-0.5'
+              }`}
+              {...(user ? { href: '/dashboard' as never } : { href: '/login' as never })}
             >
-              Iniciar sesión
-              <ArrowRight className="w-3.5 h-3.5" />
+              {user ? (
+                <>
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Ir al panel
+                </>
+              ) : (
+                <>
+                  Iniciar sesión
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </Link>
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-[#958da1] hover:text-[#ffb3b6] hover:bg-[#E11D48]/10 transition-all duration-200"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               className="md:hidden p-2 rounded-lg text-[#ccc3d8] hover:bg-[#4a4455]/20 transition-colors"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -198,11 +244,19 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               </Link>
             ))}
             <Link
-              href={'/login' as never}
+              href={user ? ('/dashboard' as never) : ('/login' as never)}
               className="block mt-3 text-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#7C3AED] text-white shadow-[0_0_12px_rgba(124,58,237,0.3)]"
             >
-              Iniciar sesión
+              {user ? 'Ir al panel' : 'Iniciar sesión'}
             </Link>
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="block w-full mt-2 text-center px-4 py-2.5 rounded-xl text-sm font-medium text-[#958da1] hover:text-[#ffb3b6] hover:bg-[#E11D48]/10 transition-colors"
+              >
+                Cerrar sesión
+              </button>
+            )}
           </div>
         </div>
       </header>

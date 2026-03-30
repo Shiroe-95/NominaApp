@@ -73,28 +73,28 @@ const features = [
 /** Testimonios de clientes con nombre, cargo, empresa, cita y calificación (estrellas). */
 const testimonials = [
   {
-    name: 'María González',
-    role: 'Directora de RRHH',
-    company: 'TechCorp LATAM',
-    quote: 'NominaSmart redujo nuestro tiempo de auditoría de 3 días a 15 minutos. Los agentes de IA trabajan como un equipo real.',
+    name: 'Lo que podrás lograr',
+    role: 'Auditoría automatizada',
+    company: 'Tu empresa',
+    quote: 'Imagina reducir tu tiempo de auditoría de nómina de días a minutos, con agentes de IA que detectan errores que el ojo humano pasa por alto.',
     rating: 5,
-    avatar: '👩‍💼',
+    avatar: '🎯',
   },
   {
-    name: 'Carlos Ramírez',
-    role: 'Contador Senior',
-    company: 'Grupo Financiero Andino',
-    quote: 'La detección automática de inconsistencias nos ha evitado sanciones regulatorias en múltiples países.',
+    name: 'Cumplimiento garantizado',
+    role: 'Normativa colombiana',
+    company: 'UGPP · DIAN · MinTrabajo',
+    quote: 'NominaSmart valida tu nómina contra la normativa laboral vigente: aportes a seguridad social, retención en la fuente, prestaciones y más.',
     rating: 5,
-    avatar: '👨‍💼',
+    avatar: '🛡️',
   },
   {
-    name: 'Ana Martínez',
-    role: 'Gerente de Nómina',
-    company: 'Industrias del Pacífico',
-    quote: 'Gyoru mapea nuestros archivos de cualquier formato al instante. Juli encuentra errores que nadie más ve.',
+    name: 'Reportes ejecutivos',
+    role: 'Listos para gerencia',
+    company: 'En minutos, no días',
+    quote: 'Genera reportes narrativos con hallazgos priorizados, referencias normativas y recomendaciones accionables para presentar a la junta directiva.',
     rating: 5,
-    avatar: '👩‍💻',
+    avatar: '📊',
   },
 ];
 
@@ -108,16 +108,16 @@ const metrics = [
 
 /** Estadísticas destacadas de la plataforma (empleados auditados, países, precisión, tiempo). */
 const stats = [
-  { value: '50K+', label: 'Empleados auditados', icon: Users },
-  { value: '7', label: 'Países activos', icon: MapPin },
+  { value: '7', label: 'Agentes de IA', icon: Brain },
+  { value: '100%', label: 'Normativa colombiana', icon: ShieldCheck },
   { value: '99.2%', label: 'Precisión IA', icon: Brain },
   { value: '<15min', label: 'Tiempo de auditoría', icon: Clock },
 ];
 
 /** Nombres de empresas mostradas en la barra de social proof "Empresas que confían en NominaSmart". */
 const trustedBy = [
-  'TechCorp LATAM', 'Grupo Andino', 'Industrias del Pacífico',
-  'BancoSur', 'LogiFreight', 'MediSalud',
+  'Hecho en Colombia 🇨🇴', 'Normativa UGPP', 'Seguridad Social',
+  'Retención en la Fuente', 'Prestaciones Sociales', 'Código Sustantivo',
 ];
 
 /** Lista de agentes IA derivada de AGENT_PERSONAS para la galería del equipo. */
@@ -182,7 +182,7 @@ export default function LandingPage() {
             {/* Social proof mini */}
             <div className="mt-10 flex items-center gap-3">
               <div className="flex -space-x-2">
-                {['👩‍💼', '👨‍💻', '👩‍💻', '👨‍💼'].map((emoji, i) => (
+                {['🇨🇴', '🛡️', '🤖', '📊'].map((emoji, i) => (
                   <div key={i} className="w-8 h-8 rounded-full bg-[#1c1f2a] flex items-center justify-center text-sm ring-2 ring-[#0b1326]">
                     {emoji}
                   </div>
@@ -193,7 +193,7 @@ export default function LandingPage() {
                   <Star key={i} className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]" />
                 ))}
               </div>
-              <span className="text-xs text-[#958da1]">+200 empresas confían en nosotros</span>
+              <span className="text-xs text-[#958da1]">14 días gratis · Sin tarjeta de crédito</span>
             </div>
           </div>
 
@@ -228,12 +228,12 @@ export default function LandingPage() {
       <section className="py-12 px-6 overflow-hidden">
         <div className="mx-auto max-w-6xl">
           <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a4455] mb-8">
-            Empresas que confían en NominaSmart
+            Normativa colombiana que validamos automáticamente
           </p>
           <div className="flex items-center justify-center flex-wrap gap-x-12 gap-y-4">
             {trustedBy.map((name) => (
               <div key={name} className="flex items-center gap-2 text-[#4a4455] hover:text-[#958da1] transition-colors">
-                <Building2 className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4" />
                 <span className="text-sm font-semibold tracking-wide">{name}</span>
               </div>
             ))}
@@ -413,8 +413,8 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">Testimonios</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Lo que dicen nuestros clientes</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">Beneficios</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Lo que NominaSmart hace por ti</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -459,7 +459,8 @@ export default function LandingPage() {
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Empieza a auditar tu nómina hoy</h2>
               <p className="mt-5 text-[#958da1] max-w-xl mx-auto font-[family-name:var(--font-inter)]">
-                Únete a empresas en toda Latinoamérica que ya usan NominaSmart para garantizar el cumplimiento normativo.
+                Prueba NominaSmart gratis por 14 días. Sin tarjeta de crédito, sin compromiso.
+                Descubre cómo la IA puede transformar tu proceso de auditoría de nómina.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
