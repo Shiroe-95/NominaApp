@@ -27,6 +27,7 @@ import {
 import { Link } from '@/i18n/routing';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { AGENT_PERSONAS } from '@/lib/ai/agent-personas';
+import { useTranslations } from 'next-intl';
 
 /** Tarjetas de beneficios principales mostradas en la sección "¿Por qué elegir NominaSmart?". */
 const benefits = [
@@ -108,10 +109,10 @@ const metrics = [
 
 /** Estadísticas destacadas de la plataforma (empleados auditados, países, precisión, tiempo). */
 const stats = [
-  { value: '7', label: 'Agentes de IA', icon: Brain },
-  { value: '100%', label: 'Normativa colombiana', icon: ShieldCheck },
-  { value: '99.2%', label: 'Precisión IA', icon: Brain },
-  { value: '<15min', label: 'Tiempo de auditoría', icon: Clock },
+  { value: '7', labelKey: 'statsAgents', icon: Brain },
+  { value: '100%', labelKey: 'statsCompliance', icon: ShieldCheck },
+  { value: '99.2%', labelKey: 'statsPrecision', icon: Brain },
+  { value: '<15min', labelKey: 'statsTime', icon: Clock },
 ];
 
 /** Nombres de empresas mostradas en la barra de social proof "Empresas que confían en NominaSmart". */
@@ -133,6 +134,17 @@ const agentList = Object.values(AGENT_PERSONAS);
  * @returns La landing page completa con todas las secciones de conversión.
  */
 export default function LandingPage() {
+  const t = useTranslations('Public');
+
+  const trustedBy = [
+    t('madeInColombia'), t('ugpp'), t('socialSecurity'),
+    t('withholding'), t('benefits'), t('laborCode'),
+  ];
+
+  const features = [
+    t('feat1'), t('feat2'), t('feat3'), t('feat4'), t('feat5'), t('feat6'),
+  ];
+
   return (
     <div className="relative">
       {/* Hero */}
@@ -146,21 +158,19 @@ export default function LandingPage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1c1f2a] text-sm text-[#ccc3d8] mb-8 backdrop-blur-[12px]" style={{ border: '1px solid rgba(74,68,85,0.15)' }}>
               <Sparkles className="w-4 h-4 text-[#4edea3]" />
-              Plataforma de auditoría de nómina con IA multi-agente
-              <span className="ml-1 px-2 py-0.5 rounded-full bg-[#7C3AED]/20 text-[#d2bbff] text-xs font-semibold">Nuevo</span>
+              {t('heroBadge')}
+              <span className="ml-1 px-2 py-0.5 rounded-full bg-[#7C3AED]/20 text-[#d2bbff] text-xs font-semibold">{t('heroNew')}</span>
             </div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-[#e0e2f1] leading-[1.05] tracking-[-0.03em]">
-              Tu equipo de IA{' '}
+              {t('heroTitle').split(' ').slice(0, -3).join(' ')}{' '}
               <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #4edea3, #d2bbff)' }}>
-                audita tu nómina
+                {t('heroTitle').split(' ').slice(-3).join(' ')}
               </span>
             </h1>
 
             <p className="mt-8 text-lg text-[#958da1] max-w-xl leading-relaxed font-[family-name:var(--font-inter)]">
-              7 agentes de IA especializados trabajan en equipo para detectar errores,
-              garantizar cumplimiento normativo multi-país y generar reportes ejecutivos
-              en minutos.
+              {t('heroSubtitle')}
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-4">
@@ -168,14 +178,14 @@ export default function LandingPage() {
                 href={'/login' as never}
                 className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-semibold bg-[#7C3AED] text-white shadow-[0_0_12px_rgba(124,58,237,0.3)] hover:shadow-[0_0_24px_rgba(124,58,237,0.5)] hover:-translate-y-0.5 transition-all duration-200"
               >
-                Comenzar gratis
+                {t('getStarted')}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
                 href={'/contact' as never}
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-medium text-[#d2bbff] hover:text-[#e0e2f1] hover:bg-[#262a35] transition-all duration-200" style={{ border: '1px solid rgba(124,58,237,0.2)' }}
               >
-                Solicitar demo
+                {t('requestDemo')}
               </Link>
             </div>
 
@@ -193,7 +203,7 @@ export default function LandingPage() {
                   <Star key={i} className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]" />
                 ))}
               </div>
-              <span className="text-xs text-[#958da1]">14 días gratis · Sin tarjeta de crédito</span>
+              <span className="text-xs text-[#958da1]">{t('trialBadge')}</span>
             </div>
           </div>
 
@@ -228,7 +238,7 @@ export default function LandingPage() {
       <section className="py-12 px-6 overflow-hidden">
         <div className="mx-auto max-w-6xl">
           <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a4455] mb-8">
-            Normativa colombiana que validamos automáticamente
+            {t('trustedByTitle')}
           </p>
           <div className="flex items-center justify-center flex-wrap gap-x-12 gap-y-4">
             {trustedBy.map((name) => (
@@ -246,12 +256,12 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat) => (
-              <div key={stat.label} className="text-center group">
+              <div key={stat.labelKey} className="text-center group">
                 <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-[#1c1f2a] flex items-center justify-center group-hover:bg-[#262a35] transition-colors" style={{ boxShadow: '0 0 8px rgba(124,58,237,0.15)' }}>
                   <stat.icon className="w-5 h-5 text-[#d2bbff]" />
                 </div>
                 <p className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.03em]">{stat.value}</p>
-                <p className="mt-1 text-sm text-[#958da1] font-[family-name:var(--font-inter)]">{stat.label}</p>
+                <p className="mt-1 text-sm text-[#958da1] font-[family-name:var(--font-inter)]">{t(stat.labelKey as 'statsAgents')}</p>
               </div>
             ))}
           </div>
@@ -262,13 +272,12 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">Conoce a tu equipo</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">{t('meetTeam')}</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">
-              7 agentes de IA que trabajan por ti
+              {t('teamTitle')}
             </h2>
             <p className="mt-4 text-[#958da1] max-w-2xl mx-auto font-[family-name:var(--font-inter)]">
-              Cada agente tiene una personalidad, especialidad y rol definido. Trabajan en equipo,
-              se comunican entre sí y adaptan su plan según la complejidad de tu nómina.
+              {t('teamSubtitle')}
             </p>
           </div>
 
@@ -309,10 +318,10 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4cd7f6] mb-4">Ventajas</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">¿Por qué elegir NominaSmart?</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4cd7f6] mb-4">{t('advantages')}</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">{t('whyChoose')}</h2>
             <p className="mt-4 text-[#958da1] max-w-xl mx-auto font-[family-name:var(--font-inter)]">
-              Tecnología de punta para simplificar la auditoría de nómina más compleja.
+              {t('whyChooseSubtitle')}
             </p>
           </div>
 
@@ -345,12 +354,12 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-20">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">Proceso</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">{t('process')}</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">
-              Así trabaja tu equipo de agentes
+              {t('howItWorks')}
             </h2>
             <p className="mt-4 text-[#958da1] max-w-lg mx-auto font-[family-name:var(--font-inter)]">
-              De archivo Excel a reporte ejecutivo en 4 pasos automatizados.
+              {t('howItWorksSubtitle')}
             </p>
           </div>
 
@@ -360,10 +369,10 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               {[
-                { step: '01', title: 'Sube tu archivo', desc: 'Arrastra tu Excel o CSV. Dianis coordina al equipo automáticamente.', agentId: 'master' },
-                { step: '02', title: 'Mapeo inteligente', desc: 'Gyoru identifica y conecta tus columnas con el sistema.', agentId: 'mapper' },
-                { step: '03', title: 'Auditoría + Corrección', desc: 'Juli audita cada línea. Wil corrige. Luni consulta normas vigentes.', agentId: 'auditor' },
-                { step: '04', title: 'Reporte ejecutivo', desc: 'Ana genera tu reporte narrativo listo para gerencia.', agentId: 'writer' },
+                { step: '01', title: t('step1'), desc: t('step1Desc'), agentId: 'master' },
+                { step: '02', title: t('step2'), desc: t('step2Desc'), agentId: 'mapper' },
+                { step: '03', title: t('step3'), desc: t('step3Desc'), agentId: 'auditor' },
+                { step: '04', title: t('step4'), desc: t('step4Desc'), agentId: 'writer' },
               ].map((item) => {
                 const persona = AGENT_PERSONAS[item.agentId];
                 return (
@@ -392,9 +401,9 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-4xl">
           <div className="text-center mb-20">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">Funcionalidades</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#d2bbff] mb-4">{t('features')}</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">
-              Todo lo que necesitas para auditar nómina
+              {t('featuresTitle')}
             </h2>
           </div>
 
@@ -413,30 +422,30 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-20">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">Beneficios</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Lo que NominaSmart hace por ti</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4edea3] mb-4">{t('benefitsSection')}</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">{t('benefitsTitle')}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
+            {testimonials.map((item) => (
               <div
-                key={t.name}
+                key={item.name}
                 className="relative bg-[#1c1f2a] backdrop-blur-[12px] rounded-[1.5rem] p-7 flex flex-col hover:bg-[#313440] transition-all duration-300 hover:-translate-y-1"
                 style={{ border: '1px solid rgba(74,68,85,0.10)' }}
               >
                 <div className="flex gap-0.5 mb-5">
-                  {Array.from({ length: t.rating }).map((_, i) => (
+                  {Array.from({ length: item.rating }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-[#F59E0B] fill-[#F59E0B]" />
                   ))}
                 </div>
-                <p className="text-[#ccc3d8] text-sm leading-relaxed flex-1 font-[family-name:var(--font-inter)]">&ldquo;{t.quote}&rdquo;</p>
+                <p className="text-[#ccc3d8] text-sm leading-relaxed flex-1 font-[family-name:var(--font-inter)]">&ldquo;{item.quote}&rdquo;</p>
                 <div className="mt-6 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#181b26] flex items-center justify-center text-lg">
-                    {t.avatar}
+                    {item.avatar}
                   </div>
                   <div>
-                    <p className="text-[#e0e2f1] text-sm font-semibold">{t.name}</p>
-                    <p className="text-[#4cd7f6] text-xs mt-0.5">{t.role} · {t.company}</p>
+                    <p className="text-[#e0e2f1] text-sm font-semibold">{item.name}</p>
+                    <p className="text-[#4cd7f6] text-xs mt-0.5">{item.role} · {item.company}</p>
                   </div>
                 </div>
               </div>
@@ -457,24 +466,23 @@ export default function LandingPage() {
               <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-[#10B981]/[0.08] rounded-full blur-[80px]" />
             </div>
             <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">Empieza a auditar tu nómina hoy</h2>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#e0e2f1] tracking-[-0.02em]">{t('ctaTitle')}</h2>
               <p className="mt-5 text-[#958da1] max-w-xl mx-auto font-[family-name:var(--font-inter)]">
-                Prueba NominaSmart gratis por 14 días. Sin tarjeta de crédito, sin compromiso.
-                Descubre cómo la IA puede transformar tu proceso de auditoría de nómina.
+                {t('ctaSubtitle')}
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href={'/login' as never}
                   className="group inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-[#10B981] to-[#047857] text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:shadow-[0_0_24px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  Crear cuenta gratis
+                  {t('createAccount')}
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
                 <Link
                   href={'/pricing' as never}
                   className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-base font-medium text-[#d2bbff] hover:text-[#e0e2f1] hover:bg-[#262a35] transition-all duration-200"
                 >
-                  Ver planes y precios
+                  {t('viewPlans')}
                 </Link>
               </div>
             </div>

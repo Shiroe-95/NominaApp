@@ -12,37 +12,8 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { Zap, ArrowRight, Menu, X, Github, Twitter, Linkedin, Globe, ChevronDown, LayoutDashboard, LogOut } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
-
-/** Enlaces de navegación principal del header. */
-const navLinks = [
-  { href: '/' as const, label: 'Inicio' },
-  { href: '/about' as const, label: 'Nosotros' },
-  { href: '/pricing' as const, label: 'Precios' },
-  { href: '/manual' as const, label: 'Manual' },
-  { href: '/contact' as const, label: 'Contacto' },
-];
-
-/** Grupos de enlaces del footer organizados por categoría (Producto, Empresa, Legal). */
-const footerLinks = [
-  { label: 'Producto', items: [
-    { text: 'Auditoría IA', href: '/pricing' },
-    { text: 'Multi-país', href: '/about' },
-    { text: 'Reportes', href: '/pricing' },
-    { text: 'Manual', href: '/manual' },
-  ]},
-  { label: 'Empresa', items: [
-    { text: 'Nosotros', href: '/about' },
-    { text: 'Precios', href: '/pricing' },
-    { text: 'Contacto', href: '/contact' },
-  ]},
-  { label: 'Legal', items: [
-    { text: 'Privacidad', href: '/contact' },
-    { text: 'Términos', href: '/contact' },
-    { text: 'Seguridad', href: '/contact' },
-  ]},
-];
 
 /** Etiquetas cortas para el selector de idioma del header. */
 const localeLabels: Record<string, string> = {
@@ -65,11 +36,39 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations('Public');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const navLinks = [
+    { href: '/' as const, label: t('home') },
+    { href: '/about' as const, label: t('about') },
+    { href: '/pricing' as const, label: t('pricing') },
+    { href: '/manual' as const, label: t('manual') },
+    { href: '/contact' as const, label: t('contact') },
+  ];
+
+  const footerLinks = [
+    { label: t('product'), items: [
+      { text: t('auditAI'), href: '/pricing' },
+      { text: t('multiCountry'), href: '/about' },
+      { text: t('reports'), href: '/pricing' },
+      { text: t('manual'), href: '/manual' },
+    ]},
+    { label: t('company'), items: [
+      { text: t('about'), href: '/about' },
+      { text: t('pricing'), href: '/pricing' },
+      { text: t('contact'), href: '/contact' },
+    ]},
+    { label: t('legal'), items: [
+      { text: t('privacyPolicy'), href: '/contact' },
+      { text: t('termsOfService'), href: '/contact' },
+      { text: t('security'), href: '/contact' },
+    ]},
+  ];
 
   // Check auth state on mount and listen for changes
   useEffect(() => {
@@ -157,7 +156,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               <button
                 onClick={() => setLangOpen(!langOpen)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#958da1] hover:text-[#e0e2f1] hover:bg-[#4a4455]/15 transition-all"
-                aria-label="Cambiar idioma"
+                aria-label={t('changeLanguage')}
               >
                 <Globe className="w-3.5 h-3.5" />
                 {localeLabels[locale] || 'ES'}
@@ -197,11 +196,11 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               {user ? (
                 <>
                   <LayoutDashboard className="w-3.5 h-3.5" />
-                  Ir al panel
+                  {t('goToPanel')}
                 </>
               ) : (
                 <>
-                  Iniciar sesión
+                  {t('login')}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
@@ -247,14 +246,14 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               href={user ? ('/dashboard' as never) : ('/login' as never)}
               className="block mt-3 text-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#7C3AED] text-white shadow-[0_0_12px_rgba(124,58,237,0.3)]"
             >
-              {user ? 'Ir al panel' : 'Iniciar sesión'}
+              {user ? t('goToPanel') : t('login')}
             </Link>
             {user && (
               <button
                 onClick={handleLogout}
                 className="block w-full mt-2 text-center px-4 py-2.5 rounded-xl text-sm font-medium text-[#958da1] hover:text-[#ffb3b6] hover:bg-[#E11D48]/10 transition-colors"
               >
-                Cerrar sesión
+                {t('logout')}
               </button>
             )}
           </div>
@@ -276,7 +275,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <span className="text-[#e0e2f1] font-bold tracking-tight">NóminaSmart</span>
               </div>
               <p className="text-[#958da1] text-sm leading-relaxed max-w-xs">
-                Plataforma de auditoría de nómina con inteligencia artificial para empresas de Latinoamérica.
+                {t('footerTagline')}
               </p>
               <div className="flex items-center gap-3 mt-6">
                 {[
@@ -300,7 +299,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               {/* Trust badge */}
               <div className="mt-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#181b26] text-xs text-[#4edea3]">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#4edea3] animate-pulse" />
-                Datos cifrados · SOC 2
+                {t('encryptedBadge')}
               </div>
             </div>
             {footerLinks.map((group) => (
@@ -317,11 +316,11 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             ))}
           </div>
           <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[#4a4455] text-xs">© {new Date().getFullYear()} NóminaSmart · Auditoría inteligente de nómina</p>
+            <p className="text-[#4a4455] text-xs">© {new Date().getFullYear()} {t('copyright')}</p>
             <div className="flex items-center gap-4 text-xs text-[#958da1]">
-              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Privacidad</Link>
-              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Términos</Link>
-              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">Seguridad</Link>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">{t('privacyPolicy')}</Link>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">{t('termsOfService')}</Link>
+              <Link href={'/contact' as never} className="hover:text-[#e0e2f1] transition-colors">{t('security')}</Link>
             </div>
           </div>
         </div>
