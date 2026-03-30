@@ -51,7 +51,7 @@
 - **Security First**: Encriptación AES-256-GCM, RBAC en middleware y API routes, rate limiting por IP, RLS en PostgreSQL
 - **AI-Native**: Sistema multi-agente con 7 agentes especializados, selección inteligente de modelos y fallback chain
 - **Multi-Country**: Reglas normativas dinámicas por país/año, sincronización regulatoria automática semanal
-- **Observable**: Logs de auditoría con retención 5 años, tracking de uso IA (tokens, latencia, costo), notificaciones in-app
+- **Observable**: Logs de auditoría con retención 5 años, tracking de uso IA (tokens, latencia, costo), notificaciones in-app, health checks de servicios con alertas automáticas
 
 ---
 
@@ -131,6 +131,7 @@ Nomina Smart implementa un sistema de agentes con personalidades únicas que col
 | **Integraciones** | Framework extensible de conectores para ERPs (Siigo, Generic API). Interfaz `IntegrationConnector` para agregar nuevos sistemas |
 | **Acciones Rápidas de Agentes** | Botones de acceso directo en el chat IA para invocar agentes sin escribir: sincronización regulatoria (Soul), auditoría de última nómina (Juli), consulta normativa (Luni) y generación de reporte ejecutivo (Ana) |
 | **Design System** | Obsidian Ledger: tokens de diseño oscuro con jerarquía de superficies tonales (6 niveles), paleta semántica, glassmorphism. Compatible con Material Design 3 |
+| **Health Monitoring** | Verificaciones de salud de Supabase, Redis, proveedores IA y disco. Alertas automáticas a administradores vía audit trail cuando un servicio está degradado o caído |
 
 ---
 
@@ -155,6 +156,7 @@ graph TB
         SYNC[Sync Service<br/>Cron Semanal]
         EMAIL[Email Service<br/>Resend]
         NOTIF[Notification Service<br/>In-App + Broadcast]
+        HEALTH[Health Monitor<br/>Supabase + Redis + IA + Disco]
     end
 
     subgraph AI["🤖 Proveedores IA (Fallback Chain)"]
@@ -613,7 +615,8 @@ nomina-smart/
 │   ├── 004_regulatory_sync_tables.sql # sync_history, rule_audit_log, notifications, email_log
 │   ├── 005_finance_token_optimization.sql # routing_rules, quality_metrics, optimization_config
 │   ├── 006_proper_rls_policies.sql    # Políticas RLS completas
-│   ├── check-db.cjs              #   Diagnóstico de BD: verifica 24 tablas via API REST Supabase
+│   ├── 007_world_class_tables.sql     # 23 tablas world-class + RLS workspace-scoped
+│   ├── check-db.cjs              #   Diagnóstico de BD: verifica 43+ tablas via API REST Supabase
 │   ├── run-managed.cjs           #   Ejecutor gestionado del servidor de desarrollo
 │   └── stop-app.cjs              #   Detiene procesos de la aplicación
 ├── src/
@@ -665,6 +668,7 @@ nomina-smart/
 │   │   ├── email/                # Email service (Resend) + plantillas localizadas
 │   │   ├── integrations/         # Framework de conectores (Siigo, Generic API)
 │   │   ├── notifications/        # Notificaciones in-app + broadcast a admins
+│   │   ├── monitoring/           # Health checks (Supabase, Redis, IA, disco) + métricas de sistema
 │   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation, format-detector, period-detector)
 │   │   ├── sync/                 # Sincronización regulatoria (cron + bootstrap)
 │   │   ├── supabase/             # Clientes Supabase (client, server, admin)
@@ -761,6 +765,7 @@ Ejecuta los scripts SQL en orden desde el SQL Editor de Supabase:
 004_regulatory_sync_tables.sql    → sync_history, rule_audit_log, notifications, email_log
 005_finance_token_optimization.sql → model_routing_rules, quality_metrics, optimization_config
 006_proper_rls_policies.sql       → Políticas RLS completas para todas las tablas
+007_world_class_tables.sql        → 23 tablas world-class: workspaces, SSO, audit trail, webhooks, reportes, anotaciones, anomalías IA, forecast, API keys, benchmarks, onboarding, GDPR, reportes custom + RLS workspace-scoped
 ```
 
 ### Proveedores IA
@@ -832,8 +837,9 @@ curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
 | `004_regulatory_sync_tables.sql` | `sync_history`, `rule_audit_log`, `notifications`, `email_log` |
 | `005_finance_token_optimization.sql` | `model_routing_rules`, `quality_metrics`, `optimization_config` |
 | `006_proper_rls_policies.sql` | Políticas RLS para todas las tablas |
+| `007_world_class_tables.sql` | 23 tablas world-class + RLS + función `is_workspace_member` |
 
-### Tablas Principales (20+)
+### Tablas Principales (43+)
 
 | Tabla | Descripción | Relaciones |
 |-------|-------------|------------|
@@ -859,12 +865,36 @@ curl -X POST https://tu-app.vercel.app/api/sync/bootstrap \
 | `agent_communications` | Comunicaciones inter-agente (AgentBus history) | — |
 | `research_sources` | Fuentes del agente investigador (URL, título, fecha) | → country_year_rule_id |
 | `provider_token_rates` | Tarifas por 1K tokens por proveedor/modelo | — |
+| `workspaces` | Espacios de trabajo multi-tenant con país y región de datos | → workspace_members, payroll_uploads |
+| `workspace_members` | Miembros de workspace con roles (owner/editor/viewer) | → workspace_id, user_id |
+| `sso_configurations` | Configuración SAML/OIDC por workspace (IdP, certificado X.509, mapeo de grupos) | → workspace_id (unique) |
+| `audit_trail_extended` | Registro completo de auditoría con datos antes/después, IP, user-agent, severidad | → workspace_id, user_id |
+| `webhooks` | Registros de webhooks HTTP con secreto HMAC y filtro de eventos | → workspace_id, created_by |
+| `webhook_deliveries` | Log de entregas de webhooks con estado, código HTTP, reintentos | → webhook_id |
+| `scheduled_reports` | Reportes programados con cron, filtros, formato y destinatarios | → workspace_id, created_by |
+| `scheduled_report_runs` | Historial de ejecuciones de reportes programados | → scheduled_report_id |
+| `annotations` | Comentarios sobre celdas, hallazgos, action items o secciones de reportes | → workspace_id, author_id |
+| `annotation_replies` | Respuestas en hilo a anotaciones con menciones | → annotation_id, author_id |
+| `activity_log` | Feed de actividad del workspace con agrupación por clave | → workspace_id, user_id |
+| `anomaly_detections` | Anomalías detectadas por IA: fraude, error sistemático, variación estacional | → payroll_id, workspace_id |
+| `forecast_snapshots` | Proyecciones de costos de nómina generadas por IA predictiva | → workspace_id, company_id |
+| `api_keys` | API keys para desarrolladores con hash SHA-256, permisos y expiración | → workspace_id, created_by |
+| `benchmark_data` | Métricas comparativas anonimizadas por industria, país y tamaño de empresa | — (lectura pública autenticada) |
+| `guided_tour_progress` | Progreso de tours de onboarding por usuario | → user_id |
+| `notification_preferences` | Preferencias de notificación por tipo de evento (in-app, email, web push) | → user_id |
+| `dashboard_layouts` | Layouts personalizados de widgets del dashboard por usuario/workspace | → user_id, workspace_id |
+| `recommendation_dismissals` | Recomendaciones descartadas con cooldown de expiración | → user_id |
+| `gdpr_consent_log` | Registro de consentimientos GDPR con versión de política | → user_id |
+| `gdpr_deletion_requests` | Solicitudes de eliminación de datos con periodo de gracia | → user_id |
+| `custom_reports` | Reportes personalizados creados por usuarios con configuración JSONB | → workspace_id, created_by |
+| `report_builder_templates` | Plantillas predefinidas para el constructor de reportes | — (lectura pública autenticada) |
 
 ### RLS y Triggers
 
 - **RLS habilitado** en todas las tablas. `user_profiles` y `ai_providers` restringidos por `auth.uid()`.
 - **Trigger `on_auth_user_created`**: Auto-crea `user_profiles` con rol `client` al registrar usuario.
 - **Políticas completas** definidas en `006_proper_rls_policies.sql`.
+- **Políticas workspace-scoped** definidas en `007_world_class_tables.sql`: función `is_workspace_member(ws_id)` para acceso por membresía. Tablas de usuario (tours, preferencias, GDPR) usan política `user_own_access`. Tablas públicas (benchmarks, templates) usan `authenticated_read`.
 
 ---
 
@@ -1157,6 +1187,7 @@ Después del deploy, verifica que el cron job esté activo en Vercel Dashboard �
 - **Email Log**: Tabla `email_log` (status, resend_message_id, error_message)
 - **AI Usage**: Tabla `ai_usage_logs` (tokens, latency, cost, model, agent)
 - **Audit Trail**: Tabla `rule_audit_log` (action, origin, previous/new values)
+- **Health Checks**: Tabla `audit_trail_extended` con `action_type = 'health_check_failure'` (servicios fallidos, severidad)
 - **Notifications**: Tabla `notifications` (type, severity, metadata)
 
 ---

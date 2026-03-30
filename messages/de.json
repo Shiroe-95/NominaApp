@@ -1,0 +1,140 @@
+{
+    "Common": {
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "delete": "Löschen",
+        "edit": "Bearbeiten",
+        "search": "Suchen...",
+        "loading": "Laden...",
+        "error": "Fehler",
+        "success": "Erfolg",
+        "confirm": "Bestätigen",
+        "back": "Zurück",
+        "next": "Weiter",
+        "previous": "Zurück",
+        "close": "Schließen"
+    },
+    "Navigation": {
+        "dashboard": "Dashboard",
+        "upload": "Datenimport",
+        "reconcile": "Abstimmung",
+        "reports": "Berichte",
+        "rules": "Normative Regeln",
+        "settings": "Einstellungen",
+        "login": "Anmelden",
+        "logout": "Abmelden"
+    },
+    "Sidebar": {
+        "tagline": "Intelligente Prüfung",
+        "guidedBy": "{name} führt Sie",
+        "flowUpload": "Gehaltsabrechnung hochladen",
+        "flowUploadTip": "Gyoru ordnet Ihre Spalten zu",
+        "flowReconcile": "Prüfen und korrigieren",
+        "flowReconcileTip": "Juli prüft · Wil korrigiert",
+        "flowReports": "Bericht erstellen",
+        "flowReportsTip": "Ana verfasst Ihren Bericht",
+        "aiTeam": "Ihr KI-Team"
+    },
+    "Dashboard": {
+        "title": "Audit-Dashboard",
+        "globalRiskScore": "Globaler Risikoscore",
+        "totalDeviations": "Gesamtabweichungen",
+        "inconsistenciesCount": "Inkonsistenzen",
+        "executiveControl": "Führungskontrolle",
+        "heroTitle": "Gehaltsabrechnungs-Kontrollzentrum",
+        "heroSubtitle": "Überwachen Sie die Compliance, erkennen Sie Risiken und zertifizieren Sie Ihre Gehaltsabrechnung in Echtzeit.",
+        "uploadPayroll": "Gehaltsabrechnung hochladen",
+        "correctLive": "Live korrigieren",
+        "filters": "Filter",
+        "allCompanies": "Alle Unternehmen",
+        "allCountries": "Alle Länder",
+        "allYears": "Alle Jahre",
+        "allMonths": "Alle Monate",
+        "totalPayrolls": "Gesamte Abrechnungen",
+        "certificationRate": "Zertifizierungsrate",
+        "averageRisk": "Durchschnittliches Risiko",
+        "criticalFindings": "Kritische Befunde",
+        "certifiable": "Zertifizierbar",
+        "notCertifiable": "Nicht zertifizierbar",
+        "emptyStateTitle": "Keine Abrechnungen geladen",
+        "emptyStateDescription": "Laden Sie Ihre erste Gehaltsabrechnung hoch, um mit der Prüfung zu beginnen.",
+        "emptyStateAction": "Abrechnung hochladen",
+        "riskTrendTitle": "Risikotrend",
+        "healthTitle": "KI-Anbieter-Status",
+        "noProviders": "Keine Anbieter konfiguriert",
+        "providers": {
+            "title": "KI-Anbieter",
+            "configure": "Konfigurieren",
+            "active": "Aktiv",
+            "inactive": "Inaktiv",
+            "emptyTitle": "Keine Anbieter konfiguriert",
+            "emptyDescription": "Konfigurieren Sie Ihren ersten KI-Anbieter.",
+            "addProvider": "Anbieter konfigurieren"
+        },
+        "processFlow": {
+            "title": "Prozessablauf",
+            "stepCounter": "Schritt {current}/{total}"
+        },
+        "synthesis": {
+            "title": "KI-Synthese",
+            "emptyTitle": "Keine Synthese verfügbar",
+            "emptyDescription": "Führen Sie eine Analyse durch, um die KI-Zusammenfassung zu sehen.",
+            "loading": "Synthese wird erstellt...",
+            "findingsTitle": "Befunde",
+            "recommendationsTitle": "Empfehlungen"
+        },
+        "logs": {
+            "title": "Live-Protokolle",
+            "clear": "Löschen",
+            "emptyTitle": "Keine Einträge",
+            "emptyDescription": "Protokolle erscheinen hier."
+        }
+    },
+    "Upload": {
+        "title": "Intelligenter Datenimport",
+        "subtitle": "Laden Sie Ihre Excel-, CSV- oder XML-Dateien hoch",
+        "dragAndDrop": "Dateien hierher ziehen oder klicken zum Auswählen",
+        "mappingTitle": "KI-Spaltenzuordnung"
+    },
+    "Reconcile": {
+        "title": "Triple-Match-Abstimmung",
+        "riskByEmployee": "Risiko pro Mitarbeiter",
+        "riskScore": "Risikoscore",
+        "findings": "Befunde",
+        "status": "Status",
+        "actions": "Aktionsverwaltung",
+        "reviewTitle": "Gehaltsabrechnungsprüfung",
+        "employee": "Mitarbeiter",
+        "risk": "Risiko"
+    },
+    "Reports": {
+        "title": "Berichtshistorie",
+        "subtitle": "Vergangene Audits und offene Aktionen einsehen.",
+        "emptyTitle": "Keine Berichte verfügbar",
+        "emptyDescription": "Laden Sie Ihre erste Abrechnung hoch, um einen Bericht zu erstellen.",
+        "goToUpload": "Zum Import",
+        "exportReport": "Bericht exportieren",
+        "date": "Datum",
+        "company": "Unternehmen",
+        "period": "Zeitraum",
+        "risk": "Risiko",
+        "status": "Status",
+        "actions": "Aktionen"
+    },
+    "Public": {
+        "heroTitle": "KI-gestützte Gehaltsabrechnungsprüfung",
+        "heroSubtitle": "7 KI-Agenten, die Ihre Gehaltsabrechnung in Minuten prüfen, korrigieren und zertifizieren.",
+        "getStarted": "Kostenlos starten",
+        "login": "Anmelden",
+        "learnMore": "Mehr erfahren",
+        "features": "Funktionen",
+        "pricing": "Preise",
+        "about": "Über uns",
+        "contact": "Kontakt",
+        "home": "Startseite",
+        "footerTagline": "Intelligente Multi-Länder-Gehaltsabrechnungsprüfung.",
+        "privacyPolicy": "Datenschutz",
+        "termsOfService": "AGB",
+        "security": "Sicherheit"
+    }
+}

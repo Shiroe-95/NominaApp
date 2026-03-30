@@ -1,0 +1,140 @@
+{
+    "Common": {
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "delete": "Supprimer",
+        "edit": "Modifier",
+        "search": "Rechercher...",
+        "loading": "Chargement...",
+        "error": "Erreur",
+        "success": "Succès",
+        "confirm": "Confirmer",
+        "back": "Retour",
+        "next": "Suivant",
+        "previous": "Précédent",
+        "close": "Fermer"
+    },
+    "Navigation": {
+        "dashboard": "Tableau de bord",
+        "upload": "Import de données",
+        "reconcile": "Réconciliation",
+        "reports": "Rapports",
+        "rules": "Règles normatives",
+        "settings": "Paramètres",
+        "login": "Connexion",
+        "logout": "Déconnexion"
+    },
+    "Sidebar": {
+        "tagline": "Audit intelligent",
+        "guidedBy": "{name} vous guide",
+        "flowUpload": "Importer la paie",
+        "flowUploadTip": "Gyoru mappe vos colonnes",
+        "flowReconcile": "Auditer et corriger",
+        "flowReconcileTip": "Juli audite · Wil corrige",
+        "flowReports": "Générer un rapport",
+        "flowReportsTip": "Ana rédige votre rapport",
+        "aiTeam": "Votre équipe IA"
+    },
+    "Dashboard": {
+        "title": "Tableau de bord d'audit",
+        "globalRiskScore": "Score de risque global",
+        "totalDeviations": "Écarts totaux",
+        "inconsistenciesCount": "Incohérences",
+        "executiveControl": "Contrôle exécutif",
+        "heroTitle": "Centre de contrôle de la paie",
+        "heroSubtitle": "Surveillez la conformité, détectez les risques et certifiez votre paie en temps réel.",
+        "uploadPayroll": "Importer la paie",
+        "correctLive": "Corriger en direct",
+        "filters": "Filtres",
+        "allCompanies": "Toutes les entreprises",
+        "allCountries": "Tous les pays",
+        "allYears": "Toutes les années",
+        "allMonths": "Tous les mois",
+        "totalPayrolls": "Total des paies",
+        "certificationRate": "Taux de certification",
+        "averageRisk": "Risque moyen",
+        "criticalFindings": "Résultats critiques",
+        "certifiable": "Certifiable",
+        "notCertifiable": "Non certifiable",
+        "emptyStateTitle": "Aucune paie chargée",
+        "emptyStateDescription": "Importez votre première paie pour commencer l'audit.",
+        "emptyStateAction": "Importer la paie",
+        "riskTrendTitle": "Tendance du risque",
+        "healthTitle": "Santé des fournisseurs IA",
+        "noProviders": "Aucun fournisseur configuré",
+        "providers": {
+            "title": "Fournisseurs IA",
+            "configure": "Configurer",
+            "active": "Actif",
+            "inactive": "Inactif",
+            "emptyTitle": "Aucun fournisseur configuré",
+            "emptyDescription": "Configurez votre premier fournisseur IA.",
+            "addProvider": "Configurer un fournisseur"
+        },
+        "processFlow": {
+            "title": "Flux de processus",
+            "stepCounter": "Étape {current}/{total}"
+        },
+        "synthesis": {
+            "title": "Synthèse IA",
+            "emptyTitle": "Aucune synthèse disponible",
+            "emptyDescription": "Lancez une analyse pour voir le résumé IA ici.",
+            "loading": "Génération de la synthèse...",
+            "findingsTitle": "Résultats",
+            "recommendationsTitle": "Recommandations"
+        },
+        "logs": {
+            "title": "Journaux en direct",
+            "clear": "Effacer",
+            "emptyTitle": "Aucune entrée",
+            "emptyDescription": "Les journaux apparaîtront ici."
+        }
+    },
+    "Upload": {
+        "title": "Import intelligent de données",
+        "subtitle": "Importez vos fichiers Excel, CSV ou XML",
+        "dragAndDrop": "Glissez-déposez vos fichiers ici ou cliquez pour sélectionner",
+        "mappingTitle": "Mappage de colonnes par IA"
+    },
+    "Reconcile": {
+        "title": "Réconciliateur Triple Match",
+        "riskByEmployee": "Risque par employé",
+        "riskScore": "Score de risque",
+        "findings": "Résultats",
+        "status": "Statut",
+        "actions": "Gestion des actions",
+        "reviewTitle": "Révision de la paie",
+        "employee": "Employé",
+        "risk": "Risque"
+    },
+    "Reports": {
+        "title": "Historique des rapports",
+        "subtitle": "Consultez les audits passés et les actions en cours.",
+        "emptyTitle": "Aucun rapport disponible",
+        "emptyDescription": "Importez votre première paie pour générer un rapport.",
+        "goToUpload": "Aller à l'import",
+        "exportReport": "Exporter le rapport",
+        "date": "Date",
+        "company": "Entreprise",
+        "period": "Période",
+        "risk": "Risque",
+        "status": "Statut",
+        "actions": "Actions"
+    },
+    "Public": {
+        "heroTitle": "Audit de paie par IA",
+        "heroSubtitle": "7 agents IA qui auditent, corrigent et certifient votre paie en minutes.",
+        "getStarted": "Commencer gratuitement",
+        "login": "Se connecter",
+        "learnMore": "En savoir plus",
+        "features": "Fonctionnalités",
+        "pricing": "Tarifs",
+        "about": "À propos",
+        "contact": "Contact",
+        "home": "Accueil",
+        "footerTagline": "Audit intelligent de paie multi-pays.",
+        "privacyPolicy": "Confidentialité",
+        "termsOfService": "Conditions",
+        "security": "Sécurité"
+    }
+}
