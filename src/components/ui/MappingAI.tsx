@@ -109,8 +109,13 @@ function toSnakeCase(v: string) {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type MappingStatus = 'matched' | 'review';
+type MappingStatus = 'matched' | 'review' | 'created';
 type AnalysisCategory = 'identity' | 'salary_base' | 'non_salary' | 'ibc' | 'contribution' | 'contract' | 'informational';
+
+/** Valid categories for validation */
+export const VALID_CATEGORIES: readonly AnalysisCategory[] = [
+    'identity', 'salary_base', 'non_salary', 'ibc', 'contribution', 'contract', 'informational',
+] as const;
 
 interface MappingRow {
     source: string;
@@ -127,6 +132,8 @@ export interface MappingRelation {
     analysisCategory: AnalysisCategory;
     isCreated: boolean;
     requiredByRule: boolean;
+    /** 'auto' = local/AI matched, 'manual' = user-assigned, 'created' = required field without match */
+    status: 'auto' | 'manual' | 'created';
 }
 
 export interface MappingResult {
@@ -189,6 +196,7 @@ export default function MappingAI({
     const [data, setData] = useState<MappingRow[]>([]);
     const [phase, setPhase] = useState<'idle' | 'local' | 'ai' | 'done' | 'error'>('idle');
     const [newFieldName, setNewFieldName] = useState('');
+    const [aiError, setAiError] = useState<string | null>(null);
     const autoConfirmRef = useRef(false);
 
     const requiredSet = useMemo(() => new Set([...requiredFields, ...requiredCalculations]), [requiredFields, requiredCalculations]);
@@ -200,13 +208,15 @@ export default function MappingAI({
         return normalized;
     }
 
-    function buildRow(source: string, target: string, confidence: number): MappingRow {
+    function buildRow(source: string, target: string, confidence: number, status?: MappingStatus): MappingRow {
+        const rawCategory = inferCategory(source, target);
+        const analysisCategory = VALID_CATEGORIES.includes(rawCategory) ? rawCategory : 'informational';
         return {
             source,
             target,
             confidence,
-            status: target ? 'matched' : 'review',
-            analysisCategory: inferCategory(source, target),
+            status: status ?? (target ? 'matched' : 'review'),
+            analysisCategory,
             requiredByRule: requiredSet.has(target),
         };
     }
@@ -241,6 +251,7 @@ export default function MappingAI({
 
         // Step 2 — AI only for unresolved columns
         setPhase('ai');
+        setAiError(null);
         void (async () => {
             try {
                 const res = await fetch('/api/ai/mapping', {
@@ -270,11 +281,17 @@ export default function MappingAI({
                         if (stillUnresolved === 0) autoConfirmRef.current = true;
                         return updated;
                     });
+                    setPhase('done');
+                } else {
+                    // API failed — fallback to manual mapping
+                    console.error('AI mapping endpoint returned', res.status);
+                    setAiError(`Error del servicio de mapeo IA (${res.status}). Puede mapear manualmente.`);
+                    setPhase('error');
                 }
             } catch (err) {
                 console.error('AI mapping failed:', err);
-            } finally {
-                setPhase('done');
+                setAiError('No se pudo conectar con el servicio de mapeo IA. Puede mapear manualmente.');
+                setPhase('error');
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,7 +336,7 @@ export default function MappingAI({
     function handleConfirm(rows: MappingRow[] = data) {
         const mappedTargets = Array.from(new Set(rows.map((r) => r.target).filter(Boolean)));
         const createdTargets = mappedTargets.filter((f) => !DEFAULT_TARGET_FIELDS.includes(f));
-        const mappingDetails = rows
+        const mappingDetails: MappingRelation[] = rows
             .filter((r) => r.target)
             .map((r) => ({
                 source: r.source,
@@ -327,7 +344,25 @@ export default function MappingAI({
                 analysisCategory: r.analysisCategory,
                 isCreated: !DEFAULT_TARGET_FIELDS.includes(r.target),
                 requiredByRule: r.requiredByRule,
+                status: r.status === 'created' ? 'created' as const : (r.confidence >= 90 ? 'auto' as const : 'manual' as const),
             }));
+
+        // Create entries for required fields that have no correspondence (Req 4.3)
+        const mappedTargetSet = new Set(mappedTargets);
+        for (const reqField of [...requiredFields, ...requiredCalculations]) {
+            if (!mappedTargetSet.has(reqField)) {
+                createdTargets.push(reqField);
+                mappingDetails.push({
+                    source: '',
+                    target: reqField,
+                    analysisCategory: inferCategory('', reqField),
+                    isCreated: true,
+                    requiredByRule: true,
+                    status: 'created',
+                });
+            }
+        }
+
         onConfirm?.({ mappedTargets, createdTargets, mappingDetails });
     }
 
@@ -403,6 +438,20 @@ export default function MappingAI({
     // ── Manual correction UI (only shown when there are unresolved columns) ────
     return (
         <div className="w-full max-w-5xl mx-auto mt-4 animate-in fade-in duration-500">
+            {/* AI error banner with fallback to manual mapping (Req 4.5) */}
+            {aiError && (
+                <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/30 p-4 shadow-lg shadow-black/20">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-amber-200">{aiError}</p>
+                            <p className="text-xs text-amber-400/80 mt-1">
+                                Puede asignar cada columna manualmente usando los selectores de abajo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div>
                     <h3 className="text-base font-semibold text-white drop-shadow-sm flex items-center gap-2">
@@ -520,8 +569,8 @@ export default function MappingAI({
                 <Button variant="outline" onClick={reAnalyze} disabled={isProcessing || unresolvedCount === 0} className="gap-2 text-xs">
                     <Bot className="w-3.5 h-3.5" /> Re-analizar sin mapear ({unresolvedCount})
                 </Button>
-                <Button size="lg" onClick={() => handleConfirm()} disabled={unresolvedCount > 0 || isProcessing}>
-                    Confirmar y continuar
+                <Button size="lg" onClick={() => handleConfirm()} disabled={isProcessing}>
+                    {unresolvedCount > 0 ? `Confirmar (${unresolvedCount} sin mapear)` : 'Confirmar y continuar'}
                 </Button>
             </div>
         </div>

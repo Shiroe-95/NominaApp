@@ -44,6 +44,32 @@ export interface EmployeeRiskSummary {
 }
 
 /**
+ * Hallazgo de auditoría con severidad para cálculo de score ponderado.
+ */
+export interface SeverityFinding {
+    severity: 'high' | 'medium' | 'low';
+    description: string;
+}
+
+/** Weights for severity-based risk score calculation (Req 5.5) */
+export const SEVERITY_WEIGHTS: Record<'high' | 'medium' | 'low', number> = {
+    high: 40,
+    medium: 20,
+    low: 10,
+};
+
+/**
+ * Calcula el score de riesgo de un empleado basado en la suma ponderada
+ * de hallazgos por severidad: high × 40 + medium × 20 + low × 10.
+ *
+ * @param findings - Hallazgos con severidad asignada.
+ * @returns Score de riesgo (sin tope).
+ */
+export function calculateSeverityRiskScore(findings: SeverityFinding[]): number {
+    return findings.reduce((score, f) => score + (SEVERITY_WEIGHTS[f.severity] ?? 0), 0);
+}
+
+/**
  * Fila agregada interna para acumular valores monetarios por empleado.
  * Los hallazgos se almacenan en un Set para evitar duplicados al
  * procesar múltiples matrices del mismo empleado.
@@ -356,4 +382,44 @@ export function finalizeEmployeeRiskSummary(aggregates: Map<string, AggregateRow
         maxScore,
         topEmployees,
     };
+}
+
+
+/**
+ * Requests proactive auto-corrections from Wil via AgentBus after audit completes (Req 5.7).
+ *
+ * This function is called after the audit engine finishes processing. It sends
+ * the audit findings to the corrector agent (Wil) through the AgentBus for
+ * automatic correction suggestions.
+ *
+ * @param bus - AgentBus instance for inter-agent communication.
+ * @param auditFindings - Findings from the audit engine.
+ * @param countryCode - ISO country code.
+ * @param year - Fiscal year.
+ * @returns The corrector agent result, or null if the bus is unavailable or the request fails.
+ */
+export async function requestAutoCorrections(
+    bus: { hasAgent: (name: string) => boolean; send: (msg: { fromAgent: string; toAgent: string; queryType: string; payload: unknown }) => Promise<{ success: boolean; data: unknown }> },
+    auditFindings: unknown[],
+    countryCode: string,
+    year: number,
+): Promise<{ success: boolean; data: unknown } | null> {
+    if (!bus.hasAgent('corrector')) return null;
+
+    try {
+        const result = await bus.send({
+            fromAgent: 'auditor',
+            toAgent: 'corrector',
+            queryType: 'auto-corrections',
+            payload: {
+                findings: auditFindings,
+                countryCode,
+                year,
+            },
+        });
+        return result;
+    } catch {
+        // Non-critical: auto-corrections are proactive, not blocking
+        return null;
+    }
 }

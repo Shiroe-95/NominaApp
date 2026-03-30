@@ -665,7 +665,7 @@ nomina-smart/
 │   │   ├── email/                # Email service (Resend) + plantillas localizadas
 │   │   ├── integrations/         # Framework de conectores (Siigo, Generic API)
 │   │   ├── notifications/        # Notificaciones in-app + broadcast a admins
-│   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation, format-detector)
+│   │   ├── payroll/              # Lógica de nómina (actions, classifier, risk, validation, format-detector, period-detector)
 │   │   ├── sync/                 # Sincronización regulatoria (cron + bootstrap)
 │   │   ├── supabase/             # Clientes Supabase (client, server, admin)
 │   │   └── types/                # Tipos compartidos

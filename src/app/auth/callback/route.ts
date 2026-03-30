@@ -10,23 +10,43 @@ const SUPPORTED_LOCALES = ['en', 'es', 'pt']
 const DEFAULT_LOCALE = 'es'
 
 /**
+ * Valida que una URL de redirección sea una ruta relativa segura.
+ * Previene ataques de open redirect rechazando URLs absolutas,
+ * protocol-relative URLs (//), y rutas que apunten al login (loop).
+ */
+export function isValidRedirectPath(path: string | null | undefined): path is string {
+    if (!path || typeof path !== 'string') return false
+    // Debe empezar con / (ruta relativa)
+    if (!path.startsWith('/')) return false
+    // Rechazar protocol-relative URLs (//example.com)
+    if (path.startsWith('//')) return false
+    // Rechazar rutas que contengan /login para evitar loops
+    if (path.includes('/login')) return false
+    return true
+}
+
+/**
  * Callback de autenticación OAuth de Supabase.
  *
  * Endpoint: GET /auth/callback
  *
  * Query params:
- *  - code  — Código de autorización proporcionado por Supabase Auth.
- *  - next  — Ruta de destino tras el login (por defecto "/").
+ *  - code        — Código de autorización proporcionado por Supabase Auth.
+ *  - redirectTo  — Ruta de destino tras el login (establecida por el middleware).
+ *  - next        — Alias legacy de redirectTo (backward compat).
  *
  * Flujo:
  *  1. Intercambia el código OAuth por una sesión válida.
  *  2. Si el usuario no tiene perfil en `user_profiles`, crea uno con rol 'client' (upsert).
- *  3. Redirige al destino asegurando que la URL incluya un prefijo de locale válido.
+ *  3. Redirige al destino validando que sea una ruta relativa segura.
+ *     Si `redirectTo` es inválido o ausente, redirige a `/dashboard`.
  */
 export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
-    const next = requestUrl.searchParams.get('next') ?? '/'
+    // Leer redirectTo (preferido) o next (legacy) del query
+    const redirectTo = requestUrl.searchParams.get('redirectTo')
+        ?? requestUrl.searchParams.get('next')
 
     if (code) {
         const cookieStore = await cookies()
@@ -53,8 +73,6 @@ export async function GET(request: NextRequest) {
         }
 
         // Crea perfil de usuario con rol 'client' si no existe aún.
-        // Usa upsert con onConflict para evitar race conditions si dos
-        // requests llegan simultáneamente.
         if (data?.user) {
             const admin = createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,20 +90,20 @@ export async function GET(request: NextRequest) {
                 },
                 {
                     onConflict: 'id',
-                    // No sobreescribir si ya existe — preservar rol y nombre actualizados
                     ignoreDuplicates: true,
                 }
             )
         }
     }
 
-    // Garantiza que la URL de destino incluya un prefijo de locale válido
-    const hasLocale = SUPPORTED_LOCALES.some(
-        (l) => next === `/${l}` || next.startsWith(`/${l}/`)
-    )
-    const destination = hasLocale ? next : `/${DEFAULT_LOCALE}${next === '/' ? '' : next}`
+    // Determinar destino: usar redirectTo si es válido, sino /dashboard
+    const destination = isValidRedirectPath(redirectTo) ? redirectTo : '/dashboard'
 
-    return NextResponse.redirect(
-        new URL(destination || `/${DEFAULT_LOCALE}/dashboard`, requestUrl.origin)
+    // Garantizar que la URL de destino incluya un prefijo de locale válido
+    const hasLocale = SUPPORTED_LOCALES.some(
+        (l) => destination === `/${l}` || destination.startsWith(`/${l}/`)
     )
+    const finalPath = hasLocale ? destination : `/${DEFAULT_LOCALE}${destination}`
+
+    return NextResponse.redirect(new URL(finalPath, requestUrl.origin))
 }

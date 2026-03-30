@@ -133,12 +133,11 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // 4. Verificar permisos por rol (usa fuente única de verdad)
+  // 4. Verificar permisos por rol — retornar 403 si no tiene acceso
   const role = await fetchUserRoleEdge(user.id);
 
   if (!hasPermission(role, pathWithoutLocale)) {
-    const locale = getLocale(pathname);
-    return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
+    return new NextResponse('Forbidden', { status: 403 });
   }
 
   // 5. Autorizado → intl + cookies de auth

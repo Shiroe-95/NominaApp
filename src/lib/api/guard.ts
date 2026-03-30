@@ -34,6 +34,7 @@
  * @module lib/api/guard
  */
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type UserRole } from '@/lib/auth/user-profile';
@@ -171,32 +172,45 @@ export async function requireAnalystOrAdmin(
   return ctx;
 }
 
+// ─── Zod Schemas for Input Validation ────────────────────────────────────────
+
+/** Zod schema para UUID v4 */
+export const UuidSchema = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  'Invalid UUID format',
+);
+
+/** Zod schema para código de país ISO 3166-1 alpha-2 */
+export const CountryCodeSchema = z.string().regex(
+  /^[A-Z]{2}$/,
+  'Invalid country code',
+);
+
+/** Zod schema para email con TLD mínimo 2 chars */
+export const EmailSchema = z.string()
+  .max(254)
+  .regex(/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/, 'Invalid email format');
+
 // ─── Input sanitization ─────────────────────────────────────────────────────
 
-/** Regex para validar UUID v4 */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
- * Valida que un string sea un UUID v4 válido.
+ * Valida que un string sea un UUID v4 válido usando Zod.
  *
  * @param value - String a validar.
  * @returns `true` si cumple el formato UUID v4.
  */
 export function isValidUuid(value: string): boolean {
-  return UUID_RE.test(value);
+  return UuidSchema.safeParse(value).success;
 }
 
-/** Regex para código de país ISO 3166-1 alpha-2 */
-const COUNTRY_CODE_RE = /^[A-Z]{2}$/;
-
 /**
- * Valida código de país ISO 3166-1 alpha-2 (ej. `'CO'`, `'US'`).
+ * Valida código de país ISO 3166-1 alpha-2 (ej. `'CO'`, `'US'`) usando Zod.
  *
  * @param value - String a validar (se convierte a mayúsculas internamente).
  * @returns `true` si cumple el formato de 2 letras mayúsculas.
  */
 export function isValidCountryCode(value: string): boolean {
-  return COUNTRY_CODE_RE.test(value.toUpperCase());
+  return CountryCodeSchema.safeParse(value.toUpperCase()).success;
 }
 
 /**
@@ -216,7 +230,7 @@ export function sanitizeString(value: unknown, maxLength = 500): string {
 }
 
 /**
- * Sanitiza un email: lowercase, trim, validación de formato con TLD mínimo de 2 caracteres.
+ * Sanitiza un email: lowercase, trim, validación de formato con Zod + TLD mínimo 2 chars.
  *
  * La validación exige el patrón `usuario@dominio.tld` donde el TLD debe ser
  * al menos 2 caracteres alfabéticos (rechaza TLDs de un solo carácter).
@@ -227,8 +241,7 @@ export function sanitizeString(value: unknown, maxLength = 500): string {
 export function sanitizeEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const email = value.trim().toLowerCase().slice(0, 254);
-  // Validación de formato: usuario@dominio.tld (TLD mínimo 2 chars)
-  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email)) return null;
+  if (!EmailSchema.safeParse(email).success) return null;
   return email;
 }
 

@@ -22,7 +22,7 @@ interface RuleRow {
     required_fields: string[];
     required_calculations: string[];
     checks: string[];
-    status?: string;
+    status?: 'active' | 'pending_review' | 'draft' | 'approved' | 'rejected';
 }
 
 const EMPTY_RULE: RuleRow = {
@@ -54,6 +54,7 @@ export default function RulesPage() {
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [filterCountry, setFilterCountry] = useState<string>('todos');
+    const [filterYear, setFilterYear] = useState<string>('todos');
     const [showHelp, setShowHelp] = useState(false);
     const [approvingKey, setApprovingKey] = useState<string | null>(null);
     const [rejectingKey, setRejectingKey] = useState<string | null>(null);
@@ -167,8 +168,13 @@ export default function RulesPage() {
         }
     };
 
-    const countries = ['todos', ...Array.from(new Set(rules.map((r) => r.country_code)))];
-    const filtered = filterCountry === 'todos' ? rules : rules.filter((r) => r.country_code === filterCountry);
+    const countries = ['todos', ...Array.from(new Set(rules.map((r) => r.country_code))).sort()];
+    const years = ['todos', ...Array.from(new Set(rules.map((r) => String(r.rule_year)))).sort()];
+    const filtered = rules.filter((r) => {
+        if (filterCountry !== 'todos' && r.country_code !== filterCountry) return false;
+        if (filterYear !== 'todos' && String(r.rule_year) !== filterYear) return false;
+        return true;
+    });
 
     const approveRule = async (rule: RuleRow) => {
         if (!rule.id) return;
@@ -297,6 +303,7 @@ export default function RulesPage() {
 
             {/* Country filter */}
             <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">País:</span>
                 {countries.map((c) => (
                     <button
                         key={c}
@@ -309,6 +316,25 @@ export default function RulesPage() {
                         )}
                     >
                         {c === 'todos' ? 'Todos los países' : c}
+                    </button>
+                ))}
+            </div>
+
+            {/* Year filter */}
+            <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">Año:</span>
+                {years.map((y) => (
+                    <button
+                        key={y}
+                        onClick={() => setFilterYear(y)}
+                        className={cn(
+                            'px-3 py-1 text-xs font-semibold rounded-full border transition-colors',
+                            filterYear === y
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-500 hover:text-indigo-600'
+                        )}
+                    >
+                        {y === 'todos' ? 'Todos los años' : y}
                     </button>
                 ))}
             </div>
@@ -366,6 +392,9 @@ export default function RulesPage() {
                                         >
                                             <ShieldCheck className={cn('w-4 h-4 shrink-0', isEditing ? 'text-violet' : 'text-indigo-500')} />
                                             <span className="font-semibold text-slate-800 text-sm">{rule.label}</span>
+                                            {rule.status === 'active' && (
+                                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">Activa</span>
+                                            )}
                                             {rule.status === 'approved' && (
                                                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">Aprobada</span>
                                             )}

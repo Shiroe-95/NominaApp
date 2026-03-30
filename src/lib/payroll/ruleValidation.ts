@@ -69,6 +69,8 @@ export interface CheckResult {
     sampleFindings: string[];
     missingDependencies?: string[];
     potentialMatches?: Record<string, string>;
+    /** Severity of the check: high = critical compliance, medium = calculation error, low = informational */
+    severity?: 'high' | 'medium' | 'low';
 }
 
 export interface ValidationReport {
@@ -345,6 +347,24 @@ export function validatePayrollCalculations(input: {
         pension_empleador_rate: ['ibc_total', 'pension_empleador'],
         parafiscales_rate: ['ibc_total', 'parafiscales_total'],
         arl_bounds: ['ibc_total', 'arl_value'],
+    };
+
+    /** Severity map: high = critical compliance, medium = calculation, low = informational */
+    const CHECK_SEVERITY: Record<string, 'high' | 'medium' | 'low'> = {
+        ibc_rule_1393: 'high',
+        tope_40_value: 'medium',
+        ibc_min_max: 'high',
+        ibc_consistency_subsystems: 'medium',
+        transport_eligibility: 'low',
+        health_deduction_4pct: 'high',
+        pension_deduction_4pct: 'high',
+        cesantias_rate: 'medium',
+        prima_rate: 'medium',
+        vacation_rate: 'medium',
+        salud_empleador_rate: 'high',
+        pension_empleador_rate: 'high',
+        parafiscales_rate: 'medium',
+        arl_bounds: 'medium',
     };
 
     const checks: Record<string, CheckResult> = {
@@ -787,7 +807,8 @@ export function validatePayrollCalculations(input: {
     };
 
     const finalChecks = Object.values(checks).map(check => {
-        if (check.passedRows > 0 || check.failedRows > 0) return check;
+        const severity = CHECK_SEVERITY[check.id] ?? 'low';
+        if (check.passedRows > 0 || check.failedRows > 0) return { ...check, severity };
 
         const deps = dependencies[check.id] ?? [];
         const missing = deps.filter(d => !mappedTargets.has(d));
@@ -797,9 +818,9 @@ export function validatePayrollCalculations(input: {
                 const found = fuzzyMatch(m, unmappedHeaders);
                 if (found) matches[m] = found;
             }
-            return { ...check, missingDependencies: missing, potentialMatches: matches };
+            return { ...check, severity, missingDependencies: missing, potentialMatches: Object.keys(matches).length > 0 ? matches : undefined };
         }
-        return check;
+        return { ...check, severity };
     });
 
     return {

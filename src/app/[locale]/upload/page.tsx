@@ -18,52 +18,31 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import UploadZone, { ParsedFile } from '@/components/ui/UploadZone';
-import MappingAI, { MappingResult } from '@/components/ui/MappingAI';
-import { Sparkles, Database, FileSpreadsheet, Building2, CalendarClock, CheckCircle2, AlertTriangle, Globe2, Trash2, ChevronDown, ChevronUp, Loader2, PenLine, Download } from 'lucide-react';
+import UploadZone, { type ParsedFile } from '@/components/ui/UploadZone';
+import MappingAI, { type MappingResult } from '@/components/ui/MappingAI';
+import { Database, Building2, CalendarClock, CheckCircle2, AlertTriangle, Globe2, Trash2, ChevronDown, ChevronUp, Loader2, PenLine, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { Stepper } from '@/components/ui/Stepper';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { getPersona } from '@/lib/ai/agent-personas';
 import { buildRiskReport, summarizeConcepts } from '@/lib/payroll/conceptClassifier';
 import { finalizeEmployeeRiskSummary, summarizeEmployeeRiskFromMatrix } from '@/lib/payroll/employeeRisk';
 import { validatePayrollCalculations, type MatrixInput, type ValidationReport } from '@/lib/payroll/ruleValidation';
 import PayrollEditor, { type CorrectionEntry } from '@/components/ui/PayrollEditor';
+import { detectPeriodFromWorkbook } from '@/lib/payroll/period-detector';
 import type { AiValidationReport } from '@/app/api/ai/validation/route';
+import type {
+    PipelineStep,
+    Company,
+    RuleSet,
+    RuleApiRow,
+    RecentPayroll,
+    StepResult,
+    CertificationResult,
+} from '@/lib/payroll/pipeline-state';
+import { EMPTY_MAPPING, EMPTY_RULE } from '@/lib/payroll/pipeline-state';
 import * as XLSX from 'xlsx';
-
-/** Empresa asociada a una carga de nómina. */
-interface Company {
-    id: string;
-    name: string;
-    nit: string;
-    industry?: string;
-}
-
-/**
- * Conjunto de reglas normativas para un país y año específico.
- * Define los campos obligatorios, cálculos requeridos y verificaciones a ejecutar.
- */
-interface RuleSet {
-    /** Etiqueta descriptiva, ej: "Normativa Colombia 2026 - Ley 1393" */
-    label: string;
-    /** Campos estructurales obligatorios para certificación */
-    requiredFields: string[];
-    /** Cálculos numéricos obligatorios para certificación */
-    requiredCalculations: string[];
-    /** Verificaciones normativas a mostrar al usuario */
-    checks: string[];
-}
-
-/** Fila de regla tal como llega desde la API `/api/rules`. */
-interface RuleApiRow {
-    country_code: string;
-    rule_year: number;
-    label: string;
-    required_fields: string[];
-    required_calculations: string[];
-    checks: string[];
-}
 
 /**
  * Reglas normativas de respaldo cuando la API `/api/rules` no está disponible.
@@ -109,11 +88,13 @@ const FALLBACK_RULES: Record<'CO' | 'MX', Record<number, RuleSet>> = {
 };
 
 export default function UploadPage() {
-    const [currentStep, setCurrentStep] = useState(1);
+    // ── Pipeline state ──────────────────────────────────────────────
+    const [currentStep, setCurrentStep] = useState<PipelineStep>(1);
     const [uploadedHeaders, setUploadedHeaders] = useState<string[]>([]);
     const [uploadedFiles, setUploadedFiles] = useState<ParsedFile[]>([]);
     const [fileStats, setFileStats] = useState({ name: '', rows: 0 });
 
+    // ── Company state ───────────────────────────────────────────────
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedCompanyId, setSelectedCompanyId] = useState('');
     const [showCreateCompany, setShowCreateCompany] = useState(false);
@@ -121,14 +102,17 @@ export default function UploadPage() {
     const [newCompanyNit, setNewCompanyNit] = useState('');
     const [newCompanyIndustry, setNewCompanyIndustry] = useState('');
 
+    // ── Country & period state ──────────────────────────────────────
     const [selectedCountry, setSelectedCountry] = useState<'CO' | 'MX'>('CO');
     const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
     const [periodMonth, setPeriodMonth] = useState(new Date().getMonth() + 1);
 
+    // ── Rules state ─────────────────────────────────────────────────
     const [rulesByYear, setRulesByYear] = useState<Record<number, RuleSet>>(FALLBACK_RULES.CO);
     const [isLoadingRules, setIsLoadingRules] = useState(false);
 
-    const [mappingResult, setMappingResult] = useState<MappingResult>({ mappedTargets: [], createdTargets: [], mappingDetails: [] });
+    // ── Mapping & validation state ──────────────────────────────────
+    const [mappingResult, setMappingResult] = useState<MappingResult>(EMPTY_MAPPING);
     const [isSavingPayroll, setIsSavingPayroll] = useState(false);
     const [savedSuccess, setSavedSuccess] = useState(false);
     const [savedPayrollId, setSavedPayrollId] = useState<string | null>(null);
@@ -139,7 +123,7 @@ export default function UploadPage() {
     const [isParsing, setIsParsing] = useState(false);
     const [isAnalyzingAiForEditor, setIsAnalyzingAiForEditor] = useState(false);
 
-    interface RecentPayroll { id: string; company_name: string | null; country_code: string; period_year: number; period_month: number; rule_label: string | null; certification_ready: boolean; created_at: string; }
+    // ── Recent payrolls state ───────────────────────────────────────
     const [recentPayrolls, setRecentPayrolls] = useState<RecentPayroll[]>([]);
     const [showRecent, setShowRecent] = useState(false);
     const [deletingPayrollId, setDeletingPayrollId] = useState<string | null>(null);
@@ -220,6 +204,19 @@ export default function UploadPage() {
     );
 
     const certificationReady = missingRequiredFields.length === 0 && missingRequiredCalculations.length === 0;
+
+    /** Computed certification result for the pipeline state. */
+    const certificationResult: CertificationResult = useMemo(() => {
+        const totalRequired = activeRule.requiredFields.length + activeRule.requiredCalculations.length;
+        const totalMissing = missingRequiredFields.length + missingRequiredCalculations.length;
+        const coverage = totalRequired > 0 ? Math.round(((totalRequired - totalMissing) / totalRequired) * 100) : 100;
+        return {
+            ready: missingRequiredFields.length === 0 && missingRequiredCalculations.length === 0,
+            missingFields: missingRequiredFields,
+            missingCalculations: missingRequiredCalculations,
+            coverage,
+        };
+    }, [activeRule, missingRequiredFields, missingRequiredCalculations]);
     const detectedVariablesPreview = useMemo(
         () => Array.from(new Set(uploadedFiles.flatMap((file) => file.extractedHeaders.map((h) => h.trim()).filter(Boolean)))),
         [uploadedFiles]
@@ -242,13 +239,15 @@ export default function UploadPage() {
             return acc;
         }, {});
     }, [mappingResult.mappingDetails]);
-    const stepResults = [
+    /** Step results for progress display (Req 3.14). */
+    const stepResults: StepResult[] = useMemo(() => [
         {
             title: 'Paso 1: Cargar y seleccionar hojas',
             result:
                 uploadedFiles.length > 0
                     ? `${uploadedFiles.length} archivo(s) listo(s), ${fileStats.rows} registros estimados.`
                     : 'Pendiente de carga.',
+            completed: currentStep > 1,
         },
         {
             title: 'Paso 2: Mapear campos y crear faltantes',
@@ -256,20 +255,37 @@ export default function UploadPage() {
                 mappingResult.mappedTargets.length > 0
                     ? `${mappingResult.mappedTargets.length} campo(s) mapeado(s), ${mappingResult.createdTargets.length} creado(s).`
                     : 'Pendiente de mapeo.',
+            completed: currentStep > 2,
         },
         {
             title: 'Paso 3: Verificar regla y certificar',
             result: certificationReady
-                ? `Pre-certificable bajo ${selectedCountry} ${periodYear} (${activeRule.label}); falta validacion matematica al guardar.`
-                : `No certificable: faltan ${missingRequiredFields.length} campo(s) y ${missingRequiredCalculations.length} calculo(s).`,
+                ? `Pre-certificable bajo ${selectedCountry} ${periodYear} (${activeRule.label}); cobertura ${certificationResult.coverage}%.`
+                : `No certificable: faltan ${missingRequiredFields.length} campo(s) y ${missingRequiredCalculations.length} calculo(s). Cobertura: ${certificationResult.coverage}%.`,
+            completed: currentStep > 3,
         },
         {
             title: 'Paso 4: Corregir y exportar',
             result: corrections.length > 0
                 ? `${corrections.length} corrección(es) aplicada(s).`
                 : savedSuccess ? 'Planilla guardada.' : 'Pendiente de corrección.',
+            completed: savedSuccess,
         },
-    ];
+    ], [uploadedFiles, fileStats, currentStep, mappingResult, certificationReady, selectedCountry, periodYear, activeRule, missingRequiredFields, missingRequiredCalculations, certificationResult, corrections, savedSuccess]);
+
+    /** Cumulative progress percentage (0-100). */
+    const cumulativeProgress = useMemo(() => {
+        const completedSteps = stepResults.filter((s) => s.completed).length;
+        return Math.round((completedSteps / stepResults.length) * 100);
+    }, [stepResults]);
+
+    /** Stepper steps configuration. */
+    const STEPPER_STEPS = useMemo(() => [
+        { label: 'Carga', description: 'Archivos y hojas' },
+        { label: 'Mapeo IA', description: 'Gyoru mapea campos' },
+        { label: 'Verificación', description: 'Regla normativa' },
+        { label: 'Corrección', description: 'Editar y exportar' },
+    ], []);
 
     useEffect(() => {
         const loadCompanies = async () => {
@@ -364,15 +380,15 @@ export default function UploadPage() {
             return total + file.sheets.filter((sheet) => selectedSheetSet.has(sheet.name)).reduce((sum, sheet) => sum + sheet.rowCount, 0);
         }, 0);
 
-        // Intento de detección automática de periodo
+        // Automatic period detection from file content
         try {
             for (const file of selectedFiles) {
                 const data = await file.rawFile.arrayBuffer();
                 const workbook = XLSX.read(data, { cellDates: true, cellFormula: true });
-                const discovered = detectPeriodFromWorkbook(workbook);
+                const discovered = detectPeriodFromWorkbook(workbook, XLSX.utils);
                 if (discovered.month) setPeriodMonth(discovered.month);
                 if (discovered.year) setPeriodYear(discovered.year);
-                if (discovered.month || discovered.year) break; // Usar el primer hallazgo
+                if (discovered.month || discovered.year) break;
             }
         } catch (e) {
             console.warn('Period detection failed:', e);
@@ -386,40 +402,6 @@ export default function UploadPage() {
         });
         setAiValidationForEditor(null);
         setCurrentStep(2);
-    };
-
-    /**
-     * Detecta el periodo (mes y año) escaneando las primeras 20 filas del workbook.
-     * Busca nombres de meses en español y años entre 2020-2030.
-     * @param workbook - Libro de Excel parseado con XLSX
-     * @returns Objeto con month y year detectados (null si no se encuentran)
-     */
-    const detectPeriodFromWorkbook = (workbook: XLSX.WorkBook) => {
-        const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        let detectedMonth: number | null = null;
-        let detectedYear: number | null = null;
-
-        for (const sheetName of workbook.SheetNames) {
-            const worksheet = workbook.Sheets[sheetName];
-            // Solo escaneamos las primeras 20 filas para rendimiento
-            const matrix = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, range: 0, raw: false });
-            const sample = matrix.slice(0, 20).flat().map(v => String(v).toLowerCase());
-
-            for (const val of sample) {
-                // Buscar meses
-                months.forEach((m, idx) => {
-                    if (val.includes(m)) detectedMonth = idx + 1;
-                });
-
-                // Buscar años (2020-2030)
-                const yearMatch = val.match(/\b(202[0-9]|2030)\b/);
-                if (yearMatch) detectedYear = parseInt(yearMatch[1]);
-
-                if (detectedMonth && detectedYear) break;
-            }
-            if (detectedMonth || detectedYear) break;
-        }
-        return { month: detectedMonth, year: detectedYear };
     };
 
     const handleMappingConfirm = (result: MappingResult) => {
@@ -904,58 +886,81 @@ export default function UploadPage() {
             </div>
 
             {/* ── Stepper with Agents ───────────────────────────────────── */}
-            <div className="flex items-center gap-0 py-2">
-                {[
-                    { step: 1, label: 'Cargar datos', agentId: 'master', icon: null },
-                    { step: 2, label: 'Mapeo IA', agentId: 'mapper', icon: Sparkles },
-                    { step: 3, label: 'Auditoría', agentId: 'auditor', icon: Database },
-                    { step: 4, label: 'Corrección', agentId: 'corrector', icon: PenLine },
-                ].map((item, idx) => {
-                    const persona = getPersona(item.agentId);
-                    return (
-                        <div key={item.step} className="contents">
-                            {idx > 0 && (
-                                <div className="flex-1 mx-2 pb-8">
-                                    <div className="h-0.5 bg-slate-200 rounded-full overflow-hidden">
-                                        <div className={cn('h-full bg-violet transition-all duration-500', currentStep > idx ? 'w-full' : 'w-0')} />
+            <div className="rounded-2xl border border-white/10 glass-panel p-5 shadow-lg shadow-black/20">
+                <div className="flex items-center justify-between mb-4">
+                    <Stepper
+                        steps={STEPPER_STEPS}
+                        currentStep={currentStep - 1}
+                        className="flex-1"
+                    />
+                    <div className="ml-4 flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-slate-400">Progreso:</span>
+                        <span className={cn(
+                            'text-xs font-bold px-2 py-0.5 rounded-full',
+                            cumulativeProgress === 100
+                                ? 'bg-emerald/20 text-emerald-light'
+                                : cumulativeProgress > 0
+                                    ? 'bg-violet/20 text-violet-light'
+                                    : 'bg-white/10 text-slate-400'
+                        )}>
+                            {cumulativeProgress}%
+                        </span>
+                    </div>
+                </div>
+                {/* Agent avatars row */}
+                <div className="flex items-center gap-0">
+                    {[
+                        { step: 1, agentId: 'master' },
+                        { step: 2, agentId: 'mapper' },
+                        { step: 3, agentId: 'auditor' },
+                        { step: 4, agentId: 'corrector' },
+                    ].map((item, idx) => {
+                        const persona = getPersona(item.agentId);
+                        return (
+                            <div key={item.step} className="contents">
+                                {idx > 0 && <div className="flex-1" />}
+                                <button
+                                    onClick={() => item.step <= currentStep ? setCurrentStep(item.step as PipelineStep) : undefined}
+                                    className="flex flex-col items-center gap-1 flex-shrink-0"
+                                    disabled={item.step > currentStep}
+                                >
+                                    <div className={cn(
+                                        'relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200',
+                                        currentStep >= item.step
+                                            ? 'ring-2 ring-violet/40 shadow-md'
+                                            : 'ring-2 ring-slate-200 opacity-50'
+                                    )}>
+                                        <AgentAvatar agentId={item.agentId} size={38} animate={currentStep === item.step} />
                                     </div>
-                                </div>
-                            )}
-                            <button
-                                onClick={() => item.step <= currentStep ? setCurrentStep(item.step) : undefined}
-                                className="flex flex-col items-center gap-1 flex-shrink-0"
-                            >
-                                <div className={cn(
-                                    'relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200',
-                                    currentStep >= item.step
-                                        ? 'ring-2 ring-violet/40 shadow-md'
-                                        : 'ring-2 ring-slate-200 opacity-50'
-                                )}>
-                                    <AgentAvatar agentId={item.agentId} size={38} animate={currentStep === item.step} />
-                                </div>
-                                <span className={cn('text-[10px] font-bold whitespace-nowrap', currentStep >= item.step ? 'text-slate-800' : 'text-slate-400')}>
-                                    {persona.name}
-                                </span>
-                                <span className={cn('text-[9px] whitespace-nowrap', currentStep >= item.step ? 'text-slate-500' : 'text-slate-300')}>
-                                    {item.label}
-                                </span>
-                            </button>
-                        </div>
-                    );
-                })}
+                                    <span className={cn('text-[10px] font-bold whitespace-nowrap', currentStep >= item.step ? 'text-white' : 'text-slate-400')}>
+                                        {persona.name}
+                                    </span>
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Step trace */}
+            {/* Step trace — cumulative progress (Req 3.14) */}
             <div className="rounded-xl border border-white/10 glass-panel p-4 shadow-lg shadow-black/20">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Progreso</h3>
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Progreso del pipeline</h3>
+                    <div className="w-32 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-violet to-emerald transition-all duration-500 rounded-full"
+                            style={{ width: `${cumulativeProgress}%` }}
+                        />
+                    </div>
+                </div>
                 <div className="space-y-2.5">
                     {stepResults.map((item, idx) => (
                         <div key={item.title} className="flex items-start gap-3">
                             <span className={cn(
                                 'mt-0.5 h-5 w-5 rounded-full text-[10px] flex items-center justify-center font-bold flex-shrink-0',
-                                currentStep > idx ? 'bg-emerald/20 text-emerald-light' : 'bg-white/10 text-slate-500'
+                                item.completed ? 'bg-emerald/20 text-emerald-light' : currentStep === idx + 1 ? 'bg-violet/20 text-violet-light' : 'bg-white/10 text-slate-500'
                             )}>
-                                {idx + 1}
+                                {item.completed ? '✓' : idx + 1}
                             </span>
                             <div>
                                 <p className="text-xs font-semibold text-white">{item.title}</p>
@@ -979,7 +984,13 @@ export default function UploadPage() {
                                 <p className="text-xs text-slate-400 mt-0.5">Carga hojas de nómina y base de cálculo. Gyoru 🐈‍⬛ mapeará tus columnas en el siguiente paso.</p>
                             </div>
                         </div>
-                        <UploadZone onProceed={handleUploadProceed} />
+                        <UploadZone
+                            onProceed={handleUploadProceed}
+                            onPeriodDetected={(detected) => {
+                                if (detected.month !== null) setPeriodMonth(detected.month);
+                                if (detected.year !== null) setPeriodYear(detected.year);
+                            }}
+                        />
                         {!canStartUpload && <p className="text-xs text-rose mt-4">Selecciona una empresa antes de continuar.</p>}
                     </div>
                 )}
@@ -1074,7 +1085,19 @@ export default function UploadPage() {
                         </div>
 
                         <div className={cn('rounded-xl border p-4', certificationReady ? 'border-emerald/30 bg-emerald/10' : 'border-rose/30 bg-rose/10')}>
-                            <h4 className="font-semibold text-white mb-1">Estado de certificación</h4>
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-semibold text-white">Estado de certificación</h4>
+                                <span className={cn(
+                                    'text-xs font-bold px-2.5 py-1 rounded-full',
+                                    certificationResult.coverage === 100
+                                        ? 'bg-emerald/20 text-emerald-light border border-emerald/30'
+                                        : certificationResult.coverage >= 50
+                                            ? 'bg-amber/20 text-amber-light border border-amber/30'
+                                            : 'bg-rose/20 text-rose-light border border-rose/30'
+                                )}>
+                                    Cobertura: {certificationResult.coverage}%
+                                </span>
+                            </div>
                             <p className={cn('text-sm', certificationReady ? 'text-emerald-light' : 'text-rose-light')}>
                                 {certificationReady
                                     ? `Estructura completa para ${selectedCountry} - ${activeRule.label}. La certificacion final incluye validacion de calculos al guardar.`
@@ -1126,6 +1149,9 @@ export default function UploadPage() {
                                     <CheckCircle2 className="w-5 h-5 text-emerald-light flex-shrink-0" />
                                     <div>
                                         <p className="text-sm font-semibold text-emerald-light">Planilla guardada correctamente</p>
+                                        {savedPayrollId && (
+                                            <p className="text-xs text-emerald-light/70 mt-0.5 font-mono">ID: {savedPayrollId}</p>
+                                        )}
                                         <p className="text-xs text-slate-400 mt-0.5">Puedes ver el reporte en la sección de Reportes, o corregir los datos ahora.</p>
                                     </div>
                                 </div>
@@ -1134,7 +1160,7 @@ export default function UploadPage() {
                                         {isParsing ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <PenLine className="w-4 h-4 mr-1.5" />}
                                         Corregir datos
                                     </Button>
-                                    <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult({ mappedTargets: [], createdTargets: [], mappingDetails: [] }); }}>
+                                    <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult(EMPTY_MAPPING); }}>
                                         Cargar otra
                                     </Button>
                                 </div>
@@ -1246,6 +1272,9 @@ export default function UploadPage() {
                                         <p className="text-sm font-semibold text-emerald-light">
                                             Planilla guardada{corrections.length > 0 ? ` con ${corrections.length} corrección(es)` : ''} correctamente
                                         </p>
+                                        {savedPayrollId && (
+                                            <p className="text-xs text-emerald-light/70 mt-0.5 font-mono">ID: {savedPayrollId}</p>
+                                        )}
                                         <p className="text-xs text-slate-400 mt-0.5">Puedes ver el reporte antes/después en la sección de Reportes.</p>
                                     </div>
                                 </div>
@@ -1254,7 +1283,7 @@ export default function UploadPage() {
                                         <Download className="w-4 h-4 mr-1.5" />
                                         Exportar Excel
                                     </Button>
-                                    <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult({ mappedTargets: [], createdTargets: [], mappingDetails: [] }); setCorrections([]); }}>
+                                    <Button variant="outline" onClick={() => { setSavedSuccess(false); setSavedPayrollId(null); setCurrentStep(1); setUploadedFiles([]); setMappingResult(EMPTY_MAPPING); setCorrections([]); }}>
                                         Cargar otra
                                     </Button>
                                 </div>

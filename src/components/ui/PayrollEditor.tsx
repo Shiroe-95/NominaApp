@@ -8,7 +8,17 @@ import type { MatrixInput, MappingRelationInput, ValidationReport } from '@/lib/
 import type { AiValidationReport } from '@/app/api/ai/validation/route';
 import type { AiCorrectionSuggestion } from '@/app/api/ai/corrections/route';
 import { CURRENCY_TARGET_FIELDS } from '@/lib/payroll/ruleValidation';
-import { Calculator } from 'lucide-react';
+import { Calculator, Check, X, Sparkles } from 'lucide-react';
+
+/** Wil correction suggestion with formula (from corrector agent) */
+export interface WilCorrection {
+    rowIndex: number;
+    fieldName: string;
+    currentValue: number;
+    suggestedValue: number;
+    justification: string;
+    formula?: string;
+}
 
 export interface CorrectionEntry {
     sheetIndex: number;
@@ -28,6 +38,8 @@ interface Props {
     countryCode: string;
     year: number;
     onCorrectionsChange: (corrections: CorrectionEntry[]) => void;
+    /** Corrections from Wil corrector agent (Req 6.4) */
+    wilCorrections?: WilCorrection[];
 }
 
 const PAGE = 20;
@@ -88,6 +100,7 @@ export default function PayrollEditor({
     countryCode,
     year,
     onCorrectionsChange,
+    wilCorrections = [],
 }: Props) {
     const [sheet, setSheet] = useState(0);
     const [page, setPage] = useState(0);
@@ -96,6 +109,8 @@ export default function PayrollEditor({
     const [corr, setCorr] = useState<CorrectionEntry[]>([]);
     const [loadingAllAi, setLoadingAllAi] = useState(false);
     const [aiSuggestions, setAiSuggestions] = useState<Record<string, AiCorrectionSuggestion[]>>({});
+    /** Track which Wil corrections have been accepted/rejected */
+    const [wilDecisions, setWilDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({});
 
     const headers = useMemo(() => matrices[sheet]?.headers ?? [], [matrices, sheet]);
     const rows = useMemo(() => matrices[sheet]?.rows ?? [], [matrices, sheet]);
@@ -164,6 +179,43 @@ export default function PayrollEditor({
         }
         return m;
     }, [headers, relations]);
+
+    /** Index Wil corrections by cell key for quick lookup (Req 6.4) */
+    const wilCorrByCell = useMemo(() => {
+        const m = new Map<string, WilCorrection>();
+        for (const wc of wilCorrections) {
+            const ci = colByTarget.get(wc.fieldName);
+            if (ci !== undefined) {
+                m.set(`${sheet}-${wc.rowIndex}-${ci}`, wc);
+            }
+        }
+        return m;
+    }, [wilCorrections, colByTarget, sheet]);
+
+    /** Accept a Wil correction: apply value and register in history (Req 6.5) */
+    const acceptWilCorrection = (wc: WilCorrection) => {
+        const ci = colByTarget.get(wc.fieldName);
+        if (ci === undefined) return;
+        const key = `${sheet}-${wc.rowIndex}-${ci}`;
+        const ov = getVal(matrices, corr, sheet, wc.rowIndex, ci);
+        setAllCorr(upsertCorr(corr, {
+            sheetIndex: sheet,
+            rowIndex: wc.rowIndex,
+            colIndex: ci,
+            originalValue: ov,
+            newValue: wc.suggestedValue,
+            source: 'ai',
+        }));
+        setWilDecisions(prev => ({ ...prev, [key]: 'accepted' }));
+    };
+
+    /** Reject a Wil correction (Req 6.4) */
+    const rejectWilCorrection = (wc: WilCorrection) => {
+        const ci = colByTarget.get(wc.fieldName);
+        if (ci === undefined) return;
+        const key = `${sheet}-${wc.rowIndex}-${ci}`;
+        setWilDecisions(prev => ({ ...prev, [key]: 'rejected' }));
+    };
 
     const applyFormulaAll = () => {
         let next = [...corr];
@@ -338,8 +390,12 @@ export default function PayrollEditor({
                                     const v = getVal(matrices, corr, sheet, i, ci);
                                     const isEdit = editing?.ri === i && editing?.ci === ci;
                                     const changed = corr.some((x) => x.sheetIndex === sheet && x.rowIndex === i && x.colIndex === ci);
+                                    const wilKey = `${sheet}-${i}-${ci}`;
+                                    const wilCorr = wilCorrByCell.get(wilKey);
+                                    const wilDecision = wilDecisions[wilKey];
+                                    const hasWilPending = wilCorr && !wilDecision;
                                     return (
-                                        <td key={ci} className={cn('px-1 py-1 whitespace-nowrap', changed && 'bg-blue-900/40 text-blue-100')}>
+                                        <td key={ci} className={cn('px-1 py-1 whitespace-nowrap relative', changed && 'bg-blue-900/40 text-blue-100', hasWilPending && 'bg-violet-900/20')}>
                                             {isEdit ? (
                                                 <input
                                                     autoFocus
@@ -353,22 +409,58 @@ export default function PayrollEditor({
                                                     className="w-full rounded border border-blue-500 bg-black/50 text-white shadow-inner focus:ring-1 focus:ring-blue-500 focus:outline-none px-1 py-0.5"
                                                 />
                                             ) : (
-                                                <button
-                                                    className="w-full text-left p-1 rounded hover:bg-white/10 transition-colors"
-                                                    onClick={() => {
-                                                        setEditing({ ri: i, ci });
-                                                        setEditValue(String(v ?? ''));
-                                                    }}
-                                                >
-                                                    <div className="flex items-center justify-between gap-1">
-                                                        <span>{formatValue(v, targetByCol.get(ci))}</span>
-                                                        {matrices[sheet]?.formulas?.[i]?.[ci] && (
-                                                            <span title={`Fórmula original: ${matrices[sheet].formulas![i][ci]}`}>
-                                                                <Calculator className="w-3 h-3 text-violet-400 drop-shadow-[0_0_2px_rgba(139,92,246,0.8)] flex-shrink-0" />
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </button>
+                                                <div>
+                                                    <button
+                                                        className="w-full text-left p-1 rounded hover:bg-white/10 transition-colors"
+                                                        onClick={() => {
+                                                            setEditing({ ri: i, ci });
+                                                            setEditValue(String(v ?? ''));
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-1">
+                                                            <span>{formatValue(v, targetByCol.get(ci))}</span>
+                                                            {matrices[sheet]?.formulas?.[i]?.[ci] && (
+                                                                <span title={`Fórmula original: ${matrices[sheet].formulas![i][ci]}`}>
+                                                                    <Calculator className="w-3 h-3 text-violet-400 drop-shadow-[0_0_2px_rgba(139,92,246,0.8)] flex-shrink-0" />
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                    {/* Wil correction suggestion (Req 6.4) */}
+                                                    {hasWilPending && (
+                                                        <div className="mt-1 rounded border border-violet-500/40 bg-violet-950/50 p-1.5 text-[10px]">
+                                                            <div className="flex items-center gap-1 text-violet-300 mb-1">
+                                                                <Sparkles className="w-3 h-3" />
+                                                                <span className="font-semibold">Wil sugiere: {formatValue(wilCorr.suggestedValue, targetByCol.get(ci))}</span>
+                                                            </div>
+                                                            {wilCorr.formula && (
+                                                                <p className="text-violet-400/80 mb-1">{wilCorr.formula}</p>
+                                                            )}
+                                                            <div className="flex gap-1">
+                                                                <button
+                                                                    onClick={() => acceptWilCorrection(wilCorr)}
+                                                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 hover:bg-emerald-800/60 transition-colors border border-emerald-500/30"
+                                                                    title="Aceptar corrección"
+                                                                >
+                                                                    <Check className="w-3 h-3" /> Aceptar
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => rejectWilCorrection(wilCorr)}
+                                                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-900/50 text-red-300 hover:bg-red-800/60 transition-colors border border-red-500/30"
+                                                                    title="Rechazar corrección"
+                                                                >
+                                                                    <X className="w-3 h-3" /> Rechazar
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {wilDecision === 'accepted' && (
+                                                        <span className="text-[9px] text-emerald-400 flex items-center gap-0.5 mt-0.5"><Check className="w-2.5 h-2.5" /> Aceptada</span>
+                                                    )}
+                                                    {wilDecision === 'rejected' && (
+                                                        <span className="text-[9px] text-red-400 flex items-center gap-0.5 mt-0.5"><X className="w-2.5 h-2.5" /> Rechazada</span>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
                                     );

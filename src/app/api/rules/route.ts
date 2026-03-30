@@ -24,6 +24,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAuth, requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
+import { CountryYearRuleSchema } from '@/lib/payroll/country-rules-schema';
 
 /**
  * Extrae un mensaje legible de un error desconocido.
@@ -161,7 +162,7 @@ export async function GET(req: Request) {
 
         let query = supabase
             .from('country_year_rules')
-            .select('id, country_code, year, label, required_fields, required_calculations, checks, created_at')
+            .select('id, country_code, year, label, required_fields, required_calculations, checks, status, created_at')
             .order('year', { ascending: true });
 
         if (countryCode) query = query.eq('country_code', countryCode);
@@ -197,12 +198,14 @@ export async function GET(req: Request) {
 
         // Format response to match expected schema
         const formattedRules = (data || []).map(rule => ({
+            id: rule.id,
             country_code: rule.country_code,
             rule_year: rule.year,
             label: rule.label,
             required_fields: rule.required_fields,
             required_calculations: rule.required_calculations,
-            checks: rule.checks
+            checks: rule.checks,
+            status: rule.status ?? 'active',
         }));
 
         return NextResponse.json({ rules: formattedRules });
@@ -277,31 +280,37 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        const countryCode = typeof body.countryCode === 'string' ? body.countryCode.trim().toUpperCase() : '';
-        const ruleYear = Number(body.ruleYear);
-        const label = typeof body.label === 'string' ? body.label.trim() : '';
-        const requiredFields = Array.isArray(body.requiredFields) ? body.requiredFields : [];
-        const requiredCalculations = Array.isArray(body.requiredCalculations) ? body.requiredCalculations : [];
-        const checks = Array.isArray(body.checks) ? body.checks : [];
+        const parsed = CountryYearRuleSchema.safeParse({
+            country_code: typeof body.countryCode === 'string' ? body.countryCode.trim().toUpperCase() : '',
+            rule_year: Number(body.ruleYear),
+            label: typeof body.label === 'string' ? body.label.trim() : '',
+            required_fields: Array.isArray(body.requiredFields) ? body.requiredFields : [],
+            required_calculations: Array.isArray(body.requiredCalculations) ? body.requiredCalculations : [],
+            checks: Array.isArray(body.checks) ? body.checks : [],
+            status: body.status ?? 'draft',
+        });
 
-        if (!countryCode || !Number.isFinite(ruleYear) || !label) {
-            return NextResponse.json({ error: 'countryCode, ruleYear and label are required' }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json({ error: 'Invalid rule data', details: parsed.error.flatten() }, { status: 400 });
         }
+
+        const { country_code, rule_year, label, required_fields, required_calculations, checks, status } = parsed.data;
 
         const { data, error } = await supabase
             .from('country_year_rules')
             .upsert(
                 { 
-                    country_code: countryCode, 
-                    year: ruleYear, 
+                    country_code, 
+                    year: rule_year, 
                     label, 
-                    required_fields: requiredFields, 
-                    required_calculations: requiredCalculations, 
-                    checks
+                    required_fields, 
+                    required_calculations, 
+                    checks,
+                    status,
                 },
                 { onConflict: 'country_code,year' }
             )
-            .select('id, country_code, year, label, required_fields, required_calculations, checks')
+            .select('id, country_code, year, label, required_fields, required_calculations, checks, status')
             .single();
 
         if (error) {
@@ -311,12 +320,14 @@ export async function POST(req: Request) {
 
         // Format response
         const formattedRule = data ? {
+            id: data.id,
             country_code: data.country_code,
             rule_year: data.year,
             label: data.label,
             required_fields: data.required_fields,
             required_calculations: data.required_calculations,
-            checks: data.checks
+            checks: data.checks,
+            status: data.status ?? 'draft',
         } : null;
 
         return NextResponse.json({ rule: formattedRule });

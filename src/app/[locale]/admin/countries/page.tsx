@@ -26,6 +26,8 @@ interface Country {
   thousands_separator: string;
   /** Indica si el país está habilitado para uso en la plataforma */
   is_active: boolean;
+  /** Frecuencia de sincronización regulatoria */
+  sync_frequency: 'weekly' | 'monthly';
 }
 
 /** Map of country_code → latest sync history entry. */
@@ -41,6 +43,7 @@ const empty: Omit<Country, 'id'> = {
   decimal_separator: '.',
   thousands_separator: ',',
   is_active: true,
+  sync_frequency: 'weekly',
 };
 
 /**
@@ -130,6 +133,7 @@ export default function CountriesPage() {
       decimal_separator: c.decimal_separator,
       thousands_separator: c.thousands_separator,
       is_active: c.is_active,
+      sync_frequency: c.sync_frequency ?? 'weekly',
     });
   };
 
@@ -354,6 +358,20 @@ export default function CountriesPage() {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Frecuencia de sync</label>
+            <select
+              className={inputCls}
+              value={form.sync_frequency}
+              onChange={(e) => set('sync_frequency', e.target.value)}
+            >
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensual</option>
+            </select>
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button size="sm" onClick={handleSave} disabled={saving || !form.country_code || !form.country_name}>
             {saving ? 'Guardando…' : editId ? 'Actualizar' : 'Crear'}
@@ -382,6 +400,7 @@ export default function CountriesPage() {
                 <th className="px-4 py-3">Símbolo</th>
                 <th className="px-4 py-3">Locale</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Sync</th>
                 <th className="px-4 py-3">Última sincronización</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
@@ -403,6 +422,11 @@ export default function CountriesPage() {
                       }`}
                     >
                       {c.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs text-slate-300 capitalize">
+                      {c.sync_frequency === 'weekly' ? 'Semanal' : c.sync_frequency === 'monthly' ? 'Mensual' : c.sync_frequency ?? 'Semanal'}
                     </span>
                   </td>
                   <td className="px-4 py-3">

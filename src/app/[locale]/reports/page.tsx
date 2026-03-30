@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileCheck2, AlertTriangle, CheckCircle2, Building2, CalendarClock, ListChecks, Trash2, ShieldCheck, Download } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { FileCheck2, AlertTriangle, CheckCircle2, CalendarClock, ListChecks, Trash2, ShieldCheck, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 import { summarizeActions } from '@/lib/payroll/actions';
-import * as XLSX from 'xlsx';
+import { exportReportToExcel } from '@/lib/payroll/export-excel';
 
 interface PayrollReport {
     id: string;
@@ -83,6 +84,7 @@ interface CheckResult {
 
 export default function ReportsPage() {
     const t = useTranslations('Reports');
+    const router = useRouter();
     const [rows, setRows] = useState<PayrollReport[]>([]);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [actions, setActions] = useState<Array<{ id: string; status: 'open' | 'assigned' | 'resolved'; employee_name: string; title: string; priority: 'high' | 'medium' | 'low'; assigned_to: string | null }>>([]);
@@ -154,61 +156,7 @@ export default function ReportsPage() {
 
     const handleExportReport = () => {
         if (rows.length === 0) return;
-
-        // Sheet 1: Summary table
-        const summaryData = [
-            ['Fecha', 'Empresa', 'NIT', 'País', 'Período', 'Regla', 'Variables', 'Mapeados', 'Riesgo', 'Estado'],
-            ...rows.map((r) => [
-                new Date(r.created_at).toLocaleDateString('es-CO'),
-                r.company_name ?? '',
-                r.company_nit ?? '',
-                r.country_code,
-                `${String(r.period_month).padStart(2, '0')}/${r.period_year}`,
-                r.rule_label ?? '',
-                r.detected_variables?.length ?? 0,
-                r.mapped_fields?.length ?? 0,
-                r.risk_report?.score ?? 0,
-                r.certification_ready ? 'Certificable' : 'No certificable',
-            ]),
-        ];
-
-        const wb = XLSX.utils.book_new();
-        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
-
-        // Sheet 2: Employee risk from latest
-        if (latest?.employee_risk_summary?.topEmployees) {
-            const empData = [
-                ['Documento', 'Nombre', 'Score Riesgo', 'Hallazgos'],
-                ...latest.employee_risk_summary.topEmployees.map((e) => [
-                    e.document,
-                    e.name,
-                    e.score,
-                    (e.findings ?? []).join('; '),
-                ]),
-            ];
-            const wsEmp = XLSX.utils.aoa_to_sheet(empData);
-            XLSX.utils.book_append_sheet(wb, wsEmp, 'Riesgo Empleados');
-        }
-
-        // Sheet 3: Actions queue
-        if (actions.length > 0) {
-            const actData = [
-                ['Empleado', 'Título', 'Prioridad', 'Estado', 'Asignado a'],
-                ...actions.map((a) => [
-                    a.employee_name,
-                    a.title,
-                    a.priority,
-                    a.status,
-                    a.assigned_to ?? '',
-                ]),
-            ];
-            const wsAct = XLSX.utils.aoa_to_sheet(actData);
-            XLSX.utils.book_append_sheet(wb, wsAct, 'Cola de Acciones');
-        }
-
-        const filename = `reporte_nominasmart_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        XLSX.writeFile(wb, filename);
+        exportReportToExcel(rows, latest, actions);
     };
 
     const actionsOverview = useMemo(() => {
@@ -222,7 +170,7 @@ export default function ReportsPage() {
     }, [latest]);
 
     const handleDeletePayroll = async (id: string) => {
-        if (!window.confirm('¿Eliminar esta planilla? Esta acción no se puede deshacer.')) return;
+        if (!window.confirm(t('deleteConfirm'))) return;
         setDeletingId(id);
         try {
             const res = await fetch(`/api/payrolls?id=${id}`, { method: 'DELETE' });
@@ -262,7 +210,7 @@ export default function ReportsPage() {
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet text-white text-sm font-semibold hover:bg-violet-dark transition-colors disabled:opacity-40 shrink-0 shadow-[0_0_15px_rgba(139,92,246,0.4)]"
                 >
                     <Download className="w-4 h-4" />
-                    Exportar Reporte
+                    {t('exportReport')}
                 </button>
             </div>
 
@@ -302,16 +250,16 @@ export default function ReportsPage() {
                         <CardContent className="pt-4 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Identificación</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('identification')}</p>
                                     <p className="text-sm font-semibold text-white">{latest.company_name} <span className="text-slate-400 font-normal">({latest.company_nit})</span></p>
                                     <p className="text-xs text-slate-400">{latest.period_month}/{latest.period_year} · {latest.country_code}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Riesgo Global</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('overallRisk')}</p>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-2xl font-black text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{latest.risk_report?.score ?? 0}<span className="text-sm font-normal text-slate-400">/100</span></span>
                                         <span className={cn('text-[10px] font-bold uppercase px-2 py-0.5 rounded border', (latest.risk_report?.level ?? 'low') === 'high' ? 'bg-rose/20 text-rose-light border-rose/30' : 'bg-emerald/20 text-emerald-light border-emerald/30')}>
-                                            Nivel {latest.risk_report?.level ?? 'bajo'}
+                                            {t('riskLevel')} {latest.risk_report?.level ?? 'bajo'}
                                         </span>
                                     </div>
                                 </div>
@@ -334,7 +282,7 @@ export default function ReportsPage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-violet-light" /> Riesgo por Empleado</p>
+                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-violet-light" /> {t('riskByEmployee')}</p>
                                     <div className="space-y-2">
                                         {(latest.employee_risk_summary?.topEmployees ?? []).slice(0, 5).map((emp) => {
                                             const realName = emp.name && emp.name !== 'Sin nombre' ? emp.name : findNameInMatrices(emp.document, latest);
@@ -358,7 +306,7 @@ export default function ReportsPage() {
                                 </div>
 
                                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-light" /> Validación Matemática</p>
+                                    <p className="text-xs font-bold text-white mb-3 flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-light" /> {t('mathValidation')}</p>
                                     <div className="space-y-2">
                                         {(latest.calculation_validation_report?.checks as CheckResult[] ?? []).slice(0, 8).map((check) => {
                                             const totalAnalyzed = check.passedRows + check.failedRows;
@@ -399,9 +347,17 @@ export default function ReportsPage() {
                 </>
             ) : (
                 <Card>
-                    <CardContent className="py-20 text-center text-slate-500 text-sm">
-                        <FileCheck2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                        {t('noSavedReports')}
+                    <CardContent className="py-20 text-center">
+                        <FileCheck2 className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+                        <p className="text-base font-semibold text-slate-300 mb-1">{t('emptyTitle')}</p>
+                        <p className="text-sm text-slate-500 mb-4">{t('emptyDescription')}</p>
+                        <button
+                            onClick={() => router.push('/upload')}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet text-white text-sm font-semibold hover:bg-violet-dark transition-colors shadow-[0_0_15px_rgba(139,92,246,0.4)]"
+                        >
+                            <Upload className="w-4 h-4" />
+                            {t('goToUpload')}
+                        </button>
                     </CardContent>
                 </Card>
             )}
@@ -417,19 +373,19 @@ export default function ReportsPage() {
                     <Table>
                         <TableHeader className="bg-black/30">
                             <TableRow className="border-white/10">
-                                <TableHead className="font-bold py-4 text-slate-300">Fecha</TableHead>
-                                <TableHead className="font-bold text-slate-300">Empresa</TableHead>
-                                <TableHead className="font-bold text-slate-300">Periodo</TableHead>
-                                <TableHead className="text-center font-bold text-slate-300">Riesgo</TableHead>
-                                <TableHead className="font-bold text-slate-300">Estado</TableHead>
-                                <TableHead className="text-right font-bold pr-6 text-slate-300">Acciones</TableHead>
+                                <TableHead className="font-bold py-4 text-slate-300">{t('date')}</TableHead>
+                                <TableHead className="font-bold text-slate-300">{t('company')}</TableHead>
+                                <TableHead className="font-bold text-slate-300">{t('period')}</TableHead>
+                                <TableHead className="text-center font-bold text-slate-300">{t('risk')}</TableHead>
+                                <TableHead className="font-bold text-slate-300">{t('status')}</TableHead>
+                                <TableHead className="text-right font-bold pr-6 text-slate-300">{t('actions')}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {rows.length === 0 && (
                                 <TableRow className="border-white/10">
                                     <TableCell colSpan={6} className="text-center text-slate-500 py-12">
-                                        No hay registros.
+                                        {t('noRecords')}
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -454,7 +410,7 @@ export default function ReportsPage() {
                                         </TableCell>
                                         <TableCell>
                                             <span className={cn('inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border', r.certification_ready ? 'bg-emerald/20 text-emerald-light border-emerald/30' : 'bg-rose/20 text-rose-light border-rose/30')}>
-                                                {r.certification_ready ? 'Certificable' : 'Faltantes'}
+                                                {r.certification_ready ? t('certifiable') : t('notCertifiable')}
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-right pr-6">

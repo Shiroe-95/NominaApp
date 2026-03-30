@@ -101,6 +101,11 @@ export async function PUT(req: Request) {
   if (body.country_name) fields.country_name = sanitizeString(body.country_name, 100);
   if (body.currency_code) fields.currency_code = sanitizeString(body.currency_code, 3).toUpperCase();
   if (body.is_active !== undefined) fields.is_active = Boolean(body.is_active);
+  if (body.sync_frequency) fields.sync_frequency = sanitizeString(body.sync_frequency, 10);
+  if (body.currency_symbol) fields.currency_symbol = sanitizeString(body.currency_symbol, 10);
+  if (body.locale_format) fields.locale_format = sanitizeString(body.locale_format, 10);
+  if (body.decimal_separator) fields.decimal_separator = sanitizeString(body.decimal_separator, 1);
+  if (body.thousands_separator) fields.thousands_separator = sanitizeString(body.thousands_separator, 1);
 
   const supabase = createAdminClient();
   const { data, error } = await supabase.from(TABLE).update(fields).eq('id', id).select().single();

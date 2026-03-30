@@ -25,17 +25,31 @@ export interface GroupedFinding {
   findings: AuditFinding[];
 }
 
+/** Hallazgos y recomendaciones por empleado individual. */
+export interface EmployeeFindingSummary {
+  employeeDoc: string;
+  employeeName: string;
+  riskScore: number;
+  findings: AuditFinding[];
+  recommendations: string[];
+  normativeReferences: string[];
+}
+
 /**
  * Reporte ejecutivo generado por el Agente Redactor.
  *
- * Contiene el resumen narrativo, nivel de riesgo, hallazgos agrupados
- * por categoría, recomendaciones priorizadas y referencias normativas.
- * Cumple con Requisitos 6.1, 6.2 y 6.3.
+ * Contiene el resumen narrativo, nivel de riesgo (score/100), hallazgos agrupados
+ * por categoría, análisis narrativo, hallazgos por empleado con recomendaciones
+ * y referencias normativas.
+ * Cumple con Requisitos 7.1, 7.2.
  */
 export interface WriterReport {
   executiveSummary: string;
+  riskScore: number;
   riskLevel: RiskLevel;
+  narrativeAnalysis: string;
   findingsByCategory: GroupedFinding[];
+  findingsByEmployee: EmployeeFindingSummary[];
   recommendations: string[];
   normativeReferences: string[];
 }
@@ -45,6 +59,7 @@ export interface WriterReport {
 const WriterOutputSchema = z.object({
   executiveSummary: z.string().min(1).describe('Resumen ejecutivo del reporte de auditoría'),
   riskLevel: z.enum(['alto', 'medio', 'bajo']).describe('Nivel de riesgo global'),
+  narrativeAnalysis: z.string().min(1).describe('Análisis narrativo detallado de los hallazgos, impacto y contexto regulatorio'),
   recommendations: z
     .array(z.string())
     .min(1)
@@ -136,6 +151,84 @@ export function extractNormativeReferences(findings: AuditFinding[]): string[] {
   return Array.from(refs);
 }
 
+/**
+ * Calcula el score de riesgo global (0-100) basado en la distribución de severidades.
+ *
+ * Fórmula: min(100, high × 40 + medium × 20 + low × 10) normalizado
+ * sobre el total de hallazgos para dar un score proporcional.
+ *
+ * @param summary - Resumen agregado de hallazgos del Agente Auditor.
+ * @returns Score de riesgo entre 0 y 100.
+ */
+export function calculateRiskScore(summary: AuditSummary): number {
+  const raw =
+    summary.bySeverity.alta * 40 +
+    summary.bySeverity.media * 20 +
+    summary.bySeverity.baja * 10;
+  return Math.min(100, raw);
+}
+
+/**
+ * Agrupa hallazgos por empleado (document), calcula score de riesgo individual
+ * y genera recomendaciones y referencias normativas por empleado.
+ *
+ * @param findings - Lista plana de hallazgos del Agente Auditor.
+ * @returns Hallazgos agrupados por empleado, ordenados por riskScore descendente.
+ */
+export function groupFindingsByEmployee(findings: AuditFinding[]): EmployeeFindingSummary[] {
+  const byEmployee = new Map<string, AuditFinding[]>();
+
+  for (const f of findings) {
+    const doc = f.document;
+    const list = byEmployee.get(doc);
+    if (list) {
+      list.push(f);
+    } else {
+      byEmployee.set(doc, [f]);
+    }
+  }
+
+  const result: EmployeeFindingSummary[] = [];
+  for (const [doc, empFindings] of byEmployee) {
+    const highCount = empFindings.filter(f => f.severity === 'alta').length;
+    const medCount = empFindings.filter(f => f.severity === 'media').length;
+    const lowCount = empFindings.filter(f => f.severity === 'baja').length;
+    const riskScore = highCount * 40 + medCount * 20 + lowCount * 10;
+
+    // Sort findings by severity within employee
+    empFindings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+
+    const refs = new Set<string>();
+    for (const f of empFindings) {
+      if (f.norm) refs.add(f.norm);
+    }
+
+    const recommendations: string[] = [];
+    if (highCount > 0) {
+      recommendations.push(`Corregir ${highCount} hallazgo(s) de severidad alta de forma prioritaria.`);
+    }
+    if (medCount > 0) {
+      recommendations.push(`Revisar ${medCount} hallazgo(s) de severidad media.`);
+    }
+    if (lowCount > 0) {
+      recommendations.push(`Verificar ${lowCount} hallazgo(s) de severidad baja.`);
+    }
+
+    result.push({
+      employeeDoc: doc,
+      employeeName: doc, // Name resolved at UI level from source matrices
+      riskScore,
+      findings: empFindings,
+      recommendations,
+      normativeReferences: Array.from(refs),
+    });
+  }
+
+  // Sort by riskScore descending
+  result.sort((a, b) => b.riskScore - a.riskScore);
+  return result;
+}
+
 // ── System prompt ───────────────────────────────────────────────────
 
 const WRITER_SYSTEM_PROMPT = `Eres el Agente Redactor de NóminaSmart, especializado en generar reportes ejecutivos de auditoría de nómina multi-país.
@@ -216,6 +309,8 @@ export function createWriterAgent(): AgentDefinition {
     const findingsByCategory = groupAndSortFindings(findings);
     const riskLevel = determineRiskLevel(summary);
     const normativeReferences = extractNormativeReferences(findings);
+    const riskScore = calculateRiskScore(summary);
+    const findingsByEmployee = groupFindingsByEmployee(findings);
 
     // If no findings, return a clean report without calling the AI
     if (findings.length === 0) {
@@ -223,8 +318,14 @@ export function createWriterAgent(): AgentDefinition {
         executiveSummary:
           'La auditoría de nómina no detectó inconsistencias en los registros analizados. ' +
           'Todos los cálculos cumplen con la normativa vigente.',
+        riskScore: 0,
         riskLevel: 'bajo',
+        narrativeAnalysis:
+          'Se realizó una revisión completa de los registros de nómina sin detectar desviaciones ' +
+          'respecto a la normativa vigente. Los cálculos de aportes, prestaciones y deducciones ' +
+          'se encuentran dentro de los parámetros legales establecidos.',
         findingsByCategory: [],
+        findingsByEmployee: [],
         recommendations: ['Mantener los controles actuales de nómina.'],
         normativeReferences: [],
       };
@@ -267,7 +368,8 @@ Registros analizados: ${auditorData?.validationReport?.rowsAnalyzed ?? 'N/A'}
 Registros con hallazgos: ${auditorData?.validationReport?.rowsWithFindings ?? 'N/A'}
 Total de hallazgos: ${summary.totalFindings}
 Severidad: ${summary.bySeverity.alta} alta, ${summary.bySeverity.media} media, ${summary.bySeverity.baja} baja
-Nivel de riesgo global: ${riskLevel}
+Nivel de riesgo global: ${riskLevel} (score: ${riskScore}/100)
+Empleados con hallazgos: ${findingsByEmployee.length}
 
 Hallazgos por categoría:
 ${findingsText}
@@ -277,7 +379,8 @@ ${normativeReferences.map((r) => `- ${r}`).join('\n')}
 
 Genera:
 1. Un resumen ejecutivo claro y profesional (2-4 párrafos)
-2. Recomendaciones priorizadas y concretas`;
+2. Un análisis narrativo detallado que explique el contexto regulatorio, impacto financiero y riesgos de sanción
+3. Recomendaciones priorizadas y concretas`;
 
     try {
       const { object, usage } = await generateObject({
@@ -291,8 +394,11 @@ Genera:
 
       const report: WriterReport = {
         executiveSummary: aiOutput.executiveSummary,
+        riskScore,
         riskLevel,
+        narrativeAnalysis: aiOutput.narrativeAnalysis,
         findingsByCategory,
+        findingsByEmployee,
         recommendations: aiOutput.recommendations,
         normativeReferences,
       };
@@ -311,9 +417,16 @@ Genera:
         executiveSummary:
           `Se analizaron los registros de nómina y se detectaron ${summary.totalFindings} hallazgos: ` +
           `${summary.bySeverity.alta} de severidad alta, ${summary.bySeverity.media} media y ${summary.bySeverity.baja} baja. ` +
-          `El nivel de riesgo global es ${riskLevel}.`,
+          `El nivel de riesgo global es ${riskLevel} (${riskScore}/100).`,
+        riskScore,
         riskLevel,
+        narrativeAnalysis:
+          `La auditoría identificó ${summary.totalFindings} hallazgos distribuidos en ${findingsByCategory.length} categorías normativas. ` +
+          `Se encontraron ${summary.bySeverity.alta} hallazgos de severidad alta que requieren atención inmediata, ` +
+          `${summary.bySeverity.media} de severidad media y ${summary.bySeverity.baja} de severidad baja. ` +
+          `${findingsByEmployee.length} empleado(s) presentan hallazgos que deben ser revisados.`,
         findingsByCategory,
+        findingsByEmployee,
         recommendations: [
           'Revisar y corregir los hallazgos de severidad alta de forma prioritaria.',
           'Verificar los cálculos de base de cotización y aportes a seguridad social.',

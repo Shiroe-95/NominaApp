@@ -26,6 +26,7 @@ import {
   Bot,
   ListChecks,
   Building2,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BarChart,
@@ -64,7 +65,21 @@ interface UsageResponse {
   aggregated: Aggregated;
 }
 
-type TabKey = 'provider' | 'agent' | 'task' | 'client';
+type TabKey = 'provider' | 'agent' | 'task' | 'client' | 'sync';
+
+interface SyncHistoryEntry {
+  id: string;
+  country_code: string;
+  rule_year: number;
+  status: 'in_progress' | 'completed' | 'failed';
+  trigger_type: 'automatic' | 'manual';
+  started_at: string;
+  completed_at: string | null;
+  changes_detected: number;
+  confidence: string | null;
+  error_message: string | null;
+  retry_count: number;
+}
 
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -106,6 +121,7 @@ const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?
   { key: 'agent', label: 'Por Agente', icon: Bot },
   { key: 'task', label: 'Por Tarea', icon: ListChecks },
   { key: 'client', label: 'Por Cliente', icon: Building2 },
+  { key: 'sync', label: 'Sincronizaciones', icon: RefreshCw },
 ];
 
 // ── Recharts tooltip style ──────────────────────────────────────────
@@ -136,6 +152,8 @@ export default function UsagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('provider');
+  const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[]>([]);
+  const [syncLoading, setSyncLoading] = useState(false);
 
   // Filters
   const [filterProvider, setFilterProvider] = useState('');
@@ -167,6 +185,19 @@ export default function UsagePage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch sync history when sync tab is active
+  useEffect(() => {
+    if (activeTab !== 'sync') return;
+    setSyncLoading(true);
+    fetch('/api/sync/history')
+      .then((res) => res.json())
+      .then((json) => {
+        if (Array.isArray(json.history)) setSyncHistory(json.history);
+      })
+      .catch(() => { /* silent */ })
+      .finally(() => setSyncLoading(false));
+  }, [activeTab]);
 
   // Derive unique providers and agents for filter dropdowns
   const providerOptions = data?.stats?.map((s) => s.provider_type).filter(Boolean) ?? [];
@@ -332,6 +363,7 @@ export default function UsagePage() {
           {activeTab === 'agent' && <AgentBreakdown data={currentData} />}
           {activeTab === 'task' && <TaskBreakdown data={currentData} />}
           {activeTab === 'client' && <ClientBreakdown data={currentData} />}
+          {activeTab === 'sync' && <SyncHistoryBreakdown data={syncHistory} loading={syncLoading} />}
         </>
       )}
     </div>
@@ -623,6 +655,139 @@ function ClientBreakdown({ data }: { data: UsageStat[] }) {
             )}
           </tbody>
         </table>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Sync History Breakdown (Req 11.9) ───────────────────────────────
+
+/**
+ * Historial de sincronizaciones regulatorias: tabla con estado, país,
+ * año, tipo de trigger y conteo de reintentos.
+ */
+function SyncHistoryBreakdown({ data, loading }: { data: SyncHistoryEntry[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-slate-400 text-sm">
+          Cargando historial de sincronizaciones…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const statusConfig: Record<string, { label: string; cls: string }> = {
+    completed: { label: 'Completada', cls: 'bg-emerald-500/10 text-emerald-400' },
+    failed: { label: 'Fallida', cls: 'bg-rose-500/10 text-rose-400' },
+    in_progress: { label: 'En progreso', cls: 'bg-amber-500/10 text-amber-400' },
+  };
+
+  const triggerLabels: Record<string, string> = {
+    automatic: 'Automático',
+    manual: 'Manual',
+    bootstrap: 'Bootstrap',
+    cron: 'Cron',
+  };
+
+  const formatDate = (iso: string): string => {
+    try {
+      return new Date(iso).toLocaleDateString('es', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 text-violet-light" />
+          Historial de Sincronizaciones Regulatorias
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {data.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-sm">
+            Sin historial de sincronizaciones.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-400 border-b border-white/5">
+                  <th className="pb-2 pr-4">Fecha</th>
+                  <th className="pb-2 pr-4">País</th>
+                  <th className="pb-2 pr-4">Año</th>
+                  <th className="pb-2 pr-4">Estado</th>
+                  <th className="pb-2 pr-4">Trigger</th>
+                  <th className="pb-2 pr-4">Cambios</th>
+                  <th className="pb-2 pr-4">Confianza</th>
+                  <th className="pb-2 text-right">Reintentos</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {data.map((entry) => {
+                  const cfg = statusConfig[entry.status] ?? statusConfig.failed;
+                  return (
+                    <tr key={entry.id}>
+                      <td className="py-2 pr-4 text-slate-300 text-xs">
+                        {formatDate(entry.started_at)}
+                      </td>
+                      <td className="py-2 pr-4 text-slate-200 font-mono">
+                        {entry.country_code}
+                      </td>
+                      <td className="py-2 pr-4 text-slate-300">
+                        {entry.rule_year}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4 text-slate-300 text-xs">
+                        {triggerLabels[entry.trigger_type] ?? entry.trigger_type}
+                      </td>
+                      <td className="py-2 pr-4 text-slate-300">
+                        {entry.changes_detected > 0 ? (
+                          <span className="text-violet-light font-medium">{entry.changes_detected}</span>
+                        ) : (
+                          <span className="text-slate-500">0</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4 text-xs">
+                        {entry.confidence ? (
+                          <span className={
+                            entry.confidence === 'high' ? 'text-emerald-400' :
+                            entry.confidence === 'medium' ? 'text-amber-400' :
+                            'text-rose-400'
+                          }>
+                            {entry.confidence}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 text-right text-slate-300">
+                        {entry.retry_count > 0 ? (
+                          <span className="text-amber-400">{entry.retry_count}</span>
+                        ) : (
+                          <span className="text-slate-500">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

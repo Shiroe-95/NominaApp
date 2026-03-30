@@ -1,18 +1,12 @@
 /**
  * DashboardClient — Componente principal del dashboard ejecutivo.
  *
- * Renderiza métricas, filtros, gráficos de tendencia, salud de nómina,
- * hallazgos recientes y desglose por empresa. Adapta su contenido según
- * el rol del usuario (admin / analyst / client).
+ * Orquesta la carga paralela de datos (planillas, empresas, proveedores)
+ * y renderiza métricas, gráficos de tendencia, salud de proveedores IA,
+ * hallazgos recientes y desglose por empresa. Adapta contenido según rol.
  *
- * Sub-componentes internos esperados (definidos más abajo en el archivo o externamente):
- * - ProviderStatusPanel: panel de estado de proveedores IA
- * - ProcessFlowPanel: flujo de proceso con agentes IA (reemplaza AgentTeamSection)
- * - LiveLogsPanel: panel de logs en tiempo real
- * - LiveSynthesisPanel: panel de síntesis en tiempo real
- * - AdminMetrics / AnalystMetrics / ClientMetrics: tarjetas de métricas por rol
- * - RecentFindingsSummary: tabla resumen de hallazgos recientes
- * - CertificationStatusCard: estado de certificación (solo rol client)
+ * Si no hay planillas, muestra EmptyState con enlace a /upload (Req 2.5).
+ * Renderiza con datos vacíos si alguna carga falla (Req 2.7).
  */
 'use client';
 
@@ -22,11 +16,12 @@ import { Link } from '@/i18n/routing';
 import {
     ArrowRight, Shield, FileText, Users, Activity,
     AlertTriangle, CheckCircle, Clock, TrendingUp,
-    BarChart3,
+    BarChart3, Upload,
 } from 'lucide-react';
-import { MetricCard } from '@/components/ui/MetricCard';
+import { DashboardMetrics } from '@/components/ui/DashboardMetrics';
 import { DashboardTrends } from '@/components/ui/DashboardTrends';
 import { DashboardHealth } from '@/components/ui/DashboardHealth';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { TopCompanies } from '@/components/ui/TopCompanies';
 import { LatestPayrollCard } from '@/components/ui/LatestPayrollCard';
 import { ProviderStatusPanel } from '@/components/ui/ProviderStatusPanel';
@@ -60,21 +55,11 @@ interface PayrollRow {
     created_at: string;
 }
 
-/**
- * Convierte un valor desconocido a número seguro.
- * @param input - Valor a convertir.
- * @returns El número si es finito, o 0 en caso contrario.
- */
+/** Convierte un valor desconocido a número seguro. */
 function safeNumber(input: unknown) {
     return typeof input === 'number' && Number.isFinite(input) ? input : 0;
 }
 
-/**
- * Props del componente DashboardClient.
- * @property role - Rol del usuario autenticado (admin | analyst | client).
- * @property initialCompanies - Lista de empresas para el filtro de empresa.
- * @property initialPayrolls - Nóminas cargadas desde el servidor para renderizar métricas.
- */
 interface DashboardClientProps {
     role: UserRole;
     initialCompanies: Company[];
@@ -82,18 +67,12 @@ interface DashboardClientProps {
     providers?: ProviderSummary[];
 }
 
-/** Mapa de clases CSS por nivel de severidad de riesgo. */
 const severityColor = {
     high: 'text-rose-light bg-rose/10 border-rose/20',
     medium: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
     low: 'text-emerald bg-emerald/10 border-emerald/20',
 } as const;
 
-/**
- * Clasifica un puntaje de riesgo numérico en nivel de severidad.
- * @param score - Puntaje de riesgo (0–100).
- * @returns 'high' si ≥ 70, 'medium' si ≥ 40, 'low' en caso contrario.
- */
 function getSeverityFromScore(score: number): 'high' | 'medium' | 'low' {
     if (score >= 70) return 'high';
     if (score >= 40) return 'medium';
@@ -120,6 +99,7 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
         });
     }, [initialPayrolls, companyId, countryCode, year, month]);
 
+    // Metrics: total planillas, certificables, fallas críticas, score riesgo promedio (Req 2.1)
     const metrics = useMemo(() => {
         const total = filtered.length;
         const certifiable = filtered.filter((p) => p.certification_ready).length;
@@ -147,6 +127,19 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
         };
     }, [filtered]);
 
+    // Risk trend data for last 30 payrolls (Req 2.2)
+    const riskTrendData = useMemo(() => {
+        return filtered.slice(0, 30).map((p, i) => ({
+            key: `${p.period_year}-${String(p.period_month).padStart(2, '0')}-${i}`,
+            label: `${String(p.period_month).padStart(2, '0')}/${p.period_year}`,
+            riskScore: safeNumber(p.risk_report?.score),
+            total: 1,
+            certifiable: p.certification_ready ? 1 : 0,
+            critical: safeNumber(p.calculation_validation_report?.criticalFindings),
+        }));
+    }, [filtered]);
+
+    // Monthly series for certification trend
     const monthlySeries = useMemo(() => {
         const map = new Map<string, { key: string; label: string; total: number; certifiable: number; critical: number }>();
         for (const row of filtered) {
@@ -195,65 +188,68 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
     const latest = filtered[0];
 
     const heroConfig = {
-        admin: {
-            badge: t('adminPanel'),
-            title: t('adminHeroTitle'),
-            subtitle: t('adminHeroSubtitle'),
-        },
-        analyst: {
-            badge: t('analystPanel'),
-            title: t('analystHeroTitle'),
-            subtitle: t('analystHeroSubtitle'),
-        },
-        client: {
-            badge: t('clientPanel'),
-            title: t('clientHeroTitle'),
-            subtitle: t('clientHeroSubtitle'),
-        },
+        admin: { badge: t('adminPanel'), title: t('adminHeroTitle'), subtitle: t('adminHeroSubtitle') },
+        analyst: { badge: t('analystPanel'), title: t('analystHeroTitle'), subtitle: t('analystHeroSubtitle') },
+        client: { badge: t('clientPanel'), title: t('clientHeroTitle'), subtitle: t('clientHeroSubtitle') },
     }[role];
 
-    // ── Pipeline stream hook for logs and synthesis ──
     const { logs, synthesis, isRunning, clearLogs, activeStep } = usePipelineStream();
 
-    // ── Process flow steps with assigned agents ──
     const processSteps: ProcessStep[] = useMemo(() => [
         {
-            id: 'upload',
-            title: t('processStepUpload'),
-            description: t('processStepUploadDesc'),
+            id: 'upload', title: t('processStepUpload'), description: t('processStepUploadDesc'),
             agents: [{ id: AGENT_PERSONAS.master.id, name: AGENT_PERSONAS.master.name, emoji: AGENT_PERSONAS.master.emoji, role: AGENT_PERSONAS.master.role }],
-            status: activeStep > 0 ? 'completed' : activeStep === 0 && isRunning ? 'active' : 'pending',
-            href: '/upload',
+            status: activeStep > 0 ? 'completed' : activeStep === 0 && isRunning ? 'active' : 'pending', href: '/upload',
         },
         {
-            id: 'mapping',
-            title: t('processStepMapping'),
-            description: t('processStepMappingDesc'),
+            id: 'mapping', title: t('processStepMapping'), description: t('processStepMappingDesc'),
             agents: [{ id: AGENT_PERSONAS.mapper.id, name: AGENT_PERSONAS.mapper.name, emoji: AGENT_PERSONAS.mapper.emoji, role: AGENT_PERSONAS.mapper.role }],
-            status: activeStep > 1 ? 'completed' : activeStep === 1 && isRunning ? 'active' : 'pending',
-            href: '/reconcile',
+            status: activeStep > 1 ? 'completed' : activeStep === 1 && isRunning ? 'active' : 'pending', href: '/reconcile',
         },
         {
-            id: 'validation',
-            title: t('processStepValidation'),
-            description: t('processStepValidationDesc'),
+            id: 'validation', title: t('processStepValidation'), description: t('processStepValidationDesc'),
             agents: [
                 { id: AGENT_PERSONAS.auditor.id, name: AGENT_PERSONAS.auditor.name, emoji: AGENT_PERSONAS.auditor.emoji, role: AGENT_PERSONAS.auditor.role },
                 { id: AGENT_PERSONAS.corrector.id, name: AGENT_PERSONAS.corrector.name, emoji: AGENT_PERSONAS.corrector.emoji, role: AGENT_PERSONAS.corrector.role },
                 { id: AGENT_PERSONAS['payroll-expert'].id, name: AGENT_PERSONAS['payroll-expert'].name, emoji: AGENT_PERSONAS['payroll-expert'].emoji, role: AGENT_PERSONAS['payroll-expert'].role },
             ],
-            status: activeStep > 2 ? 'completed' : activeStep === 2 && isRunning ? 'active' : 'pending',
-            href: '/reconcile',
+            status: activeStep > 2 ? 'completed' : activeStep === 2 && isRunning ? 'active' : 'pending', href: '/reconcile',
         },
         {
-            id: 'report',
-            title: t('processStepReport'),
-            description: t('processStepReportDesc'),
+            id: 'report', title: t('processStepReport'), description: t('processStepReportDesc'),
             agents: [{ id: AGENT_PERSONAS.writer.id, name: AGENT_PERSONAS.writer.name, emoji: AGENT_PERSONAS.writer.emoji, role: AGENT_PERSONAS.writer.role }],
-            status: activeStep > 3 ? 'completed' : activeStep === 3 && isRunning ? 'active' : 'pending',
-            href: '/reconcile',
+            status: activeStep > 3 ? 'completed' : activeStep === 3 && isRunning ? 'active' : 'pending', href: '/reconcile',
         },
     ], [t, activeStep, isRunning]);
+
+    // Empty state when no payrolls exist (Req 2.5)
+    if (initialPayrolls.length === 0) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Hero */}
+                <section className="rounded-3xl border border-white/10 glass-panel px-6 py-6 shadow-2xl shadow-black/40">
+                    <div className="max-w-2xl">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-violet-light drop-shadow-sm">{heroConfig.badge}</p>
+                        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white drop-shadow-md lg:text-3xl">{heroConfig.title}</h1>
+                        <p className="mt-2 text-sm text-slate-300">{heroConfig.subtitle}</p>
+                    </div>
+                </section>
+
+                {/* AI Provider Health even when no payrolls */}
+                {providers.length > 0 && (
+                    <DashboardHealth providers={providers} />
+                )}
+
+                <EmptyState
+                    title={t('emptyStateTitle')}
+                    description={t('emptyStateDescription')}
+                    icon={<Upload className="h-7 w-7" />}
+                    actionLabel={t('emptyStateAction')}
+                    actionHref="/upload"
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -262,9 +258,7 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-2xl">
                         <p className="text-xs font-semibold uppercase tracking-widest text-violet-light drop-shadow-sm">{heroConfig.badge}</p>
-                        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white drop-shadow-md lg:text-3xl">
-                            {heroConfig.title}
-                        </h1>
+                        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white drop-shadow-md lg:text-3xl">{heroConfig.title}</h1>
                         <p className="mt-2 text-sm text-slate-300">{heroConfig.subtitle}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -281,7 +275,7 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
                 </div>
             </section>
 
-            {/* Provider Status + Process Flow — 2-column grid */}
+            {/* Provider Status + Process Flow */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-700 ease-out">
                 <ProviderStatusPanel providers={providers} />
                 <ProcessFlowPanel currentStep={activeStep} steps={processSteps} />
@@ -318,29 +312,27 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
                 </div>
             </section>
 
-            {/* Role-specific metric cards */}
+            {/* Metric cards — total planillas, certificables, fallas críticas, riesgo promedio (Req 2.1) */}
             <div className="animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-100">
-                {role === 'admin' && <AdminMetrics metrics={metrics} t={t} />}
-                {role === 'analyst' && <AnalystMetrics metrics={metrics} t={t} />}
-                {role === 'client' && <ClientMetrics metrics={metrics} t={t} />}
+                <DashboardMetrics
+                    total={metrics.total}
+                    certRate={metrics.certRate}
+                    avgRisk={metrics.avgRisk}
+                    criticalFindings={metrics.criticalFindings}
+                />
             </div>
 
-            {/* Live Logs + Synthesis — 2-column grid */}
+            {/* Live Logs + Synthesis */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-150">
                 <LiveLogsPanel logs={logs} onClear={clearLogs} />
                 <LiveSynthesisPanel synthesis={synthesis} isRunning={isRunning} />
             </section>
 
-            {/* Charts and trends */}
+            {/* Risk trend chart (Req 2.2) + AI Provider Health (Req 2.4) */}
             <div className="animate-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both delay-200">
                 <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                    <DashboardHealth
-                        certifiable={metrics.certifiable}
-                        noCertifiable={metrics.noCertifiable}
-                        employeesAtRisk={metrics.employeesAtRisk}
-                        rowsWithFindings={metrics.rowsWithFindings}
-                    />
-                    <DashboardTrends data={monthlySeries} />
+                    <DashboardHealth providers={providers} />
+                    <DashboardTrends data={monthlySeries} riskData={riskTrendData} />
                 </section>
             </div>
 
@@ -369,107 +361,6 @@ export function DashboardClient({ role, initialCompanies, initialPayrolls, provi
     );
 }
 
-// ─── Admin Metrics ───
-function AdminMetrics({ metrics, t }: { metrics: any; t: any }) {
-    return (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-                label={t('totalPayrolls')}
-                value={metrics.total}
-                icon={<FileText className="h-5 w-5" />}
-                trend={metrics.total > 0 ? { direction: 'up', value: `${metrics.total}` } : undefined}
-            />
-            <MetricCard
-                label={t('activeCompanies')}
-                value={metrics.uniqueCompanies}
-                icon={<Users className="h-5 w-5" />}
-            />
-            <MetricCard
-                label={t('criticalFindings')}
-                value={metrics.criticalFindings}
-                icon={<AlertTriangle className="h-5 w-5" />}
-                className={metrics.criticalFindings > 0 ? 'border-rose/20' : ''}
-            />
-            <MetricCard
-                label={t('certificationRate')}
-                value={`${metrics.certRate.toFixed(1)}%`}
-                icon={<Shield className="h-5 w-5" />}
-                trend={metrics.certRate >= 80
-                    ? { direction: 'up', value: `${metrics.certRate.toFixed(0)}%` }
-                    : { direction: 'down', value: `${metrics.certRate.toFixed(0)}%` }
-                }
-            />
-        </section>
-    );
-}
-
-// ─── Analyst Metrics ───
-function AnalystMetrics({ metrics, t }: { metrics: any; t: any }) {
-    return (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-                label={t('pendingPayrolls')}
-                value={metrics.pendingPayrolls}
-                icon={<Clock className="h-5 w-5" />}
-                className={metrics.pendingPayrolls > 0 ? 'border-amber-400/20' : ''}
-            />
-            <MetricCard
-                label={t('criticalFindings')}
-                value={metrics.criticalFindings}
-                icon={<AlertTriangle className="h-5 w-5" />}
-                className={metrics.criticalFindings > 0 ? 'border-rose/20' : ''}
-            />
-            <MetricCard
-                label={t('rowsWithFindings')}
-                value={metrics.rowsWithFindings}
-                icon={<Activity className="h-5 w-5" />}
-            />
-            <MetricCard
-                label={t('totalPayrolls')}
-                value={metrics.total}
-                icon={<FileText className="h-5 w-5" />}
-            />
-        </section>
-    );
-}
-
-// ─── Client Metrics ───
-function ClientMetrics({ metrics, t }: { metrics: any; t: any }) {
-    return (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-                label={t('certificationRate')}
-                value={`${metrics.certRate.toFixed(1)}%`}
-                icon={<Shield className="h-5 w-5" />}
-                trend={metrics.certRate >= 80
-                    ? { direction: 'up', value: `${metrics.certRate.toFixed(0)}%` }
-                    : { direction: 'down', value: `${metrics.certRate.toFixed(0)}%` }
-                }
-            />
-            <MetricCard
-                label={t('averageRisk')}
-                value={metrics.avgRisk.toFixed(1)}
-                icon={<TrendingUp className="h-5 w-5" />}
-                trend={metrics.avgRisk < 40
-                    ? { direction: 'down', value: t('lowRisk') }
-                    : { direction: 'up', value: t('highRisk') }
-                }
-            />
-            <MetricCard
-                label={t('criticalFindings')}
-                value={metrics.criticalFindings}
-                icon={<AlertTriangle className="h-5 w-5" />}
-                className={metrics.criticalFindings > 0 ? 'border-rose/20' : ''}
-            />
-            <MetricCard
-                label={t('employeesAtRisk')}
-                value={metrics.employeesAtRisk}
-                icon={<Users className="h-5 w-5" />}
-            />
-        </section>
-    );
-}
-
 // ─── Recent Findings Summary ───
 interface FindingSummary {
     id: string;
@@ -486,20 +377,13 @@ function RecentFindingsSummary({ findings, t }: { findings: FindingSummary[]; t:
         <section className="rounded-2xl border border-white/10 glass-panel p-5 shadow-xl shadow-black/20">
             <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="h-4 w-4 text-violet-light" />
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                    {t('recentFindings')}
-                </h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">{t('recentFindings')}</h3>
             </div>
             <div className="space-y-2">
                 {findings.map((f) => (
-                    <div
-                        key={f.id}
-                        className="flex items-center justify-between rounded-xl border border-white/5 bg-black/20 px-4 py-3 transition-colors hover:bg-white/5"
-                    >
+                    <div key={f.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-black/20 px-4 py-3 transition-colors hover:bg-white/5">
                         <div className="flex items-center gap-3 min-w-0">
-                            <span
-                                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${severityColor[f.severity]}`}
-                            >
+                            <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${severityColor[f.severity]}`}>
                                 {f.severity === 'high' && <AlertTriangle className="h-3 w-3" />}
                                 {f.severity === 'medium' && <Activity className="h-3 w-3" />}
                                 {f.severity === 'low' && <CheckCircle className="h-3 w-3" />}
@@ -509,17 +393,9 @@ function RecentFindingsSummary({ findings, t }: { findings: FindingSummary[]; t:
                             <span className="text-xs text-slate-500">{f.period}</span>
                         </div>
                         <div className="flex items-center gap-4 shrink-0">
-                            <span className="text-xs text-slate-400">
-                                {f.criticalFindings} {t('findingsLabel')}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                                {t('riskLabel')}: {f.riskScore.toFixed(0)}
-                            </span>
-                            {f.certReady ? (
-                                <CheckCircle className="h-4 w-4 text-emerald" />
-                            ) : (
-                                <Clock className="h-4 w-4 text-amber-400" />
-                            )}
+                            <span className="text-xs text-slate-400">{f.criticalFindings} {t('findingsLabel')}</span>
+                            <span className="text-xs text-slate-500">{t('riskLabel')}: {f.riskScore.toFixed(0)}</span>
+                            {f.certReady ? <CheckCircle className="h-4 w-4 text-emerald" /> : <Clock className="h-4 w-4 text-amber-400" />}
                         </div>
                     </div>
                 ))}
@@ -541,9 +417,7 @@ function CertificationStatusCard({ certRate, certifiable, total, t }: { certRate
         <div className="glass-panel rounded-2xl border border-white/10 p-5 shadow-xl shadow-black/20">
             <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-4 w-4 text-violet-light" />
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                    {t('certificationStatus')}
-                </h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">{t('certificationStatus')}</h3>
             </div>
             <div className="flex items-center gap-4">
                 <div className={`rounded-xl border px-4 py-3 text-center ${statusColors[status]}`}>

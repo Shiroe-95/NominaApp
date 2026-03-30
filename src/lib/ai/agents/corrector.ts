@@ -44,12 +44,22 @@ export interface CorrectionEntry {
   currentValue: number;
   suggestedValue: number;
   justification: string;
+  /** Explicit normative formula used to calculate the correction (Req 6.1) */
+  formula?: string;
 }
 
 export interface CorrectionReport {
   corrections: CorrectionEntry[];
   skipped: number;
   aiSummary?: string;
+  /** Guidance for non-deterministic findings that cannot be auto-corrected (Req 6.3) */
+  expertGuidance?: string;
+  /** Structured guidance per non-correctable check (Req 6.3) */
+  nonCorrectableGuidance?: Array<{
+    checkId: string;
+    label: string;
+    recommendation: string;
+  }>;
 }
 
 // ── Correction formulas (default rates, used as fallback) ────────────
@@ -75,6 +85,8 @@ interface FormulaContext {
 interface FormulaResult {
   suggestedValue: number;
   justification: string;
+  /** Explicit normative formula string (Req 6.1) */
+  formula: string;
 }
 
 type CorrectionFormula = (ctx: FormulaContext) => FormulaResult | null;
@@ -93,8 +105,9 @@ const FIELD_FOR_CHECK: Record<string, string> = {
 /**
  * Builds correction formulas with rates from country rules.
  * Falls back to default rates (CO) when country-specific rates are not available.
+ * Exported for use by other modules (Req 6.2).
  */
-function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): Record<string, CorrectionFormula> {
+export function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): Record<string, CorrectionFormula> {
   // Try to extract rates from country rules checks
   let healthEmpRate = 0.04;
   let pensionEmpRate = 0.04;
@@ -123,6 +136,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.ibcTotal * healthEmpRate),
         justification: `Aporte salud empleado = Base cotización × ${(healthEmpRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${healthEmpRate}`,
+        formula: `IBC × ${(healthEmpRate * 100).toFixed(1)}%`,
       };
     },
 
@@ -131,6 +145,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.ibcTotal * pensionEmpRate),
         justification: `Aporte pensión empleado = Base cotización × ${(pensionEmpRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${pensionEmpRate}`,
+        formula: `IBC × ${(pensionEmpRate * 100).toFixed(1)}%`,
       };
     },
 
@@ -140,6 +155,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(base * 0.0833),
         justification: `Cesantías/Aguinaldo = Total devengado × 8.33% = ${base} × 0.0833`,
+        formula: `Total Devengado × 8.33%`,
       };
     },
 
@@ -149,6 +165,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(base * 0.0833),
         justification: `Prima/Gratificación = Total devengado × 8.33% = ${base} × 0.0833`,
+        formula: `Total Devengado × 8.33%`,
       };
     },
 
@@ -157,6 +174,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.baseSalary * 0.0417),
         justification: `Vacaciones = Salario básico × 4.17% = ${ctx.baseSalary} × 0.0417`,
+        formula: `Salario Básico × 4.17%`,
       };
     },
 
@@ -165,6 +183,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.ibcTotal * healthEmployerRate),
         justification: `Aporte salud empleador = Base cotización × ${(healthEmployerRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${healthEmployerRate}`,
+        formula: `IBC × ${(healthEmployerRate * 100).toFixed(1)}%`,
       };
     },
 
@@ -173,6 +192,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.ibcTotal * pensionEmployerRate),
         justification: `Aporte pensión empleador = Base cotización × ${(pensionEmployerRate * 100).toFixed(1)}% = ${ctx.ibcTotal} × ${pensionEmployerRate}`,
+        formula: `IBC × ${(pensionEmployerRate * 100).toFixed(1)}%`,
       };
     },
 
@@ -181,6 +201,7 @@ function buildCorrectionFormulas(countryRules?: AgentContext['countryRules']): R
       return {
         suggestedValue: Math.round(ctx.ibcTotal * 0.09),
         justification: `Contribuciones patronales = Base cotización × 9% = ${ctx.ibcTotal} × 0.09`,
+        formula: `IBC × 9% (SENA 2% + ICBF 3% + Caja 4%)`,
       };
     },
   };
@@ -343,14 +364,50 @@ export function createCorrectorAgent(): AgentDefinition {
     // Calculate deterministic corrections using country-specific rates
     const formulas = buildCorrectionFormulas(context.countryRules);
     const corrections: CorrectionEntry[] = [];
+    const nonCorrectableGuidance: Array<{ checkId: string; label: string; recommendation: string }> = [];
     let skipped = 0;
+
+    /** Labels for non-deterministic checks to provide expert guidance (Req 6.3) */
+    const NON_DETERMINISTIC_LABELS: Record<string, { label: string; recommendation: string }> = {
+      ibc_rule_1393: {
+        label: 'Base de cotización (Ley 1393)',
+        recommendation: 'Revisar clasificación salarial/no salarial de cada concepto. El IBC depende de decisiones de clasificación que requieren análisis experto.',
+      },
+      tope_40_value: {
+        label: 'Tope 40% no salarial',
+        recommendation: 'Verificar que el cálculo del tope considere todos los pagos no salariales y el total devengado correcto.',
+      },
+      ibc_min_max: {
+        label: 'Rango IBC mínimo/máximo',
+        recommendation: 'Verificar días trabajados y tipo de cotizante. El IBC proporcional depende de estos factores.',
+      },
+      ibc_consistency_subsystems: {
+        label: 'Consistencia IBC subsistemas',
+        recommendation: 'Verificar que IBC de salud, pensión y ARL sean consistentes. Pueden diferir legítimamente en casos especiales.',
+      },
+      transport_eligibility: {
+        label: 'Elegibilidad auxilio de transporte',
+        recommendation: 'Verificar si el salario base supera 2 SMMLV. Considerar salario integral y otros factores de elegibilidad.',
+      },
+      arl_bounds: {
+        label: 'Rango ARL',
+        recommendation: 'La tasa ARL depende de la clase de riesgo (I-V) de la empresa. Verificar clasificación de riesgo vigente.',
+      },
+    };
 
     for (const finding of findings) {
       const checkId = findCheckIdForFinding(finding);
 
-      // Skip non-deterministic checks (Req 7.3)
+      // Skip non-deterministic checks — provide expert guidance instead (Req 6.3)
       if (!checkId || NON_DETERMINISTIC_CHECKS.has(checkId)) {
         skipped++;
+        if (checkId && NON_DETERMINISTIC_LABELS[checkId]) {
+          const guidance = NON_DETERMINISTIC_LABELS[checkId];
+          // Avoid duplicates
+          if (!nonCorrectableGuidance.some(g => g.checkId === checkId)) {
+            nonCorrectableGuidance.push({ checkId, ...guidance });
+          }
+        }
         continue;
       }
 
@@ -395,6 +452,7 @@ export function createCorrectorAgent(): AgentDefinition {
         currentValue,
         suggestedValue: result.suggestedValue,
         justification: result.justification,
+        formula: result.formula,
       });
     }
 
@@ -432,7 +490,7 @@ ${correctionsText}`,
 
         aiSummary = text;
 
-        const report: CorrectionReport = { corrections, skipped, aiSummary };
+        const report: CorrectionReport = { corrections, skipped, aiSummary, nonCorrectableGuidance: nonCorrectableGuidance.length > 0 ? nonCorrectableGuidance : undefined };
 
         return {
           agentName: 'corrector',
@@ -472,11 +530,12 @@ ${correctionsText}`,
       }
     }
 
-    const report: CorrectionReport & { expertGuidance?: string } = {
+    const report: CorrectionReport = {
       corrections,
       skipped,
       aiSummary,
       expertGuidance,
+      nonCorrectableGuidance: nonCorrectableGuidance.length > 0 ? nonCorrectableGuidance : undefined,
     };
 
     return {

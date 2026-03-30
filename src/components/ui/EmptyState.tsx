@@ -1,11 +1,16 @@
 'use client';
 
+import { Link } from '@/i18n/routing';
+
 export interface EmptyStateProps {
   title: string;
   description?: string;
   icon?: React.ReactNode;
   actionLabel?: string;
+  /** Click handler for the action button */
   onAction?: () => void;
+  /** Link href — when provided, renders a Link instead of a button (Req 2.5) */
+  actionHref?: string;
   className?: string;
 }
 
@@ -15,8 +20,16 @@ export function EmptyState({
   icon,
   actionLabel,
   onAction,
+  actionHref,
   className = '',
 }: EmptyStateProps) {
+  const actionClasses = `
+    px-4 py-2 text-sm font-medium rounded-[var(--radius-sm)]
+    bg-violet text-white hover:bg-violet-dark
+    transition-all duration-200
+    shadow-[0_0_12px_rgba(124,58,237,0.3)] hover:shadow-[0_0_20px_rgba(124,58,237,0.4)]
+  `;
+
   return (
     <div className={`flex flex-col items-center justify-center py-16 px-6 text-center animate-fade-in ${className}`}>
       {icon ? (
@@ -36,16 +49,14 @@ export function EmptyState({
         <p className="text-sm text-slate-400 max-w-sm mb-5">{description}</p>
       )}
 
-      {actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          className="
-            px-4 py-2 text-sm font-medium rounded-[var(--radius-sm)]
-            bg-violet text-white hover:bg-violet-dark
-            transition-all duration-200
-            shadow-[0_0_12px_rgba(124,58,237,0.3)] hover:shadow-[0_0_20px_rgba(124,58,237,0.4)]
-          "
-        >
+      {actionLabel && actionHref && (
+        <Link href={actionHref as any} className={actionClasses}>
+          {actionLabel}
+        </Link>
+      )}
+
+      {actionLabel && onAction && !actionHref && (
+        <button onClick={onAction} className={actionClasses}>
           {actionLabel}
         </button>
       )}

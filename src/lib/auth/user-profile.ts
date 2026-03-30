@@ -4,9 +4,9 @@
  * Reglas de negocio:
  * - Tres roles jerárquicos: admin > analyst > client.
  * - admin: acceso total a todas las rutas.
- * - analyst: acceso a todo excepto rutas bajo /admin, /settings/providers y /settings/users.
+ * - analyst: acceso a todo excepto rutas bajo /admin/*.
  * - client: acceso limitado a /dashboard y /reports (y rutas públicas).
- * - Las rutas públicas (/, /pricing, /contact, /about, /login, /auth) no requieren autenticación.
+ * - Las rutas públicas (/, /pricing, /contact, /about, /manual, /login, /auth) no requieren autenticación.
  * - La función `hasPermission` es la fuente única de verdad para permisos,
  *   utilizada tanto por el middleware Edge como por el API guard.
  * - `fetchUserRoleEdge` consulta el rol vía REST (compatible con Edge Runtime)
@@ -42,13 +42,22 @@ export interface UserProfile {
 
 // ─── Fuente única de verdad para reglas de acceso por rol ───────────────────
 
-/** Rutas restringidas a admin — solo usuarios con rol 'admin' */
-export const ADMIN_ONLY_ROUTES = ['/admin', '/settings/providers', '/settings/users'];
-/** Rutas restringidas a analyst+ — accesibles por 'admin' y 'analyst', no por 'client' */
-export const ANALYST_ROUTES = ['/upload', '/reconcile', '/rules'];
+/**
+ * Mapa de permisos por ruta.
+ *
+ * - admin  → acceso total a todas las rutas.
+ * - analyst → acceso a todo excepto rutas bajo /admin/*.
+ * - client  → acceso exclusivamente a /dashboard y /reports.
+ */
+
+/** Prefijo de rutas restringidas a admin */
+export const ADMIN_ROUTE_PREFIX = '/admin';
+
+/** Rutas permitidas para el rol client (whitelist) */
+export const CLIENT_ALLOWED_ROUTES = ['/dashboard', '/reports'];
 
 /** Rutas públicas exactas (sin locale) que no requieren autenticación */
-export const PUBLIC_PATHS = ['/', '/pricing', '/contact', '/about'];
+export const PUBLIC_PATHS = ['/', '/pricing', '/contact', '/about', '/manual'];
 /** Prefijos de rutas públicas */
 export const PUBLIC_PREFIXES = ['/login', '/auth'];
 
@@ -72,10 +81,8 @@ export function isPublicRoute(pathWithoutLocale: string): boolean {
  *
  * Lógica de evaluación:
  * 1. `admin` → acceso total, retorna `true` inmediatamente.
- * 2. Si la ruta coincide con `ADMIN_ONLY_ROUTES` → solo admin tiene acceso.
- * 3. `analyst` → acceso a todo lo que no sea admin-only.
- * 4. Si la ruta coincide con `ANALYST_ROUTES` → client no tiene acceso.
- * 5. `client` → acceso al resto (dashboard, reports, etc.).
+ * 2. `analyst` → acceso a todo excepto rutas bajo `/admin/*`.
+ * 3. `client` → acceso solo a `/dashboard` y `/reports`.
  *
  * Esta es la ÚNICA función de permisos — usada tanto por el middleware
  * como por el API guard.
@@ -85,19 +92,18 @@ export function isPublicRoute(pathWithoutLocale: string): boolean {
  * @returns `true` si el rol tiene permiso para acceder a la ruta.
  */
 export function hasPermission(role: UserRole, pathWithoutLocale: string): boolean {
+  // admin → acceso total
   if (role === 'admin') return true;
 
-  if (ADMIN_ONLY_ROUTES.some((prefix) => pathWithoutLocale.startsWith(prefix))) {
-    return false;
+  // analyst → todo excepto /admin/*
+  if (role === 'analyst') {
+    return !pathWithoutLocale.startsWith(ADMIN_ROUTE_PREFIX);
   }
 
-  if (role === 'analyst') return true;
-
-  if (ANALYST_ROUTES.some((prefix) => pathWithoutLocale.startsWith(prefix))) {
-    return false;
-  }
-
-  return true;
+  // client → solo /dashboard y /reports (whitelist)
+  return CLIENT_ALLOWED_ROUTES.some((allowed) =>
+    pathWithoutLocale.startsWith(allowed)
+  );
 }
 
 /**

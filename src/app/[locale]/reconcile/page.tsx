@@ -23,7 +23,9 @@ import { AlertTriangle, Brain, CheckCircle2, FileSpreadsheet, ShieldCheck, XCirc
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
-import { buildSuggestedActions, summarizeActions } from '@/lib/payroll/actions';
+import { buildSuggestedActions } from '@/lib/payroll/actions';
+import { mergeFindings } from '@/lib/payroll/findings-merger';
+import type { EngineEmployee, AiEmployeeFinding } from '@/lib/payroll/findings-merger';
 import LivePayrollWorkbench from '@/components/ui/LivePayrollWorkbench';
 import { createClient } from '@/lib/supabase/client';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
@@ -171,12 +173,12 @@ export default function ReconcilePage() {
     const [aiEmployeeFilter, setAiEmployeeFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
     const [aiEmployeeSearch, setAiEmployeeSearch] = useState('');
 
-    // Pre-fill assignee with authenticated user
+    // Pre-fill assignee with authenticated user email (Req 8.8)
     useEffect(() => {
         const supabase = createClient();
         supabase.auth.getUser().then(({ data }) => {
             if (data.user?.email) {
-                setAssignee(data.user.email.split('@')[0]);
+                setAssignee(data.user.email);
             } else {
                 setAssignee('Analista Nómina');
             }
@@ -233,37 +235,20 @@ export default function ReconcilePage() {
     );
 
     const employeeRiskItems = useMemo(() => {
-        const fromEngine = (latest?.employee_risk_summary?.topEmployees ?? []).map((emp) => ({
+        const engineEmployees: EngineEmployee[] = (latest?.employee_risk_summary?.topEmployees ?? []).map((emp) => ({
             document: emp.document,
             name: emp.name,
             score: emp.score,
             findings: emp.findings ?? [],
         }));
 
-        const fromAi = (latest?.ai_validation_report?.employeeFindings ?? []).map((emp) => {
-            const findings = emp.issues.map((issue) => issue.description);
-            const score = emp.issues.reduce((acc, issue) => {
-                if (issue.severity === 'high') return acc + 40;
-                if (issue.severity === 'medium') return acc + 20;
-                return acc + 10;
-            }, 0);
-            return {
-                document: emp.document,
-                name: emp.name,
-                score,
-                findings,
-            };
-        });
+        const aiEmployees: AiEmployeeFinding[] = (latest?.ai_validation_report?.employeeFindings ?? []).map((emp) => ({
+            document: emp.document,
+            name: emp.name,
+            issues: emp.issues,
+        }));
 
-        // Merge and deduplicate by document
-        const merged = [...fromEngine];
-        for (const ai of fromAi) {
-            if (!merged.find(e => e.document === ai.document)) {
-                merged.push(ai);
-            }
-        }
-
-        return merged.sort((a, b) => b.score - a.score);
+        return mergeFindings(engineEmployees, aiEmployees);
     }, [latest]);
 
     const employeeRiskSummaryComputed = useMemo(() => {

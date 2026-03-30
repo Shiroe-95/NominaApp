@@ -561,6 +561,12 @@ export async function runSync(options: SyncOptions = {}): Promise<SyncResult[]> 
 
     // 2b. Check frequency (skip if not due, unless forced)
     if (!options.force) {
+      const { data: countryRow } = await supabase
+        .from('supported_countries')
+        .select('sync_frequency')
+        .eq('country_code', country_code)
+        .single();
+
       const { data: lastSync } = await supabase
         .from('sync_history')
         .select('completed_at')
@@ -571,9 +577,7 @@ export async function runSync(options: SyncOptions = {}): Promise<SyncResult[]> 
         .single();
 
       const lastSyncAt = lastSync?.completed_at ?? null;
-
-      // Default frequency is weekly
-      const frequency = 'weekly';
+      const frequency = countryRow?.sync_frequency ?? 'weekly';
 
       if (!shouldSync(frequency, lastSyncAt)) {
         continue; // skip — not due yet

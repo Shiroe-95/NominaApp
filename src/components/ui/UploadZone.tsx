@@ -7,8 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import * as XLSX from 'xlsx';
-
-/**
+import { detectPeriodFromWorkbook, type DetectedPeriod } from '@/lib/payroll/period-detector';/**
  * Representa una hoja individual parseada de un archivo Excel.
  * Contiene los encabezados detectados y la cantidad de filas de datos.
  */
@@ -61,7 +60,15 @@ const MAX_FILE_SIZE_BYTES = 1024 * 1024 * 1024; // 1 GB
  * @returns Componente de zona de carga con lista de archivos procesados y selector de hojas.
  */
 
-export default function UploadZone({ onProceed }: { onProceed?: (fileData: ParsedFile[]) => void }) {
+/** Props for the UploadZone component. */
+interface UploadZoneProps {
+    /** Callback invoked when the user clicks "Continue to AI mapping". */
+    onProceed?: (fileData: ParsedFile[]) => void;
+    /** Callback invoked when a period is auto-detected from file content. */
+    onPeriodDetected?: (period: DetectedPeriod) => void;
+}
+
+export default function UploadZone({ onProceed, onPeriodDetected }: UploadZoneProps) {
     const t = useTranslations('Upload');
     const [isDragging, setIsDragging] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<ParsedFile[]>([]);
@@ -114,6 +121,7 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
 
     /**
      * Procesa un archivo individual: valida tamaño, parsea con XLSX y agrega al estado.
+     * Also detects period (month/year) from the first 20 rows and notifies parent.
      * Si el parseo falla, agrega el archivo con hojas vacías para que el usuario lo vea.
      * @param file - Objeto File del navegador a procesar
      */
@@ -130,6 +138,18 @@ export default function UploadZone({ onProceed }: { onProceed?: (fileData: Parse
             const sheets = workbook.SheetNames.map((sheetName) => getSheetData(workbook, sheetName));
             const selectedSheets = sheets.length > 0 ? [sheets[0].name] : [];
             const extractedHeaders = getMergedHeaders(sheets, selectedSheets);
+
+            // Auto-detect period from file content (Req 3.3)
+            if (onPeriodDetected) {
+                try {
+                    const detected = detectPeriodFromWorkbook(workbook, XLSX.utils);
+                    if (detected.month !== null || detected.year !== null) {
+                        onPeriodDetected(detected);
+                    }
+                } catch (e) {
+                    console.warn('Period detection failed:', e);
+                }
+            }
 
             setUploadedFiles((prev) => [
                 ...prev,
