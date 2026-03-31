@@ -33,6 +33,9 @@ import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAuth, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
+import { buildRegistry } from '@/lib/ai/providers';
+import { decryptApiKey } from '@/lib/ai/encryption';
+import type { ProviderConfig } from '@/lib/ai/types';
 
 /**
  * Inicializa el cliente de OpenAI si la API key está configurada.
@@ -53,11 +56,43 @@ function getGroq() {
 }
 
 /**
- * Verifica si al menos un proveedor de IA está disponible.
+ * Verifica si al menos un proveedor de IA está disponible (env vars).
  * @returns `true` si OPENAI_API_KEY o GROQ_API_KEY están definidas.
  */
-function isAIAvailable() {
+function isEnvAIAvailable() {
     return !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
+}
+
+/**
+ * Carga proveedores de IA configurados en la BD como fallback.
+ * Retorna un registry listo para usar, o null si no hay proveedores.
+ */
+async function getDbProviderRegistry() {
+    try {
+        const admin = createAdminClient();
+        const { data: providers } = await admin
+            .from('ai_providers')
+            .select('*')
+            .eq('is_active', true)
+            .order('priority', { ascending: true });
+
+        if (!providers || providers.length === 0) return null;
+
+        const configs: ProviderConfig[] = providers.map((p) => ({
+            id: p.id as string,
+            provider_type: p.provider_type as ProviderConfig['provider_type'],
+            api_key: decryptApiKey(p.api_key_encrypted as string),
+            model_id: p.model_id as string,
+            display_name: p.display_name as string,
+            priority: p.priority as number,
+            is_active: true,
+        }));
+
+        return buildRegistry(configs);
+    } catch (err) {
+        console.error('[chat] Failed to load DB providers:', err);
+        return null;
+    }
 }
 
 /** Mensaje individual del chat. */
@@ -445,13 +480,6 @@ export async function POST(req: Request) {
     if (auth instanceof NextResponse) return auth;
 
     try {
-        if (!isAIAvailable()) {
-            return NextResponse.json({ 
-                reply: 'El servicio de IA no está configurado. Configura OPENAI_API_KEY o GROQ_API_KEY para habilitar esta funcionalidad.',
-                actionsPerformed: [] 
-            });
-        }
-
         const { messages, context } = await req.json() as { messages: ChatMessage[], context?: string };
         if (!Array.isArray(messages)) {
             return NextResponse.json({ error: 'messages es requerido' }, { status: 400 });
@@ -541,8 +569,36 @@ export async function POST(req: Request) {
             return NextResponse.json({ reply: result.text, actionsPerformed: [] });
         }
 
+        // Fallback to DB-configured providers (OpenRouter, etc.)
+        const dbRegistry = await getDbProviderRegistry();
+        if (dbRegistry && dbRegistry.entries.length > 0) {
+            const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content ?? '';
+
+            // Try each provider in priority order
+            for (const entry of dbRegistry.entries) {
+                try {
+                    const model = entry.getModel(entry.config.model_id);
+                    const result = await generateText({
+                        model,
+                        system: dynamicSystemPrompt,
+                        prompt: lastUserMessage,
+                        maxTokens: 1000,
+                    });
+                    return NextResponse.json({
+                        reply: result.text,
+                        actionsPerformed: [],
+                        providerUsed: entry.config.provider_type,
+                        modelUsed: entry.config.model_id,
+                    });
+                } catch (err) {
+                    console.warn(`[chat] Provider ${entry.config.provider_type}/${entry.config.model_id} failed:`, err instanceof Error ? err.message : err);
+                    continue;
+                }
+            }
+        }
+
         return NextResponse.json({ 
-            reply: 'No hay proveedor de IA disponible.',
+            reply: 'No hay proveedor de IA disponible. Configura al menos un proveedor en Ajustes → Proveedores de IA.',
             actionsPerformed: [] 
         });
     } catch (error: unknown) {

@@ -77,8 +77,9 @@ const MODEL_CATALOG: Record<ProviderType, { label: string; icon: string; hint: s
     label: 'OpenRouter', icon: '\uD83C\uDF10',
     hint: 'Acceso a múltiples modelos con una sola API key. Incluye modelos gratuitos.',
     models: [
-      { id: 'google/gemini-2.5-flash:free', label: 'Gemini 2.5 Flash (gratis)', free: true, context: '1M tokens', recommended: true },
-      { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (gratis)', free: true, context: '64K tokens', recommended: true },
+      { id: 'openrouter/free', label: '🎯 Auto — mejor modelo gratuito', free: true, context: 'Variable', recommended: true },
+      { id: 'google/gemini-2.5-flash:free', label: 'Gemini 2.5 Flash (gratis)', free: true, context: '1M tokens' },
+      { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (gratis)', free: true, context: '64K tokens' },
       { id: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (gratis)', free: true, context: '64K tokens' },
       { id: 'meta-llama/llama-4-maverick:free', label: 'Llama 4 Maverick (gratis)', free: true, context: '1M tokens' },
       { id: 'qwen/qwen3-235b-a22b:free', label: 'Qwen 3 235B (gratis)', free: true, context: '40K tokens' },

@@ -4,6 +4,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { ProviderConfig } from './types';
+import { OPENROUTER_FREE_ROUTER } from './openrouter-models';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const providerFactories: Record<ProviderConfig['provider_type'], ProviderFactory
   },
   openrouter: (apiKey) => {
     const provider = createOpenRouter({ apiKey });
-    return (modelId) => provider(modelId);
+    return (modelId) => provider.chat(modelId);
   },
 };
 
@@ -60,6 +61,16 @@ export interface ProviderRegistryResult {
   getModelWithFallback: () => AnyLanguageModel;
   /** All active entries sorted by priority (for fallback iteration). */
   entries: ReadonlyArray<Readonly<RegistryEntry>>;
+  /**
+   * For OpenRouter providers: get a model using the free router
+   * (`openrouter/free`) which auto-selects the best free model.
+   */
+  getOpenRouterFreeModel: () => AnyLanguageModel | null;
+  /**
+   * For OpenRouter providers: get a model with a specific alternative model ID.
+   * Useful for retrying with a different free model when one fails.
+   */
+  getOpenRouterModel: (modelId: string) => AnyLanguageModel | null;
 }
 
 // ── buildRegistry ───────────────────────────────────────────────────
@@ -101,5 +112,17 @@ export function buildRegistry(configs: ProviderConfig[]): ProviderRegistryResult
     return first.getModel(first.config.model_id);
   }
 
-  return { getModel, getModelWithFallback, entries };
+  function getOpenRouterFreeModel(): AnyLanguageModel | null {
+    const orEntry = entries.find((e) => e.config.provider_type === 'openrouter');
+    if (!orEntry) return null;
+    return orEntry.getModel(OPENROUTER_FREE_ROUTER);
+  }
+
+  function getOpenRouterModel(modelId: string): AnyLanguageModel | null {
+    const orEntry = entries.find((e) => e.config.provider_type === 'openrouter');
+    if (!orEntry) return null;
+    return orEntry.getModel(modelId);
+  }
+
+  return { getModel, getModelWithFallback, entries, getOpenRouterFreeModel, getOpenRouterModel };
 }

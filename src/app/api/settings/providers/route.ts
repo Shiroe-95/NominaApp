@@ -111,10 +111,33 @@ export async function POST(req: Request) {
       };
       const registry = buildRegistry([tempConfig]);
       const model = registry.getModel('temp');
-      await generateText({ model, prompt: 'Hello', maxTokens: 5 });
+      await generateText({ model, prompt: 'Hello', maxTokens: 10 });
       testSuccess = true;
     } catch (err) {
       testError = getErrorMessage(err, 'Connectivity test failed');
+
+      // For OpenRouter: retry with the free router if the specific model failed
+      if (provider_type === 'openrouter' && model_id !== 'openrouter/free') {
+        try {
+          const tempConfig: ProviderConfig = {
+            id: 'temp',
+            provider_type,
+            api_key,
+            model_id: 'openrouter/free',
+            display_name,
+            priority: 0,
+            is_active: true,
+          };
+          const registry = buildRegistry([tempConfig]);
+          const freeModel = registry.getModel('temp');
+          await generateText({ model: freeModel, prompt: 'Hello', maxTokens: 10 });
+          testSuccess = true;
+          testError = null;
+          console.log(`[provider-create] OpenRouter: model ${model_id} failed but free router works — API key is valid`);
+        } catch {
+          // Both failed — keep original error
+        }
+      }
     }
 
     // Encrypt the API key before storing

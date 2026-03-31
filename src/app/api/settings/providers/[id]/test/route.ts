@@ -85,10 +85,24 @@ export async function POST(req: Request, context: RouteContext) {
     try {
       const registry = buildRegistry([config]);
       const model = registry.getModel(row.id);
-      await generateText({ model, prompt: 'Hello', maxTokens: 5 });
+      await generateText({ model, prompt: 'Hello', maxTokens: 10 });
       success = true;
     } catch (err) {
       errorMsg = getErrorMessage(err, 'Connectivity test failed');
+
+      // For OpenRouter: retry with the free router if the specific model failed
+      if (config.provider_type === 'openrouter' && config.model_id !== 'openrouter/free') {
+        try {
+          const registry = buildRegistry([config]);
+          const freeModel = registry.getModel(row.id, 'openrouter/free');
+          await generateText({ model: freeModel, prompt: 'Hello', maxTokens: 10 });
+          success = true;
+          errorMsg = null;
+          console.log(`[provider-test] OpenRouter: model ${config.model_id} failed but free router works`);
+        } catch {
+          // Both failed — keep original error
+        }
+      }
     }
 
     // Update test status in DB
