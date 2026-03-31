@@ -1,15 +1,16 @@
 /**
- * Hook for parsing Excel files using a Web Worker when row count exceeds 1000.
+ * Hook for parsing Excel files using the WorkerManager.
  *
- * Falls back to synchronous parsing for smaller files.
+ * Falls back to synchronous parsing when Workers are not supported.
  *
- * Requirements: 24.2
+ * Requirements: 3.1, 3.2, 3.6
  *
  * @module lib/workers/use-excel-worker
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import WorkerManager, { registerFallback } from './worker-manager';
 
 const ROW_THRESHOLD = 1000;
 
@@ -23,13 +24,43 @@ export interface ParsedSheet {
 
 export interface UseExcelWorkerResult {
   parseFile: (file: File, selectedSheets?: number[]) => Promise<ParsedSheet[]>;
+  progress: number;
+  cancel: () => void;
 }
 
+// Register main-thread fallback for excel parsing
+registerFallback<{ buffer: ArrayBuffer; selectedSheets?: number[] }, ParsedSheet[]>(
+  'excel-parse',
+  async (data, onProgress) => {
+    onProgress?.(5);
+    const workbook = XLSX.read(data.buffer, { type: 'array' });
+    onProgress?.(30);
+    const sheets = workbook.SheetNames.map((name, index) => {
+      if (data.selectedSheets && !data.selectedSheets.includes(index)) return null;
+      const sheet = workbook.Sheets[name];
+      const jsonData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
+      const headers = (jsonData[0] as string[]) ?? [];
+      const rows = jsonData.slice(1);
+      return { name, index, headers: headers.map(String), rowCount: rows.length, data: rows };
+    }).filter(Boolean) as ParsedSheet[];
+    onProgress?.(100);
+    return sheets;
+  },
+);
+
 /**
- * Returns a `parseFile` function that uses a Web Worker for files >1000 rows.
+ * Returns a `parseFile` function that uses a Web Worker for files >1000 rows,
+ * with progress tracking and cancellation support.
  */
 export function useExcelWorker(): UseExcelWorkerResult {
-  const workerRef = useRef<Worker | null>(null);
+  const [progress, setProgress] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setProgress(0);
+  }, []);
 
   const parseFile = useCallback(async (file: File, selectedSheets?: number[]): Promise<ParsedSheet[]> => {
     const buffer = await file.arrayBuffer();
@@ -53,46 +84,27 @@ export function useExcelWorker(): UseExcelWorkerResult {
       }).filter(Boolean) as ParsedSheet[];
     }
 
-    // For large files, use Web Worker
-    return new Promise<ParsedSheet[]>((resolve, reject) => {
-      try {
-        if (!workerRef.current) {
-          workerRef.current = new Worker(
-            new URL('./excel-parser.worker.ts', import.meta.url),
-            { type: 'module' },
-          );
-        }
+    // For large files, use WorkerManager
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setProgress(0);
 
-        const worker = workerRef.current;
-
-        worker.onmessage = (event) => {
-          if (event.data.type === 'result') {
-            resolve(event.data.sheets);
-          } else if (event.data.type === 'error') {
-            reject(new Error(event.data.message));
-          }
-        };
-
-        worker.onerror = (err) => {
-          reject(new Error(err.message || 'Worker error'));
-        };
-
-        worker.postMessage({ type: 'parse', buffer, selectedSheets }, [buffer]);
-      } catch {
-        // Fallback to synchronous if Worker fails
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheets = workbook.SheetNames.map((name, index) => {
-          if (selectedSheets && !selectedSheets.includes(index)) return null;
-          const sheet = workbook.Sheets[name];
-          const jsonData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
-          const headers = (jsonData[0] as string[]) ?? [];
-          const data = jsonData.slice(1);
-          return { name, index, headers: headers.map(String), rowCount: data.length, data };
-        }).filter(Boolean) as ParsedSheet[];
-        resolve(sheets);
-      }
-    });
+    try {
+      const result = await WorkerManager.execute<
+        { buffer: ArrayBuffer; selectedSheets?: number[] },
+        ParsedSheet[]
+      >({
+        type: 'excel-parse',
+        data: { buffer, selectedSheets },
+        onProgress: setProgress,
+        signal: controller.signal,
+      });
+      setProgress(100);
+      return result;
+    } finally {
+      abortRef.current = null;
+    }
   }, []);
 
-  return { parseFile };
+  return { parseFile, progress, cancel };
 }

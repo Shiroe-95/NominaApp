@@ -20,7 +20,7 @@ export async function PATCH(
 
     const annotation = resolved
       ? await resolveAnnotation(id, auth.userId)
-      : await unresolveAnnotation(id);
+      : await unresolveAnnotation(id, auth.userId);
 
     return jsonResponse({ annotation }, auth.requestId);
   } catch (e: unknown) {

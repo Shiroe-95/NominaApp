@@ -34,7 +34,8 @@
  * @module lib/api/guard
  */
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
+import { randomUUID } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type UserRole } from '@/lib/auth/user-profile';
@@ -53,25 +54,193 @@ export interface AuthContext {
   role: Role;
 }
 
+// ─── Standard API Error Format (Requirement 6) ─────────────────────────────
+
+/**
+ * Standard error response format for all API endpoints.
+ * Every error response must conform to this interface.
+ */
+export interface ApiErrorResponse {
+  error: string;
+  code: string;
+  details?: Record<string, unknown>;
+  requestId: string;
+}
+
+/** Standard error codes used across all API endpoints */
+export type ApiErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'RATE_LIMITED'
+  | 'INTERNAL_ERROR';
+
+/**
+ * Creates a standard API error response object.
+ *
+ * @param code - Error code (e.g. 'VALIDATION_ERROR', 'UNAUTHORIZED')
+ * @param message - Human-readable error message
+ * @param details - Optional additional details (field errors, required role, etc.)
+ * @param requestId - Optional request ID; generates a new UUID v4 if not provided
+ * @returns ApiErrorResponse conforming to the standard format
+ */
+export function createApiError(
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+  requestId?: string,
+): ApiErrorResponse {
+  const response: ApiErrorResponse = {
+    error: message,
+    code,
+    requestId: requestId ?? randomUUID(),
+  };
+  if (details !== undefined) {
+    response.details = details;
+  }
+  return response;
+}
+
+/**
+ * Maps an ApiErrorCode to its corresponding HTTP status code.
+ */
+function errorCodeToStatus(code: string): number {
+  switch (code) {
+    case 'VALIDATION_ERROR': return 400;
+    case 'UNAUTHORIZED': return 401;
+    case 'FORBIDDEN': return 403;
+    case 'NOT_FOUND': return 404;
+    case 'RATE_LIMITED': return 429;
+    case 'INTERNAL_ERROR': return 500;
+    default: return 500;
+  }
+}
+
+/**
+ * Wraps an API route handler with consistent error handling.
+ *
+ * - Generates a unique `X-Request-Id` (UUID v4) for every response
+ * - Catches all unhandled exceptions and returns a 500 with standard format (no stack traces)
+ * - Handles ZodError as 400 VALIDATION_ERROR with field details
+ * - Injects the requestId into the handler context
+ *
+ * @param handler - Async function receiving (req, context) where context includes requestId
+ * @returns Wrapped Next.js route handler
+ */
+export function withApiHandler(
+  handler: (
+    req: Request,
+    context: { params?: Record<string, string>; requestId: string },
+  ) => Promise<NextResponse>,
+) {
+  return async (
+    req: Request,
+    routeContext?: { params?: Record<string, string> },
+  ): Promise<NextResponse> => {
+    const requestId = randomUUID();
+    const headers: Record<string, string> = { 'X-Request-Id': requestId };
+
+    try {
+      const response = await handler(req, {
+        params: routeContext?.params,
+        requestId,
+      });
+
+      // Ensure X-Request-Id is on every response (including success)
+      response.headers.set('X-Request-Id', requestId);
+      return response;
+    } catch (err) {
+      // Zod validation errors → 400 VALIDATION_ERROR
+      if (err instanceof ZodError) {
+        const fieldErrors = err.errors.map((e: { path: (string | number)[]; message: string; code: string }) => ({
+          path: e.path.join('.'),
+          message: e.message,
+          code: e.code,
+        }));
+        const body = createApiError(
+          'VALIDATION_ERROR',
+          'Request validation failed',
+          { fields: fieldErrors },
+          requestId,
+        );
+        return NextResponse.json(body, { status: 400, headers });
+      }
+
+      // All other exceptions → 500 INTERNAL_ERROR (no stack traces)
+      console.error(`[API Error] requestId=${requestId}`, err);
+      const body = createApiError(
+        'INTERNAL_ERROR',
+        'An internal error occurred',
+        undefined,
+        requestId,
+      );
+      return NextResponse.json(body, { status: 500, headers });
+    }
+  };
+}
+
+/**
+ * Creates a NextResponse with standard error format and X-Request-Id header.
+ * Convenience helper for use inside withApiHandler-wrapped routes.
+ *
+ * @param code - Error code (e.g. 'UNAUTHORIZED', 'FORBIDDEN')
+ * @param message - Human-readable error message
+ * @param requestId - The request ID from the handler context
+ * @param details - Optional additional details
+ * @param extraHeaders - Optional extra headers (e.g. Retry-After)
+ * @returns NextResponse with standard error body and headers
+ */
+export function apiErrorResponse(
+  code: string,
+  message: string,
+  requestId: string,
+  details?: Record<string, unknown>,
+  extraHeaders?: Record<string, string>,
+): NextResponse {
+  const body = createApiError(code, message, details, requestId);
+  const status = errorCodeToStatus(code);
+  const headers: Record<string, string> = {
+    'X-Request-Id': requestId,
+    ...extraHeaders,
+  };
+  return NextResponse.json(body, { status, headers });
+}
+
 // ─── Respuestas estándar ────────────────────────────────────────────────────
 
-function rateLimitResponse(resetAt: number) {
+function rateLimitResponse(resetAt: number, config?: RateLimitConfig) {
   const retryAfter = Math.ceil((resetAt - Date.now()) / 1000);
-  return NextResponse.json(
-    { error: 'Too many requests' },
-    {
-      status: 429,
-      headers: { 'Retry-After': String(retryAfter) },
+  const requestId = randomUUID();
+  const body = createApiError('RATE_LIMITED', 'Too many requests', {
+    retryAfter,
+    ...(config ? { limit: config.limit, windowSeconds: config.windowSeconds } : {}),
+  }, requestId);
+  return NextResponse.json(body, {
+    status: 429,
+    headers: {
+      'Retry-After': String(retryAfter),
+      'X-Request-Id': requestId,
     },
-  );
+  });
 }
 
 function unauthorizedResponse(msg = 'Unauthorized') {
-  return NextResponse.json({ error: msg }, { status: 401 });
+  const requestId = randomUUID();
+  const body = createApiError('UNAUTHORIZED', msg, undefined, requestId);
+  return NextResponse.json(body, {
+    status: 401,
+    headers: { 'X-Request-Id': requestId },
+  });
 }
 
-function forbiddenResponse(msg = 'Forbidden') {
-  return NextResponse.json({ error: msg }, { status: 403 });
+function forbiddenResponse(msg = 'Forbidden', details?: Record<string, unknown>) {
+  const requestId = randomUUID();
+  const body = createApiError('FORBIDDEN', msg, details, requestId);
+  return NextResponse.json(body, {
+    status: 403,
+    headers: { 'X-Request-Id': requestId },
+  });
 }
 
 // ─── Rate limit check ───────────────────────────────────────────────────────
@@ -96,7 +265,7 @@ export async function applyRateLimit(
   const result = await checkRateLimit(key, config);
 
   if (!result.allowed) {
-    return rateLimitResponse(result.resetAt);
+    return rateLimitResponse(result.resetAt, config);
   }
   return null;
 }
@@ -153,7 +322,7 @@ export async function requireAdmin(
 ): Promise<AuthContext | NextResponse> {
   const ctx = await requireAuthWithRole();
   if (ctx instanceof NextResponse) return ctx;
-  if (ctx.role !== 'admin') return forbiddenResponse('Admin access required');
+  if (ctx.role !== 'admin') return forbiddenResponse('Admin access required', { requiredRole: 'admin' });
   return ctx;
 }
 
@@ -167,7 +336,7 @@ export async function requireAnalystOrAdmin(
   const ctx = await requireAuthWithRole();
   if (ctx instanceof NextResponse) return ctx;
   if (ctx.role !== 'admin' && ctx.role !== 'analyst') {
-    return forbiddenResponse('Analyst or admin access required');
+    return forbiddenResponse('Analyst or admin access required', { requiredRole: ['admin', 'analyst'] });
   }
   return ctx;
 }
@@ -280,3 +449,4 @@ export function sanitizeStringArray(value: unknown, maxItems = 100, maxItemLengt
 // ─── Re-exports ─────────────────────────────────────────────────────────────
 
 export { RATE_LIMITS } from './rate-limit';
+export type { RateLimitConfig } from './rate-limit';

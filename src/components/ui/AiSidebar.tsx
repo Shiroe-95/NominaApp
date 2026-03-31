@@ -1,12 +1,15 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2, ExternalLink, Zap } from 'lucide-react';
+import { Bot, Send, X, Activity, BookOpen, Sparkles, Trash2, ExternalLink, Zap, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import { getPersona } from '@/lib/ai/agent-personas';
 import { colors } from '@/lib/design-tokens';
 import type { StreamEventType } from '@/lib/ai/streaming';
+import { classifyIntent, NLQ_SUGGESTED_QUERIES } from '@/lib/ai/nlq-intent-classifier';
+import { filterResponseByRBAC, ensureDataSources, type NLQResponse, type NLQClarificationOption, type RawNLQApiResponse } from '@/lib/ai/nlq-response-handler';
+import NLQResponseRenderer from '@/components/ui/NLQResponseRenderer';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -45,6 +48,7 @@ interface Message {
   agentResults?: AgentResultInfo[];
   plan?: { steps: PlanStep[] };
   busHistory?: AgentBusMessage[];
+  nlqResponse?: NLQResponse;
 }
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -96,6 +100,14 @@ const AGENT_ACTIONS = [
     prompt: 'Genera un reporte ejecutivo de la última nómina procesada con hallazgos priorizados por severidad y recomendaciones.',
   },
 ] as const;
+
+/** Quick action for NLQ data queries (Req 12.7) */
+const NLQ_ACTION = {
+  agentId: 'master',
+  label: '📊 Consultar datos',
+  description: 'Haz preguntas sobre tu nómina en lenguaje natural.',
+  action: 'nlq' as const,
+};
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
@@ -490,6 +502,35 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     }
   };
 
+  // ── NLQ Query handler ─────────────────────────────────────────────
+
+  const [nlqMode, setNlqMode] = useState(false);
+
+  /**
+   * Sends a data query to the NLQ engine and processes the response.
+   * Applies RBAC filtering and ensures data sources are present.
+   */
+  const handleNLQQuery = useCallback(async (query: string, workspaceId?: string) => {
+    const wsId = workspaceId ?? 'default-workspace';
+    try {
+      const res = await fetch('/api/v1/nlq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, workspace_id: wsId, locale: 'es' }),
+      });
+      const raw: RawNLQApiResponse = await res.json();
+      // Apply RBAC filtering (default to viewer for safety)
+      const filtered = filterResponseByRBAC(raw, 'viewer', wsId);
+      return ensureDataSources(filtered, wsId);
+    } catch {
+      return {
+        type: 'text' as const,
+        text: 'No pude consultar los datos. Intenta nuevamente.',
+        sources: [],
+      };
+    }
+  }, []);
+
   // ── Send handler ──────────────────────────────────────────────────
 
   const handleSend = async (text: string = input) => {
@@ -505,6 +546,22 @@ export default function AiSidebar({ context }: AiSidebarProps) {
     setStreamingText('');
 
     try {
+      // Req 12.1: Classify intent and delegate data queries to NLQ Engine
+      const classification = classifyIntent(trimmed);
+
+      if (nlqMode || classification.intent === 'data_query') {
+        const nlqResponse = await handleNLQQuery(classification.extractedQuery ?? trimmed);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: nlqResponse.text,
+            nlqResponse,
+          },
+        ]);
+        return;
+      }
+
       // Build messages array (skip welcome message at index 0)
       const apiMessages = updated.slice(1).map((m) => ({
         role: m.role as 'user' | 'assistant',
@@ -536,6 +593,11 @@ export default function AiSidebar({ context }: AiSidebarProps) {
       setStreamingText('');
       abortRef.current = null;
     }
+  };
+
+  /** Handle NLQ clarification selection */
+  const handleClarificationSelect = (option: NLQClarificationOption) => {
+    void handleSend(option.query);
   };
 
   return (
@@ -634,6 +696,16 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                   {msg.text}
                 </div>
 
+                {/* Req 12.2: Render enriched NLQ responses */}
+                {msg.nlqResponse && (
+                  <div className="mt-2 w-full">
+                    <NLQResponseRenderer
+                      response={msg.nlqResponse}
+                      onClarificationSelect={handleClarificationSelect}
+                    />
+                  </div>
+                )}
+
                 {/* Req 6.6: Link to view details in logs panel */}
                 {msg.role === 'assistant' && i > 0 && (
                   <a
@@ -677,6 +749,49 @@ export default function AiSidebar({ context }: AiSidebarProps) {
                     <p className="text-[10px] flex items-center gap-1 mt-3 mb-0.5" style={{ color: '#958ea0' }}>
                       <Zap className="w-3 h-3" /> Acciones rápidas
                     </p>
+                    {/* Req 12.7: NLQ quick action */}
+                    <button
+                      disabled={isLoading}
+                      onClick={() => { setNlqMode(true); }}
+                      className="text-left text-xs px-3 py-2.5 rounded-lg transition-colors flex items-start gap-2 group"
+                      style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.surfaceContainer.high;
+                        e.currentTarget.style.color = colors.secondary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.surfaceContainer.default;
+                        e.currentTarget.style.color = '#cbc3d7';
+                      }}
+                    >
+                      <Database className="w-4 h-4 mt-0.5 shrink-0" style={{ color: colors.primary }} />
+                      <div className="min-w-0">
+                        <span className="block font-medium leading-tight">{NLQ_ACTION.label}</span>
+                        <span className="block text-[10px] mt-0.5 leading-tight" style={{ color: '#958ea0' }}>{NLQ_ACTION.description}</span>
+                      </div>
+                    </button>
+                    {nlqMode && (
+                      <div className="flex flex-col gap-1 mt-1">
+                        <span className="text-[10px]" style={{ color: '#958ea0' }}>Consultas sugeridas:</span>
+                        {NLQ_SUGGESTED_QUERIES.map((q) => (
+                          <button
+                            key={q}
+                            disabled={isLoading}
+                            onClick={() => void handleSend(q)}
+                            className="text-left text-[11px] px-3 py-2 rounded-lg transition-colors"
+                            style={{ backgroundColor: colors.surfaceContainer.default, color: '#cbc3d7' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.surfaceContainer.high;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.surfaceContainer.default;
+                            }}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {AGENT_ACTIONS.map((action) => (
                       <button
                         key={action.label}

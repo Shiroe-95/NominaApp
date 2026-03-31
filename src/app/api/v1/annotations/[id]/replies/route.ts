@@ -23,7 +23,7 @@ export async function POST(
 
     const reply = await addReply({
       annotation_id: id,
-      user_id: auth.userId,
+      author_id: auth.userId,
       content,
       mentions: body.mentions,
     });

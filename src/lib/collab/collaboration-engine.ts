@@ -76,6 +76,12 @@ export const PRESENCE_STALE_MS = 30_000;
 /** Target propagation latency for corrections (Req 11.2: <500ms) */
 export const TARGET_LATENCY_MS = 500;
 
+/** Reconnection window in milliseconds (Req 9.4: 5 minutes) */
+export const RECONNECT_WINDOW_MS = 5 * 60 * 1000;
+
+/** Maximum simultaneous users per payroll (Req 9.6) */
+export const MAX_USERS_PER_PAYROLL = 10;
+
 // ─── Internal State ─────────────────────────────────────────────────────────
 
 /** Active channel subscriptions keyed by payrollId */
@@ -169,11 +175,21 @@ export function onConflict(handler: ConflictHandler): () => void {
 export async function joinPayroll(
   payrollId: string,
   user: { userId: string; userName: string; avatarUrl: string | null }
-): Promise<void> {
+): Promise<{ joined: boolean; reason?: string }> {
   // If already joined, update presence and return
   if (activeChannels.has(payrollId)) {
     await updatePresence(payrollId, user.userId, user.userName, user.avatarUrl, null);
-    return;
+    return { joined: true };
+  }
+
+  // Req 9.6: Enforce max 10 users per payroll
+  const currentUsers = getPresence(payrollId);
+  const isAlreadyPresent = currentUsers.some((u) => u.userId === user.userId);
+  if (!isAlreadyPresent && currentUsers.length >= MAX_USERS_PER_PAYROLL) {
+    return {
+      joined: false,
+      reason: `Maximum of ${MAX_USERS_PER_PAYROLL} simultaneous users reached for this payroll. Please try again later.`,
+    };
   }
 
   const channel = createChannel(payrollId);
@@ -240,6 +256,7 @@ export async function joinPayroll(
   });
 
   activeChannels.set(payrollId, channel);
+  return { joined: true };
 }
 
 /**
@@ -442,25 +459,43 @@ export async function updatePresence(
 }
 
 /**
- * Reconnect to a payroll session after a disconnection (Req 11.5).
+ * Reconnect to a payroll session after a disconnection (Req 9.4).
  *
  * Re-joins the channel and syncs any pending changes that were
- * queued while disconnected.
+ * queued while disconnected. Changes older than 5 minutes are discarded.
  */
 export async function reconnect(
   payrollId: string,
   user: { userId: string; userName: string; avatarUrl: string | null }
-): Promise<PendingChange[]> {
+): Promise<{ synced: PendingChange[]; expired: PendingChange[] }> {
   // Leave existing stale channel if any
   await leavePayroll(payrollId);
 
-  // Get pending changes before rejoining
-  const pending = pendingChanges.get(payrollId) ?? [];
+  // Partition pending changes into valid (within 5 min) and expired
+  const allPending = pendingChanges.get(payrollId) ?? [];
+  const cutoff = Date.now() - RECONNECT_WINDOW_MS;
+  const valid: PendingChange[] = [];
+  const expired: PendingChange[] = [];
+
+  for (const pc of allPending) {
+    if (new Date(pc.addedAt).getTime() >= cutoff) {
+      valid.push(pc);
+    } else {
+      expired.push(pc);
+    }
+  }
+
+  // Replace pending with only valid changes before rejoining
+  if (valid.length > 0) {
+    pendingChanges.set(payrollId, valid);
+  } else {
+    pendingChanges.delete(payrollId);
+  }
 
   // Rejoin the channel — this will trigger syncPendingChanges on SUBSCRIBED
   await joinPayroll(payrollId, user);
 
-  return pending;
+  return { synced: valid, expired };
 }
 
 /**

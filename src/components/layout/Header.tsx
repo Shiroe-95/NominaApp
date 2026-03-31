@@ -15,6 +15,7 @@
 import { Menu, ChevronDown, Settings, LogOut, ArrowRight } from 'lucide-react';
 import LanguageToggle from '../ui/LanguageToggle';
 import NotificationBell from '../ui/NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './Sidebar';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
@@ -134,6 +135,8 @@ export default function Header() {
 
                 <div className="flex items-center gap-1">
                     <NotificationBell />
+
+                    <ThemeToggle />
 
                     <LanguageToggle />
                     <div className="mx-1 hidden h-5 w-px bg-white/10 sm:block" />

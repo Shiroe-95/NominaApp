@@ -18,6 +18,7 @@ import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import "../globals.css";
 import AppShell from '@/components/layout/AppShell';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 /** Fuente principal para títulos y UI. */
 const jakarta = Plus_Jakarta_Sans({
@@ -60,13 +61,23 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        {/* Anti-FOUC: apply theme class before first render */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('nominasmart-theme');var r=t==='light'?'light':t==='dark'?'dark':window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.classList.add(r)}catch(e){document.documentElement.classList.add('dark')}})()`,
+          }}
+        />
+      </head>
       <body className={`${jakarta.variable} ${inter.variable} antialiased font-sans bg-background text-foreground`}>
-        <NextIntlClientProvider messages={messages}>
-          <AppShell>
-            {children}
-          </AppShell>
-        </NextIntlClientProvider>
+        <ThemeProvider>
+          <NextIntlClientProvider messages={messages}>
+            <AppShell>
+              {children}
+            </AppShell>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

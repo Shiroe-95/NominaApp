@@ -28,10 +28,11 @@ export interface AnnotationThreadProps {
   annotation: Annotation;
   onReply?: (annotationId: string, content: string) => void;
   onResolve?: (annotationId: string) => void;
+  onUnresolve?: (annotationId: string) => void;
   className?: string;
 }
 
-export function AnnotationThread({ annotation, onReply, onResolve, className }: AnnotationThreadProps) {
+export function AnnotationThread({ annotation, onReply, onResolve, onUnresolve, className }: AnnotationThreadProps) {
   const [replyText, setReplyText] = useState('');
 
   const handleReply = () => {
@@ -79,6 +80,7 @@ export function AnnotationThread({ annotation, onReply, onResolve, className }: 
         />
         <Button variant="ghost" size="sm" onClick={handleReply}>Reply</Button>
         {!annotation.isResolved && <Button variant="ghost" size="sm" onClick={() => onResolve?.(annotation.id)}>Resolve</Button>}
+        {annotation.isResolved && <Button variant="ghost" size="sm" onClick={() => onUnresolve?.(annotation.id)}>Reopen</Button>}
       </div>
     </div>
   );

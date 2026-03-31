@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { summarizeActions } from '@/lib/payroll/actions';
 import { exportReportToExcel } from '@/lib/payroll/export-excel';
+import { ForecastSection } from '@/components/reports/ForecastSection';
 
 interface PayrollReport {
     id: string;
@@ -361,6 +362,9 @@ export default function ReportsPage() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Forecast Section (Requirement 13.6) */}
+            <ForecastSection />
 
             <Card>
                 <CardHeader>

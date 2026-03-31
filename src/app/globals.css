@@ -1,9 +1,66 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
-:root {
+/*
+ * ── Theme Engine: Semantic Tokens ────────────────────────
+ *
+ * Tokens semánticos para el motor de temas (claro/oscuro/auto).
+ * El tema oscuro (Obsidian Ledger) es el default.
+ * El tema claro es la inversión semántica del Obsidian Ledger.
+ *
+ * Cada token tiene una variante -foreground para texto sobre esa superficie.
+ * La clase .dark / .light en <html> activa el tema correspondiente.
+ *
+ * Requisito 7: Motor de Temas (Claro/Oscuro/Auto)
+ */
+
+/* ── Dark theme (Obsidian Ledger) — default ────────────── */
+:root,
+.dark {
   --background: #060913;
   --foreground: #F8FAFC;
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --secondary: #181B26;
+  --secondary-foreground: #CBC3D7;
+  --muted: #1C1F2A;
+  --muted-foreground: #958EA1;
+  --accent: #1C1F2A;
+  --accent-foreground: #E2E8F0;
+  --destructive: #E11D48;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.1);
+  --ring: #7C3AED;
+  --card: #0B1326;
+  --card-foreground: #DAE2FD;
+  --popover: #171F33;
+  --popover-foreground: #DAE2FD;
+  --sidebar: #0B1120;
+  --sidebar-foreground: #DAE2FD;
+}
+
+/* ── Light theme (Obsidian Ledger inverted) ────────────── */
+.light {
+  --background: #FAFBFE;
+  --foreground: #0F172A;
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #E11D48;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --ring: #7C3AED;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --sidebar: #F8FAFC;
+  --sidebar-foreground: #1E293B;
 }
 
 @theme inline {

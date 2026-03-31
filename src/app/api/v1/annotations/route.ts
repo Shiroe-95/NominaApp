@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     const parsed = AnnotationSchema.parse(annotationData);
     const annotation = await createAnnotation({
       workspace_id,
-      user_id: auth.userId,
+      author_id: auth.userId,
       ...parsed,
     });
     return jsonResponse({ annotation }, auth.requestId, 201);

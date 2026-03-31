@@ -251,6 +251,39 @@ function formatAgentResult(result: AgentResult, description?: string): string {
       return `${header}\n${body}`;
     }
 
+    case 'anomaly-detector': {
+      const anomalies = data?.['anomalies'] as Array<Record<string, unknown>> | undefined;
+      const anomalySummary = data?.['summary'] as Record<string, unknown> | undefined;
+      const total = anomalySummary?.['total'] as number ?? anomalies?.length ?? 0;
+      const byConfidence = anomalySummary?.['byConfidence'] as Record<string, number> | undefined;
+      const byCategory = anomalySummary?.['byCategory'] as Record<string, number> | undefined;
+
+      if (total === 0) {
+        return `${header}\n✅ No se detectaron anomalías en los datos de nómina.`;
+      }
+
+      let body = `🔮 ${total} anomalía(s) detectada(s)`;
+      if (byConfidence) {
+        body += ` — Alta: ${byConfidence['high'] ?? 0}, Media: ${byConfidence['medium'] ?? 0}, Baja: ${byConfidence['low'] ?? 0}`;
+      }
+      if (byCategory) {
+        const fraud = byCategory['potential_fraud'] ?? 0;
+        if (fraud > 0) body += `\n⚠️ **${fraud} posible(s) fraude(s) detectado(s)**`;
+      }
+      // Show top 3 anomalies
+      if (anomalies && anomalies.length > 0) {
+        body += '\n\n**Principales anomalías:**';
+        for (const a of anomalies.slice(0, 3)) {
+          const conf = (a['confidence'] as string ?? '').toUpperCase();
+          body += `\n• [${conf}] ${a['description'] ?? 'Anomalía detectada'}`;
+        }
+        if (anomalies.length > 3) {
+          body += `\n• ... y ${anomalies.length - 3} más`;
+        }
+      }
+      return `${header}\n${body}`;
+    }
+
     default:
       return `${header}\nResultado disponible.`;
   }

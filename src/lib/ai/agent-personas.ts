@@ -140,6 +140,21 @@ export const AGENT_PERSONAS: Record<string, AgentPersona> = {
     greeting: '¡Guau! Soy Soul, olfateo cambios regulatorios y traigo las novedades 🐾',
     hairColor: '#D4A574',
   },
+  'anomaly-detector': {
+    name: 'Nyx',
+    id: 'anomaly-detector',
+    role: 'Detectora de Anomalías',
+    description: 'Detecto patrones atípicos y fraudes potenciales en datos de nómina',
+    emoji: '🔮',
+    avatarType: 'woman',
+    color: 'fuchsia',
+    bgColor: 'bg-fuchsia-500/15',
+    textColor: 'text-fuchsia-300',
+    glowColor: 'shadow-[0_0_12px_rgba(217,70,239,0.4)]',
+    hexColor: '#d946ef',
+    greeting: '¡Hola! Soy Nyx, detecto anomalías y patrones sospechosos en tus datos 🔮',
+    hairColor: '#4a0e4e',
+  },
 };
 
 /**

@@ -48,6 +48,11 @@ function getStepsForIntent(intent: UserIntent): PlanStep[] {
           agentName: 'auditor',
           description: 'Ejecutar validaciones matemáticas y normativas sobre los registros de nómina',
         },
+        {
+          agentName: 'anomaly-detector',
+          inputFrom: 'auditor',
+          description: 'Detectar anomalías estadísticas en los datos de nómina tras la auditoría',
+        },
       ];
 
     case 'mapping':
@@ -86,6 +91,11 @@ function getStepsForIntent(intent: UserIntent): PlanStep[] {
           description: 'Ejecutar validaciones para generar hallazgos',
         },
         {
+          agentName: 'anomaly-detector',
+          inputFrom: 'auditor',
+          description: 'Detectar anomalías estadísticas en los datos de nómina tras la auditoría',
+        },
+        {
           agentName: 'writer',
           inputFrom: 'auditor',
           description: 'Generar reporte ejecutivo narrativo a partir de los hallazgos',
@@ -97,6 +107,11 @@ function getStepsForIntent(intent: UserIntent): PlanStep[] {
         {
           agentName: 'auditor',
           description: 'Ejecutar validaciones matemáticas y normativas completas',
+        },
+        {
+          agentName: 'anomaly-detector',
+          inputFrom: 'auditor',
+          description: 'Detectar anomalías estadísticas en los datos de nómina tras la auditoría',
         },
         {
           agentName: 'writer',
@@ -169,6 +184,11 @@ export function evaluateAndAdapt(
     const adaptation = checkHighSeverityFindings(plan, data);
     if (adaptation) {
       adaptations.push(adaptation);
+    }
+    // Req 11.1: After auditor completes, add anomaly-detector if not already in plan
+    const anomalyAdaptation = checkAnomalyDetectorNeeded(plan);
+    if (anomalyAdaptation) {
+      adaptations.push(anomalyAdaptation);
     }
   }
 
@@ -267,6 +287,28 @@ function checkNonDeterministicFindings(
     action: 'add_step',
     stepAdded: expertStep,
     reason: 'El corrector omitió hallazgos no determinísticos; se agrega experto en nómina para guía',
+  };
+}
+
+/**
+ * Req 11.1: After auditor completes, ensure anomaly-detector is in the plan.
+ * If not already present, add it as a dynamic step after auditor.
+ */
+function checkAnomalyDetectorNeeded(plan: DynamicPlan): PlanAdaptation | null {
+  const hasAnomalyStep = plan.steps.some((s) => s.agentName === 'anomaly-detector');
+  if (hasAnomalyStep) return null;
+
+  const anomalyStep: PlanStep = {
+    agentName: 'anomaly-detector',
+    inputFrom: 'auditor',
+    description: 'Detectar anomalías estadísticas en los datos de nómina tras la auditoría',
+  };
+
+  return {
+    trigger: 'auditor-complete-add-anomaly-detector',
+    action: 'add_step',
+    stepAdded: anomalyStep,
+    reason: 'Se agrega detección de anomalías automáticamente después de la auditoría',
   };
 }
 

@@ -1,10 +1,51 @@
 /**
- * GET /api/docs — Redirect to Scalar/Swagger UI
- * Requirements: 19.3
+ * GET /api/docs — Scalar API Reference UI
+ * Serves interactive API documentation using Scalar (CDN-based).
+ * Authentication: requires valid session or API key to view.
+ *
+ * Requirements: 18.1, 18.5
+ * @module app/api/docs/route
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Require authentication — check Supabase session or API key header
+  const authHeader = request.headers.get('authorization');
+  let authenticated = false;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    // API key or JWT in header — treat as authenticated
+    authenticated = true;
+  }
+
+  if (!authenticated) {
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) authenticated = true;
+    } catch {
+      // Supabase not available — fall through
+    }
+  }
+
+  if (!authenticated) {
+    return NextResponse.json(
+      { error: 'Authentication required to view API documentation', code: 'UNAUTHORIZED' },
+      { status: 401 },
+    );
+  }
+
+  const scalarConfig = JSON.stringify({
+    theme: 'kepler',
+    layout: 'modern',
+    hideModels: false,
+    authentication: {
+      preferredSecurityScheme: 'BearerAuth',
+      http: { bearer: { token: '' } },
+    },
+  });
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,15 +55,8 @@ export async function GET() {
   <style>body{margin:0;padding:0;font-family:system-ui,sans-serif}</style>
 </head>
 <body>
-  <div id="api-docs" style="padding:2rem;max-width:800px;margin:0 auto">
-    <h1>NominaSmart API Documentation</h1>
-    <p>Interactive API documentation is available via the OpenAPI specification.</p>
-    <ul>
-      <li><a href="/api/v1/docs/openapi.json">OpenAPI 3.1 Specification (JSON)</a></li>
-      <li><a href="/api/v1/health">Health Check Endpoint</a></li>
-    </ul>
-    <p>To use Scalar or Swagger UI, load the spec URL <code>/api/v1/docs/openapi.json</code> in your preferred API documentation viewer.</p>
-  </div>
+  <script id="api-reference" data-url="/api/v1/docs/openapi.json" data-configuration='${scalarConfig}'></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`;
 

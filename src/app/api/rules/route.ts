@@ -23,8 +23,10 @@
  */
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAuth, requireAdmin, applyRateLimit, RATE_LIMITS } from '@/lib/api/guard';
+import { requireAuth, requireAdmin, applyRateLimit, RATE_LIMITS, withApiHandler, apiErrorResponse } from '@/lib/api/guard';
 import { CountryYearRuleSchema } from '@/lib/payroll/country-rules-schema';
+import { twoLevelCache, TwoLevelCache } from '@/lib/cache/two-level-cache';
+import type { RuleStatus } from '@/lib/payroll/country-rules-schema';
 
 /**
  * Extrae un mensaje legible de un error desconocido.
@@ -148,7 +150,7 @@ const DEFAULT_RULES = [
  * @param req - Request con query param opcional `countryCode`.
  * @returns JSON con `{ rules: Array }`.
  */
-export async function GET(req: Request) {
+export const GET = withApiHandler(async (req, { requestId }) => {
     const rl = await applyRateLimit(req, 'rules', RATE_LIMITS.read);
     if (rl) return rl;
 
@@ -156,9 +158,19 @@ export async function GET(req: Request) {
     if (auth instanceof NextResponse) return auth;
 
     try {
-        const supabase = createAdminClient();
         const { searchParams } = new URL(req.url);
         const countryCode = searchParams.get('countryCode');
+
+        // Try cache first when filtering by country (composite key pattern)
+        if (countryCode) {
+            const cacheKey = `rules:${countryCode}`;
+            const cached = await twoLevelCache.get<unknown[]>(cacheKey);
+            if (cached) {
+                return NextResponse.json({ rules: cached });
+            }
+        }
+
+        const supabase = createAdminClient();
 
         let query = supabase
             .from('country_year_rules')
@@ -197,7 +209,7 @@ export async function GET(req: Request) {
         }
 
         // Format response to match expected schema
-        const formattedRules = (data || []).map(rule => ({
+        const formattedRules = (data || []).map((rule: { id: string; country_code: string; year: number; label: string; required_fields: string[]; required_calculations: string[]; checks: string[]; status?: string }) => ({
             id: rule.id,
             country_code: rule.country_code,
             rule_year: rule.year,
@@ -208,12 +220,23 @@ export async function GET(req: Request) {
             status: rule.status ?? 'active',
         }));
 
+        // Cache the results per country with TTL based on rule statuses
+        if (countryCode && formattedRules.length > 0) {
+            // Use the most restrictive TTL among the rules
+            const hasNonActive = formattedRules.some(
+                (r: { status: string }) => r.status === 'pending_review' || r.status === 'draft'
+            );
+            const status: RuleStatus = hasNonActive ? 'draft' : 'active';
+            const cacheKey = `rules:${countryCode}`;
+            await twoLevelCache.setWithStatus(cacheKey, formattedRules, status);
+        }
+
         return NextResponse.json({ rules: formattedRules });
     } catch (error) {
         console.error('Rules GET error:', error);
         return NextResponse.json({ rules: DEFAULT_RULES });
     }
-}
+});
 
 /**
  * DELETE /api/rules
@@ -224,7 +247,7 @@ export async function GET(req: Request) {
  * @param req - Request con query params `countryCode` y `ruleYear` (ambos obligatorios).
  * @returns JSON `{ ok: true }` o error 400/500.
  */
-export async function DELETE(req: Request) {
+export const DELETE = withApiHandler(async (req, { requestId }) => {
     const rl = await applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;
 
@@ -237,7 +260,12 @@ export async function DELETE(req: Request) {
     const ruleYear = Number(searchParams.get('ruleYear'));
 
     if (!countryCode || !Number.isFinite(ruleYear) || ruleYear === 0) {
-        return NextResponse.json({ error: 'countryCode y ruleYear son requeridos' }, { status: 400 });
+        return apiErrorResponse('VALIDATION_ERROR', 'countryCode y ruleYear son requeridos', requestId, {
+            fields: [
+                ...(!countryCode ? [{ path: 'countryCode', message: 'Required', code: 'required' }] : []),
+                ...(!Number.isFinite(ruleYear) || ruleYear === 0 ? [{ path: 'ruleYear', message: 'Must be a valid year', code: 'invalid' }] : []),
+            ],
+        });
     }
 
     const { error } = await supabase
@@ -247,11 +275,19 @@ export async function DELETE(req: Request) {
         .eq('year', ruleYear);
 
     if (error) {
-        return NextResponse.json({ error: getErrorMessage(error, 'No se pudo eliminar la regla') }, { status: 500 });
+        return apiErrorResponse('INTERNAL_ERROR', getErrorMessage(error, 'No se pudo eliminar la regla'), requestId);
     }
 
+    // Invalidate cache for this rule and country (Requirement 2.3)
+    const ruleKey = TwoLevelCache.buildKey(countryCode, ruleYear);
+    const countryKey = `rules:${countryCode}`;
+    await Promise.all([
+        twoLevelCache.invalidate(ruleKey),
+        twoLevelCache.invalidate(countryKey),
+    ]);
+
     return NextResponse.json({ ok: true });
-}
+});
 
 /**
  * POST /api/rules
@@ -269,7 +305,7 @@ export async function DELETE(req: Request) {
  *   - checks?: string[] (verificaciones normativas).
  * @returns JSON `{ rule: RuleResponse | null }` o error 400/500.
  */
-export async function POST(req: Request) {
+export const POST = withApiHandler(async (req, { requestId }) => {
     const rl = await applyRateLimit(req, 'rules-write', RATE_LIMITS.write);
     if (rl) return rl;
 
@@ -277,62 +313,71 @@ export async function POST(req: Request) {
     if (auth instanceof NextResponse) return auth;
 
     const supabase = createAdminClient();
-    try {
-        const body = await req.json();
+    const body = await req.json();
 
-        const parsed = CountryYearRuleSchema.safeParse({
-            country_code: typeof body.countryCode === 'string' ? body.countryCode.trim().toUpperCase() : '',
-            rule_year: Number(body.ruleYear),
-            label: typeof body.label === 'string' ? body.label.trim() : '',
-            required_fields: Array.isArray(body.requiredFields) ? body.requiredFields : [],
-            required_calculations: Array.isArray(body.requiredCalculations) ? body.requiredCalculations : [],
-            checks: Array.isArray(body.checks) ? body.checks : [],
-            status: body.status ?? 'draft',
+    const parsed = CountryYearRuleSchema.safeParse({
+        country_code: typeof body.countryCode === 'string' ? body.countryCode.trim().toUpperCase() : '',
+        rule_year: Number(body.ruleYear),
+        label: typeof body.label === 'string' ? body.label.trim() : '',
+        required_fields: Array.isArray(body.requiredFields) ? body.requiredFields : [],
+        required_calculations: Array.isArray(body.requiredCalculations) ? body.requiredCalculations : [],
+        checks: Array.isArray(body.checks) ? body.checks : [],
+        status: body.status ?? 'draft',
+    });
+
+    if (!parsed.success) {
+        return apiErrorResponse('VALIDATION_ERROR', 'Invalid rule data', requestId, {
+            fields: parsed.error.errors.map((e: { path: (string | number)[]; message: string; code: string }) => ({
+                path: e.path.join('.'),
+                message: e.message,
+                code: e.code,
+            })),
         });
-
-        if (!parsed.success) {
-            return NextResponse.json({ error: 'Invalid rule data', details: parsed.error.flatten() }, { status: 400 });
-        }
-
-        const { country_code, rule_year, label, required_fields, required_calculations, checks, status } = parsed.data;
-
-        const { data, error } = await supabase
-            .from('country_year_rules')
-            .upsert(
-                { 
-                    country_code, 
-                    year: rule_year, 
-                    label, 
-                    required_fields, 
-                    required_calculations, 
-                    checks,
-                    status,
-                },
-                { onConflict: 'country_code,year' }
-            )
-            .select('id, country_code, year, label, required_fields, required_calculations, checks, status')
-            .single();
-
-        if (error) {
-            console.error('Rules POST error:', error);
-            return NextResponse.json({ error: getErrorMessage(error, 'Failed to save rule') }, { status: 500 });
-        }
-
-        // Format response
-        const formattedRule = data ? {
-            id: data.id,
-            country_code: data.country_code,
-            rule_year: data.year,
-            label: data.label,
-            required_fields: data.required_fields,
-            required_calculations: data.required_calculations,
-            checks: data.checks,
-            status: data.status ?? 'draft',
-        } : null;
-
-        return NextResponse.json({ rule: formattedRule });
-    } catch (error: unknown) {
-        console.error('Rules POST error:', error);
-        return NextResponse.json({ error: getErrorMessage(error, 'Failed to save rule') }, { status: 500 });
     }
-}
+
+    const { country_code, rule_year, label, required_fields, required_calculations, checks, status } = parsed.data;
+
+    const { data, error } = await supabase
+        .from('country_year_rules')
+        .upsert(
+            { 
+                country_code, 
+                year: rule_year, 
+                label, 
+                required_fields, 
+                required_calculations, 
+                checks,
+                status,
+            },
+            { onConflict: 'country_code,year' }
+        )
+        .select('id, country_code, year, label, required_fields, required_calculations, checks, status')
+        .single();
+
+    if (error) {
+        console.error('Rules POST error:', error);
+        return apiErrorResponse('INTERNAL_ERROR', getErrorMessage(error, 'Failed to save rule'), requestId);
+    }
+
+    // Invalidate cache for this country's rules (Requirement 2.3)
+    const ruleKey = TwoLevelCache.buildKey(country_code, rule_year);
+    const countryKey = `rules:${country_code}`;
+    await Promise.all([
+        twoLevelCache.invalidate(ruleKey),
+        twoLevelCache.invalidate(countryKey),
+    ]);
+
+    // Format response
+    const formattedRule = data ? {
+        id: data.id,
+        country_code: data.country_code,
+        rule_year: data.year,
+        label: data.label,
+        required_fields: data.required_fields,
+        required_calculations: data.required_calculations,
+        checks: data.checks,
+        status: data.status ?? 'draft',
+    } : null;
+
+    return NextResponse.json({ rule: formattedRule });
+});
